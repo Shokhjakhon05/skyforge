@@ -143,7 +143,7 @@ namespace Skyforge.Core
         public static int NextStreakDay(SaveData save, string today)
         {
             if (string.IsNullOrEmpty(save.StreakDate)) return 1;
-            int gap = DaysBetween(save.StreakDate, today);
+            int gap = DaysApart(save.StreakDate, today);
             if (gap <= 0) return Mathf.Clamp(save.StreakDay, 1, StreakCredits.Length);
             // The day after: one step up. Each further day missed costs one step, never the whole streak.
             int day = save.StreakDay + 1 - (gap - 1) * 2;
@@ -164,7 +164,8 @@ namespace Skyforge.Core
             return day;
         }
 
-        static int DaysBetween(string from, string to)
+        /// <summary>Whole days from one "yyyy-MM-dd" date to another; a large number if either is unreadable.</summary>
+        public static int DaysApart(string from, string to)
         {
             if (!DateTime.TryParseExact(from, "yyyy-MM-dd", null, System.Globalization.DateTimeStyles.None, out DateTime a)) return 99;
             if (!DateTime.TryParseExact(to, "yyyy-MM-dd", null, System.Globalization.DateTimeStyles.None, out DateTime b)) return 99;

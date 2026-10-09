@@ -45,7 +45,8 @@ namespace Skyforge.UI
 
             _heading = UiKit.Label(p, 26, TextAnchor.UpperLeft);
             _heading.color = new Color(1f, 1f, 1f, 0.6f);
-            UiKit.Place(_heading.rectTransform, topLeft, new Vector2(64f, -220f), new Vector2(700f, 34f));
+            UiKit.Place(_heading.rectTransform, topLeft, new Vector2(64f, -220f), new Vector2(660f, 34f));
+            UiKit.FitWidth(_heading, 16);
             _title = UiKit.Label(p, 56, TextAnchor.UpperLeft);
             UiKit.Place(_title.rectTransform, topLeft, new Vector2(60f, -254f), new Vector2(700f, 70f));
 
@@ -104,6 +105,7 @@ namespace Skyforge.UI
             var startRect = (RectTransform)_start.transform.parent;
             UiKit.Place(startRect, new Vector2(0f, 0f), new Vector2(60f, 50f), new Vector2(500f, 110f));
             _startButton = startRect.GetComponent<Image>();
+            UiKit.FitWidth(_start, 24);
 
             Text free = UiKit.Button(p, "FreeFlight", new Color(1f, 1f, 1f, 0.14f), 32, () => FreeFlightPressed?.Invoke());
             free.text = Loc.T("menu.free");
@@ -194,7 +196,7 @@ namespace Skyforge.UI
             shade.raycastTarget = true;
 
             RectTransform safe = UiKit.SafeArea(canvas.transform);
-            Image panel = UiKit.Box(safe, "Panel", UiKit.SolidPanelColor);
+            Image panel = UiKit.Box(safe, "Panel", UiKit.ModalColor);
             UiKit.Place(panel.rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1500f, 940f));
             Transform p = panel.transform;
             var topLeft = new Vector2(0f, 1f);
@@ -278,10 +280,11 @@ namespace Skyforge.UI
     /// <summary>What happened in the mission and why each star was or was not earned.</summary>
     public sealed class ResultScreen
     {
-        public event Action RetryPressed, ContinuePressed;
+        public event Action RetryPressed, ContinuePressed, DoublePressed;
 
         readonly GameObject _root;
-        readonly Text _title, _reason, _lines, _reward;
+        readonly Text _title, _reason, _lines, _reward, _doubleLabel;
+        readonly GameObject _double;
         readonly Image[] _stars = new Image[3];
 
         public ResultScreen(Transform parent)
@@ -295,8 +298,8 @@ namespace Skyforge.UI
             shade.raycastTarget = true;
 
             RectTransform safe = UiKit.SafeArea(canvas.transform);
-            Image panel = UiKit.Box(safe, "Panel", UiKit.SolidPanelColor);
-            UiKit.Place(panel.rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1100f, 900f));
+            Image panel = UiKit.Box(safe, "Panel", UiKit.ModalColor);
+            UiKit.Place(panel.rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1100f, 980f));
             Transform p = panel.transform;
             var top = new Vector2(0.5f, 1f);
 
@@ -321,6 +324,15 @@ namespace Skyforge.UI
             _reward.color = UiKit.Accent;
             UiKit.Place(_reward.rectTransform, top, new Vector2(0f, -590f), new Vector2(1000f, 130f));
 
+            // Offered only when doubling is possible: an ad is ready, or the player bought "no ads".
+            _doubleLabel = UiKit.Button(p, "Double", new Color(0.35f, 0.85f, 0.45f, 0.9f), 30, () => DoublePressed?.Invoke());
+            _doubleLabel.color = new Color(0.03f, 0.10f, 0.05f);
+            var doubleRect = (RectTransform)_doubleLabel.transform.parent;
+            UiKit.Place(doubleRect, new Vector2(0.5f, 0f), new Vector2(0f, 168f), new Vector2(880f, 84f));
+            UiKit.FitWidth(_doubleLabel, 20);
+            _double = doubleRect.gameObject;
+            _double.SetActive(false);
+
             Text retry = UiKit.Button(p, "Retry", new Color(1f, 1f, 1f, 0.14f), 36, () => RetryPressed?.Invoke());
             retry.text = Loc.T("result.retry");
             UiKit.Place((RectTransform)retry.transform.parent, new Vector2(0.5f, 0f), new Vector2(-230f, 40f), new Vector2(420f, 110f));
@@ -334,6 +346,13 @@ namespace Skyforge.UI
         public bool Visible
         {
             set => _root.SetActive(value);
+        }
+
+        /// <summary>Shows the button that doubles the reward, with this label; null hides it.</summary>
+        public void SetDouble(string label)
+        {
+            _double.SetActive(!string.IsNullOrEmpty(label));
+            if (!string.IsNullOrEmpty(label)) _doubleLabel.text = label;
         }
 
         /// <param name="extra">One more line under the star explanations, or null.</param>

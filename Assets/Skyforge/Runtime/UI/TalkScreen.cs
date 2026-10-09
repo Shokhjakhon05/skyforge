@@ -29,7 +29,7 @@ namespace Skyforge.UI
             shade.raycastTarget = true;
 
             RectTransform safe = UiKit.SafeArea(canvas.transform);
-            Image panel = UiKit.Box(safe, "Panel", UiKit.SolidPanelColor);
+            Image panel = UiKit.Box(safe, "Panel", UiKit.ModalColor);
             UiKit.Place(panel.rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1400f, 880f));
             Transform p = panel.transform;
             var topLeft = new Vector2(0f, 1f);

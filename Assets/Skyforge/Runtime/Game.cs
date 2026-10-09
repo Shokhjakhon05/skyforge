@@ -52,6 +52,13 @@ namespace Skyforge
         string _today;
         List<DailyOp> _dailyOps = new List<DailyOp>();
         int _dailySlot = -1;
+
+        // An ad SDK and an analytics service plug in here; until then nothing is shown and nothing is sent.
+        IAdsProvider _ads = new NoAds();
+        IAnalytics _analytics = new LogAnalytics();
+        MissionOutcome _lastOutcome;
+        string _lastExtra;
+        float _lastInterstitial = -100000f;
         int _globeIndex;
         Transform _regionRoot;
         RegionDefinition _region;
@@ -98,6 +105,9 @@ namespace Skyforge
             Debug.Log("[Skyforge] Save: " + loadResult);
             if (_save.RingBest <= 0f) _save.RingBest = PlayerPrefs.GetFloat("rings.best", 0f);
             Loc.SetLanguage(string.IsNullOrEmpty(_save.Language) ? DeviceLanguage() : _save.Language);
+            _save.Sessions++;
+            if (string.IsNullOrEmpty(_save.FirstDate)) _save.FirstDate = Daily.DateKey(DateTime.Now);
+            _analytics.Event("session_start", null, _save.Sessions);
 
             _camera = new CameraRig(transform, null);
             _camera.View = (CameraView)Mathf.Clamp(_save.CameraViewIndex, 0, 2);
@@ -157,6 +167,7 @@ namespace Skyforge
             _daily = new DailyScreen(transform);
             _daily.FlyPressed += FlyDaily;
             _daily.ClaimPressed += ClaimStreak;
+            _daily.CratePressed += ClaimCrate;
             _daily.ClosePressed += () => { Click(); _daily.Visible = false; };
             _daily.Visible = false;
             _menu.DailyPressed += () => { Click(); ShowDaily(); };
@@ -178,15 +189,20 @@ namespace Skyforge
             _result.ContinuePressed += () =>
             {
                 Click();
-                // After a first completion the menu moves on to the mission that just opened.
-                if (_advanceOnContinue && _missionIndex + 1 < _missions.Count)
+                // An interstitial, when the rules allow one at all, goes here: between a success and the menu.
+                float sinceLast = Time.realtimeSinceStartup - _lastInterstitial;
+                if (_ads.InterstitialReady && AdRules.MayShowInterstitial(_save, _lastOutcome, sinceLast))
                 {
-                    _missionIndex++;
-                    _mission = AppliedMission();
+                    _lastInterstitial = Time.realtimeSinceStartup;
+                    _analytics.Event("interstitial_shown");
+                    _ads.ShowInterstitial(ContinueAfterResult);
                 }
-                _advanceOnContinue = false;
-                ShowMenu();
+                else
+                {
+                    ContinueAfterResult();
+                }
             };
+            _result.DoublePressed += DoubleReward;
 
             _settings = new SettingsScreen(transform);
             _settings.QualityPressed += SetQuality;
@@ -261,6 +277,94 @@ namespace Skyforge
             ApplyWeather(WeatherCatalog.Get(_mission.WeatherId));
             ShowMenuScreen();
             _talk.Reply(negotiation, index);
+        }
+
+        void ContinueAfterResult()
+        {
+            // After a first completion the menu moves on to the mission that just opened.
+            if (_advanceOnContinue && _missionIndex + 1 < _missions.Count) _missionIndex++;
+            _advanceOnContinue = false;
+            ShowMenu();
+        }
+
+        // ---------------------------------------------------------------- advertising
+
+        /// <summary>What the doubling button should say, or null if doubling cannot be offered now.</summary>
+        string DoubleLabel()
+        {
+            if (_lastOutcome == null || !AdRules.CanDouble(_lastOutcome)) return null;
+            if (_save.NoAds) return Loc.T("ads.double_free");
+            return _ads.RewardedReady ? Loc.T("ads.double") : null;
+        }
+
+        void DoubleReward()
+        {
+            if (_lastOutcome == null || !AdRules.CanDouble(_lastOutcome)) return;
+            Click();
+            if (_save.NoAds)
+            {
+                RewardWatched(true);
+                return;
+            }
+            _analytics.Event("rewarded_ad_offer", "double");
+            _ads.ShowRewarded(RewardWatched);
+        }
+
+        /// <summary>Runs when a rewarded ad for doubling ends; pays only if it was watched through.</summary>
+        void RewardWatched(bool completed)
+        {
+            if (!completed)
+            {
+                Toast(Loc.T("ads.unavailable"));
+                return;
+            }
+            int extra = AdRules.Double(_save, _lastOutcome);
+            if (extra <= 0) return;
+            _analytics.Event("rewarded_ad_complete", "double", extra);
+            _store.Save(_save);
+            _sfx.Play(Sound.Success);
+            _result.Show(_mission, _lastOutcome, _save, Loc.T("ads.doubled", extra));
+            _result.SetDouble(null);
+        }
+
+        void ClaimCrate()
+        {
+            if (AdRules.CratesLeft(_save, _today) <= 0)
+            {
+                _sfx.Play(Sound.Warning);
+                return;
+            }
+            Click();
+            if (_save.NoAds)
+            {
+                CrateWatched(true);
+                return;
+            }
+            _analytics.Event("rewarded_ad_offer", "crate");
+            _ads.ShowRewarded(CrateWatched);
+        }
+
+        void CrateWatched(bool completed)
+        {
+            if (!completed)
+            {
+                Toast(Loc.T("ads.unavailable"));
+                return;
+            }
+            int parts = AdRules.ClaimCrate(_save, _today);
+            if (parts <= 0) return;
+            _analytics.Event("rewarded_ad_complete", "crate", parts);
+            _store.Save(_save);
+            _sfx.Play(Sound.Success);
+            Toast(Loc.T("ads.crate_claimed", parts));
+            ShowDaily();
+            ShowMenuScreen();
+        }
+
+        void Toast(string text)
+        {
+            _toast.text = text;
+            _toastTimer = 4f;
         }
 
         void ShowMenuScreen()
@@ -352,6 +456,7 @@ namespace Skyforge
             Click();
             if (region != _region)
             {
+                _analytics.Event("region_deploy", region.Id);
                 LoadRegion(region);
                 _store.Save(_save);
             }
@@ -436,6 +541,7 @@ namespace Skyforge
                 ? Daily.Apply(AppliedMission(), _dailyOps[_dailySlot].Modifier)
                 : AppliedMission();
             _phase = Phase.Mission;
+            _analytics.Event("mission_start", _mission.Id);
             _sim = CreateSim(_mission.Payload);
             ResetFlight();
             _run = new MissionRun(_mission, _sim.Spec, _island.Map);
@@ -502,7 +608,12 @@ namespace Skyforge
             ResetFlight();
             _world.Hide();
             _hud.Visible = false;
+            _lastOutcome = outcome;
+            _lastExtra = extra;
+            _analytics.Event(outcome.Succeeded ? "mission_complete" : "mission_fail", _mission.Id,
+                outcome.Succeeded ? outcome.Stars : (int)outcome.FailReason);
             _result.Show(_mission, outcome, _save, extra);
+            _result.SetDouble(DoubleLabel());
         }
 
         // ---------------------------------------------------------------- daily operations and achievements
@@ -530,6 +641,10 @@ namespace Skyforge
             foreach (DailyOp op in _dailyOps)
                 titles.Add(Loc.T(RegionCatalog.Get(op.RegionId).NameKey) + "  ·  " + Loc.T("mission." + op.MissionId + ".title"));
             _daily.Show(_save, _today, _dailyOps, titles);
+
+            int crates = AdRules.CratesLeft(_save, _today);
+            bool canOffer = crates > 0 && (_save.NoAds || _ads.RewardedReady);
+            _daily.SetCrate(canOffer ? Loc.T("ads.crate", AdRules.PartsPerCrate, crates) : null);
         }
 
         void ClaimStreak()

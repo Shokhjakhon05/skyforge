@@ -36,7 +36,7 @@ namespace Skyforge.Core
     [Serializable]
     public sealed class SaveData
     {
-        public const int CurrentVersion = 5;
+        public const int CurrentVersion = 6;
 
         public int Version = CurrentVersion;
         public int Credits;
@@ -80,6 +80,19 @@ namespace Skyforge.Core
         public List<string> Caches = new List<string>();
         /// <summary>Language code chosen in settings; empty means follow the device.</summary>
         public string Language = "";
+
+        // Added in version 6.
+        /// <summary>The player bought "no ads".</summary>
+        public bool NoAds;
+        /// <summary>One-time products already delivered.</summary>
+        public List<string> Purchases = new List<string>();
+        /// <summary>The day <see cref="AdCratesToday"/> counts for.</summary>
+        public string AdDate = "";
+        public int AdCratesToday;
+        /// <summary>How many times the game has been started.</summary>
+        public int Sessions;
+        /// <summary>The date of the first launch, "yyyy-MM-dd".</summary>
+        public string FirstDate = "";
 
         public DroneRecord FindDrone(string id)
         {
@@ -273,6 +286,18 @@ namespace Skyforge.Core
                 data.Caches = new List<string>();
                 data.Version = 5;
             }
+            if (data.Version == 5)
+            {
+                // Version 6 added advertising and shop state. A player who already has progress is
+                // not in their first session, so the "no interstitials at first" rule is behind them.
+                data.NoAds = false;
+                data.Purchases = new List<string>();
+                data.AdDate = "";
+                data.AdCratesToday = 0;
+                data.Sessions = data.Missions.Count > 0 ? 2 : 0;
+                data.FirstDate = "";
+                data.Version = 6;
+            }
             Repair(data);
         }
 
@@ -289,6 +314,11 @@ namespace Skyforge.Core
             if (data.DailyDate == null) data.DailyDate = "";
             if (data.StreakDate == null) data.StreakDate = "";
             if (data.Language == null) data.Language = "";
+            if (data.Purchases == null) data.Purchases = new List<string>();
+            if (data.AdDate == null) data.AdDate = "";
+            if (data.FirstDate == null) data.FirstDate = "";
+            data.AdCratesToday = Mathf.Clamp(data.AdCratesToday, 0, AdRules.FreeCratesPerDay);
+            data.Sessions = Mathf.Max(0, data.Sessions);
             data.StreakDay = Mathf.Clamp(data.StreakDay, 0, Daily.StreakCredits.Length);
             if (RegionCatalog.Get(data.Region).Id != data.Region) data.Region = RegionCatalog.All[0].Id;
             if (data.Drones == null) data.Drones = new List<DroneRecord>();

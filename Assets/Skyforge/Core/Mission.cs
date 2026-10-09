@@ -711,6 +711,8 @@ namespace Skyforge.Core
         public int CreditsGranted;
         public int PartsGranted;
         public bool Granted;
+        /// <summary>The reward has been doubled by a watched ad; it cannot be doubled again.</summary>
+        public bool Doubled;
 
         public static MissionOutcome From(MissionRun run)
         {

@@ -253,3 +253,165 @@ namespace Skyforge.Tests
         }
     }
 }
+
+namespace Skyforge.Tests
+{
+    public class AdRulesTests
+    {
+        static MissionOutcome Paid(int credits = 200) =>
+            new MissionOutcome { Succeeded = true, Granted = true, CreditsGranted = credits, Stars = 2 };
+
+        [Test]
+        public void ARewardIsDoubledOnce()
+        {
+            var save = new SaveData { Credits = 200 };
+            MissionOutcome outcome = Paid();
+            Assert.IsTrue(AdRules.CanDouble(outcome));
+            Assert.AreEqual(200, AdRules.Double(save, outcome));
+            Assert.AreEqual(400, save.Credits);
+            Assert.IsFalse(AdRules.CanDouble(outcome));
+            Assert.AreEqual(0, AdRules.Double(save, outcome));
+            Assert.AreEqual(400, save.Credits);
+        }
+
+        [Test]
+        public void NothingToDoubleAfterAFailureOrBeforeTheRewardIsPaid()
+        {
+            Assert.IsFalse(AdRules.CanDouble(new MissionOutcome { Succeeded = false }));
+            Assert.IsFalse(AdRules.CanDouble(new MissionOutcome { Succeeded = true, Granted = false, CreditsGranted = 100 }));
+            Assert.IsFalse(AdRules.CanDouble(new MissionOutcome { Succeeded = true, Granted = true, CreditsGranted = 0 }));
+        }
+
+        [Test]
+        public void FreeCratesAreCappedPerDay()
+        {
+            var save = new SaveData();
+            for (int i = 0; i < AdRules.FreeCratesPerDay; i++)
+            {
+                Assert.AreEqual(AdRules.FreeCratesPerDay - i, AdRules.CratesLeft(save, "2026-10-10"));
+                Assert.AreEqual(AdRules.PartsPerCrate, AdRules.ClaimCrate(save, "2026-10-10"));
+            }
+            Assert.AreEqual(0, AdRules.CratesLeft(save, "2026-10-10"));
+            Assert.AreEqual(0, AdRules.ClaimCrate(save, "2026-10-10"));
+            Assert.AreEqual(AdRules.FreeCratesPerDay * AdRules.PartsPerCrate, save.Parts);
+
+            Assert.AreEqual(AdRules.FreeCratesPerDay, AdRules.CratesLeft(save, "2026-10-11"), "a new day refills them");
+            Assert.AreEqual(AdRules.PartsPerCrate, AdRules.ClaimCrate(save, "2026-10-11"));
+            Assert.IsTrue(save.IsValid());
+        }
+
+        static SaveData Veteran()
+        {
+            var save = new SaveData { Sessions = 5 };
+            for (int i = 0; i < AdRules.MissionsBeforeInterstitials; i++) save.GetOrAdd("m" + i).Completions = 1;
+            return save;
+        }
+
+        [Test]
+        public void InterstitialsNeverInterruptANewPlayerOrAFailure()
+        {
+            Assert.IsTrue(AdRules.MayShowInterstitial(Veteran(), Paid(), 999f));
+
+            SaveData firstSession = Veteran();
+            firstSession.Sessions = 1;
+            Assert.IsFalse(AdRules.MayShowInterstitial(firstSession, Paid(), 999f));
+
+            SaveData beginner = Veteran();
+            beginner.Missions.RemoveAt(0);
+            Assert.IsFalse(AdRules.MayShowInterstitial(beginner, Paid(), 999f));
+
+            Assert.IsFalse(AdRules.MayShowInterstitial(Veteran(), new MissionOutcome { Succeeded = false }, 999f));
+            Assert.IsFalse(AdRules.MayShowInterstitial(Veteran(), null, 999f));
+            Assert.IsFalse(AdRules.MayShowInterstitial(Veteran(), Paid(), AdRules.SecondsBetweenInterstitials - 1f), "too soon");
+        }
+
+        [Test]
+        public void NoAdsPurchaseStopsInterstitials()
+        {
+            SaveData save = Veteran();
+            Assert.IsTrue(Shop.Deliver(save, Shop.NoAdsId));
+            Assert.IsTrue(save.NoAds);
+            Assert.IsFalse(AdRules.MayShowInterstitial(save, Paid(), 999f));
+        }
+    }
+
+    public class ShopTests
+    {
+        [Test]
+        public void EveryProductHasTextsAndGivesSomething()
+        {
+            var ids = new HashSet<string>();
+            foreach (Product product in Shop.Products)
+            {
+                Assert.IsTrue(ids.Add(product.Id));
+                Assert.IsTrue(Loc.Has(product.NameKey), product.NameKey);
+                Assert.IsTrue(Loc.Has(product.NoteKey), product.NoteKey);
+                Assert.IsTrue(product.Credits > 0 || product.Parts > 0 || product.NoAds || product.Drone != null, product.Id);
+                if (product.Drone != null) Assert.AreEqual(product.Drone, DroneCatalog.Get(product.Drone).Id);
+            }
+        }
+
+        [Test]
+        public void OneTimeProductsAreDeliveredOnceHoweverOftenTheStoreReportsThem()
+        {
+            var save = new SaveData();
+            Assert.IsTrue(Shop.Deliver(save, Shop.StarterId));
+            Assert.AreEqual(1500, save.Credits);
+            Assert.IsTrue(Garage.Owns(save, "kestrel"));
+            Assert.IsFalse(Shop.Deliver(save, Shop.StarterId), "a restored purchase must not pay again");
+            Assert.AreEqual(1500, save.Credits);
+            Assert.AreEqual(2, save.Drones.Count);
+            Assert.IsTrue(save.IsValid());
+        }
+
+        [Test]
+        public void PacksCanBeBoughtAgainAndUnknownProductsAreIgnored()
+        {
+            var save = new SaveData();
+            Assert.IsTrue(Shop.Deliver(save, "credits_small"));
+            Assert.IsTrue(Shop.Deliver(save, "credits_small"));
+            Assert.AreEqual(4000, save.Credits);
+            Assert.IsFalse(Shop.Deliver(save, "golden_drone"));
+            Assert.AreEqual(4000, save.Credits);
+        }
+
+        [Test]
+        public void StarterPackIsOfferedOnlyInTheFirstDaysAndOnlyOnce()
+        {
+            var save = new SaveData { FirstDate = "2026-10-10" };
+            Product starter = Shop.Get(Shop.StarterId);
+            Assert.IsTrue(Shop.IsOffered(save, starter, "2026-10-10"));
+            Assert.IsTrue(Shop.IsOffered(save, starter, "2026-10-12"));
+            Assert.IsFalse(Shop.IsOffered(save, starter, "2026-10-13"));
+            Assert.IsTrue(Shop.IsOffered(save, Shop.Get("credits_small"), "2027-01-01"));
+
+            Shop.Deliver(save, Shop.StarterId);
+            Assert.IsFalse(Shop.IsOffered(save, starter, "2026-10-10"));
+        }
+
+        [Test]
+        public void VersionFiveSavesBecomeVersionSixWithoutLosingAnything()
+        {
+            string directory = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "skyforge-v5-" + Guid.NewGuid().ToString("N"));
+            System.IO.Directory.CreateDirectory(directory);
+            try
+            {
+                string path = System.IO.Path.Combine(directory, "save.json");
+                var old = new SaveData { Credits = 900, Parts = 4, Version = 5 };
+                old.GetOrAdd("first_contact").Completions = 2;
+                System.IO.File.WriteAllText(path, JsonUtility.ToJson(old));
+
+                SaveData loaded = new SaveStore(path).Load(out LoadResult result);
+                Assert.AreEqual(LoadResult.Loaded, result);
+                Assert.AreEqual(SaveData.CurrentVersion, loaded.Version);
+                Assert.AreEqual(900, loaded.Credits);
+                Assert.IsFalse(loaded.NoAds);
+                Assert.AreEqual(2, loaded.Sessions, "an existing player is past the first session");
+            }
+            finally
+            {
+                System.IO.Directory.Delete(directory, true);
+            }
+        }
+    }
+}

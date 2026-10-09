@@ -96,7 +96,9 @@ namespace Skyforge.UI
             UiKit.Place(_fps.rectTransform, new Vector2(0f, 0f), new Vector2(40f, 16f), new Vector2(300f, 30f));
 
             _headline = UiKit.Label(safe, 40, TextAnchor.UpperCenter);
-            UiKit.Place(_headline.rectTransform, topCenter, new Vector2(0f, -28f), new Vector2(900f, 50f));
+            // The space between the gauges and the buttons is narrow on a 16:9 screen; long objectives shrink to fit.
+            UiKit.Place(_headline.rectTransform, topCenter, new Vector2(0f, -28f), new Vector2(760f, 50f));
+            UiKit.FitWidth(_headline, 22);
             _subline = UiKit.Label(safe, 30, TextAnchor.UpperCenter);
             _subline.color = new Color(1f, 1f, 1f, 0.75f);
             UiKit.Place(_subline.rectTransform, topCenter, new Vector2(0f, -78f), new Vector2(900f, 40f));

@@ -10,6 +10,8 @@ namespace Skyforge.UI
     {
         public static readonly Color PanelColor = new Color(0.05f, 0.08f, 0.12f, 0.55f);
         public static readonly Color SolidPanelColor = new Color(0.04f, 0.06f, 0.09f, 0.88f);
+        /// <summary>Panels that sit over another screen are fully opaque, so nothing shows through their text.</summary>
+        public static readonly Color ModalColor = new Color(0.05f, 0.07f, 0.10f, 1f);
         public static readonly Color Accent = new Color(1f, 0.62f, 0.10f, 1f);
         public static readonly Color Good = new Color(0.35f, 0.85f, 0.45f, 1f);
         public static readonly Color Bad = new Color(0.95f, 0.30f, 0.25f, 1f);
@@ -99,6 +101,16 @@ namespace Skyforge.UI
             shadow.effectColor = new Color(0f, 0f, 0f, 0.6f);
             shadow.effectDistance = new Vector2(2f, -2f);
             return text;
+        }
+
+        /// <summary>Lets a label shrink its font, down to a floor, instead of running out of its box.</summary>
+        public static void FitWidth(Text text, int smallest)
+        {
+            text.horizontalOverflow = HorizontalWrapMode.Wrap;
+            text.verticalOverflow = VerticalWrapMode.Truncate;
+            text.resizeTextForBestFit = true;
+            text.resizeTextMinSize = smallest;
+            text.resizeTextMaxSize = text.fontSize;
         }
 
         public static Image Box(Transform parent, string name, Color color, Sprite sprite = null)

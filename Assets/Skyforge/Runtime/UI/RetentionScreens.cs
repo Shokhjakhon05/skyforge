@@ -11,7 +11,7 @@ namespace Skyforge.UI
     {
         /// <summary>The player wants to fly the operation in this slot.</summary>
         public event Action<int> FlyPressed;
-        public event Action ClaimPressed, ClosePressed;
+        public event Action ClaimPressed, ClosePressed, CratePressed;
 
         sealed class Row
         {
@@ -21,7 +21,8 @@ namespace Skyforge.UI
         }
 
         readonly GameObject _root;
-        readonly Text _streak, _streakReward, _claim, _empty;
+        readonly Text _streak, _streakReward, _claim, _empty, _crate;
+        readonly GameObject _crateRow;
         readonly Image _claimButton;
         readonly Row[] _rows = new Row[Daily.OpsPerDay];
 
@@ -34,7 +35,7 @@ namespace Skyforge.UI
             shade.raycastTarget = true;
 
             RectTransform safe = UiKit.SafeArea(canvas.transform);
-            Image panel = UiKit.Box(safe, "Panel", UiKit.SolidPanelColor);
+            Image panel = UiKit.Box(safe, "Panel", UiKit.ModalColor);
             UiKit.Place(panel.rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1500f, 900f));
             Transform p = panel.transform;
             var topLeft = new Vector2(0f, 1f);
@@ -57,6 +58,19 @@ namespace Skyforge.UI
             var claimRect = (RectTransform)_claim.transform.parent;
             UiKit.Place(claimRect, topRight, new Vector2(-60f, -140f), new Vector2(420f, 92f));
             _claimButton = claimRect.GetComponent<Image>();
+
+            // A free crate of parts for a watched ad; the row exists only when an ad can be shown.
+            RectTransform crateRow = UiKit.Rect("Crate", p);
+            UiKit.Place(crateRow, new Vector2(0f, 0f), new Vector2(60f, 16f), new Vector2(1380f, 60f));
+            _crateRow = crateRow.gameObject;
+            _crate = UiKit.Label(crateRow, 26, TextAnchor.MiddleLeft);
+            _crate.fontStyle = FontStyle.Normal;
+            UiKit.Place(_crate.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0f), new Vector2(1000f, 40f));
+            Text watch = UiKit.Button(crateRow, "Watch", new Color(0.35f, 0.85f, 0.45f, 0.9f), 26, () => CratePressed?.Invoke());
+            watch.text = Loc.T("ads.crate_button");
+            watch.color = new Color(0.03f, 0.10f, 0.05f);
+            UiKit.Place((RectTransform)watch.transform.parent, new Vector2(1f, 0.5f), new Vector2(0f, 0f), new Vector2(340f, 60f));
+            _crateRow.SetActive(false);
 
             _empty = UiKit.Label(p, 32, TextAnchor.MiddleCenter, true);
             _empty.fontStyle = FontStyle.Normal;
@@ -89,6 +103,13 @@ namespace Skyforge.UI
         {
             get => _root.activeSelf;
             set => _root.SetActive(value);
+        }
+
+        /// <summary>Shows the free crate offer with this text; null hides it.</summary>
+        public void SetCrate(string text)
+        {
+            _crateRow.SetActive(!string.IsNullOrEmpty(text));
+            if (!string.IsNullOrEmpty(text)) _crate.text = text;
         }
 
         /// <param name="titles">What to call each operation: its region and mission.</param>
@@ -143,7 +164,7 @@ namespace Skyforge.UI
             shade.raycastTarget = true;
 
             RectTransform safe = UiKit.SafeArea(canvas.transform);
-            Image panel = UiKit.Box(safe, "Panel", UiKit.SolidPanelColor);
+            Image panel = UiKit.Box(safe, "Panel", UiKit.ModalColor);
             UiKit.Place(panel.rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1500f, 940f));
             Transform p = panel.transform;
             var topLeft = new Vector2(0f, 1f);
