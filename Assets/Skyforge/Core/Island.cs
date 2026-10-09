@@ -90,7 +90,9 @@ namespace Skyforge.Core
         {
             HeightMap map = Map;
             float x = 0f, z = -0.5f * map.HalfSize;
-            float pad = Mathf.Clamp(map.Height(x, z), 4f, 40f);
+            // The pad sits at the height of the land around it. Capping it lower put it at the
+            // bottom of a pit in mountainous regions, with a wall to out-climb on every take-off.
+            float pad = Mathf.Max(map.Height(x, z), 4f);
             const float inner = 30f, outer = 75f;
 
             for (int iz = 0; iz < map.Resolution; iz++)

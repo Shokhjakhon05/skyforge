@@ -15,8 +15,9 @@ namespace Skyforge
         /// <summary>Set by the build script; null everywhere else.</summary>
         public static string OutputDir;
         public static bool Finished;
-        /// <summary>0: the main run. 1: after a restart in another language, a few shots to check its text.</summary>
+        /// <summary>0: the main run in English. N: after a restart in the Nth other language, shots that check its text.</summary>
         public static int Stage;
+        static readonly string[] OtherLanguages = { "ru", "uz" };
 
         const int Width = 1600, Height = 720;
         Game _game;
@@ -26,22 +27,51 @@ namespace Skyforge
             _game = GetComponent<Game>();
             yield return Frames(40);
 
-            if (Stage == 1)
+            if (Stage > 0)
             {
-                yield return Shot("20a_uz_menu");
+                // A restart in another language: the screens with the most text, to see that it fits.
+                string code = OtherLanguages[Stage - 1];
+                string prefix = "2" + Stage + "_" + code + "_";
+                yield return Shot(prefix + "a_menu");
                 _game.AutomationShowSettings();
-                yield return Shot("20b_uz_settings");
+                yield return Shot(prefix + "b_settings");
                 _game.AutomationHideSettings();
                 _game.AutomationShowHangar("kestrel", 1, 2500);
-                yield return Shot("20c_uz_hangar");
+                yield return Shot(prefix + "c_hangar_modules");
+                _game.AutomationShowHangar("albatross", 0, 2500);
+                yield return Shot(prefix + "d_hangar_upgrades");
                 _game.AutomationSelectMission("clean_strike");
                 _game.AutomationStartMission();
                 _game.AutomationPlace(_game.Island.Anchors["poi2"] + new Vector3(6f, 60f, -4f), 0f);
-                yield return Shot("20d_uz_mission");
+                yield return Shot(prefix + "e_mission_strike");
+                _game.AutomationSelectMission("shadow");
+                _game.AutomationStartMission();
+                _game.AutomationPlace(_game.Island.Anchors["coast7"] + new Vector3(0f, 25f, -50f), 0f);
+                yield return Shot(prefix + "f_mission_follow");
                 _game.AutomationShowResult();
-                yield return Shot("20e_uz_result");
+                yield return Shot(prefix + "g_result");
                 _game.AutomationShowDaily();
-                yield return Shot("20f_uz_daily");
+                yield return Shot(prefix + "h_daily");
+                _game.AutomationShowAchievements();
+                yield return Shot(prefix + "i_achievements");
+                _game.AutomationSelectMission("broken_arrow");
+                _game.AutomationShowMenu();
+                yield return Shot(prefix + "j_menu_major");
+                _game.AutomationShowTalk();
+                yield return Shot(prefix + "k_negotiation");
+                _game.AutomationHideTalk();
+                _game.AutomationShowGlobe(2, 24);
+                yield return Frames(20);
+                yield return Shot(prefix + "l_globe");
+                _game.AutomationShowMenu();
+
+                if (Stage < OtherLanguages.Length)
+                {
+                    _game.AutomationSetLanguage(OtherLanguages[Stage]);
+                    Stage++;
+                    Bootstrap.Restart();
+                    yield break;
+                }
                 _game.AutomationSetLanguage("");
                 Stage = 0;
                 Finished = true;
@@ -164,10 +194,10 @@ namespace Skyforge
             }
             _game.AutomationLoadRegion("arvelia");
 
-            // Start again in Uzbek; the new game object's director takes the last few shots.
+            // Start again in each other language; the new game object's director takes those shots.
             _game.AutomationSelectMission("first_contact");
             _game.AutomationShowMenu();
-            _game.AutomationSetLanguage("uz");
+            _game.AutomationSetLanguage(OtherLanguages[0]);
             Stage = 1;
             Bootstrap.Restart();
         }

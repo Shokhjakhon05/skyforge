@@ -4,7 +4,7 @@
   "order": 10,
   "template": "escort",
   "weather": "dust",
-  "timeGoal": 170,
+  "timeGoal": 220,
   "baseReward": 570,
   "starReward": 150,
   "props": [

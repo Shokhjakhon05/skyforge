@@ -128,7 +128,7 @@ namespace Skyforge.UI
             string kind = number > total - 3 && total >= 3
                 ? Loc.T("menu.major", number - (total - 3))
                 : Loc.T("template." + mission.Template);
-            _heading.text = regionName.ToUpperInvariant() + "  ·  " + Loc.T("menu.mission_number", number, total) + "  ·  " + kind;
+            _heading.text = regionName.ToUpperInvariant() + "  ·  " + number + "/" + total + "  ·  " + kind;
 
             _start.text = Loc.T(locked ? "menu.locked_short" : "menu.start");
             _start.color = locked ? Color.white : new Color(0.08f, 0.06f, 0.02f);

@@ -270,7 +270,7 @@ namespace Skyforge
             { "talk.title", new[] { "NEGOTIATION", "ПЕРЕГОВОРЫ" } },
             { "talk.continue", new[] { "START THE OPERATION", "НАЧАТЬ ОПЕРАЦИЮ" } },
             { "talk.cannot_pay", new[] { "NOT ENOUGH CREDITS", "НЕ ХВАТАЕТ КРЕДИТОВ" } },
-            { "menu.major", new[] { "MAJOR OPERATION, STAGE {0} OF 3", "КРУПНАЯ ОПЕРАЦИЯ, ЭТАП {0} ИЗ 3" } },
+            { "menu.major", new[] { "MAJOR OPERATION {0}/3", "КРУПНАЯ ОПЕРАЦИЯ {0}/3" } },
             { "menu.daily", new[] { "DAILY OPS", "ЕЖЕДНЕВНЫЕ" } },
             { "menu.achievements", new[] { "ACHIEVEMENTS", "ДОСТИЖЕНИЯ" } },
             { "daily.title", new[] { "DAILY OPERATIONS", "ЕЖЕДНЕВНЫЕ ОПЕРАЦИИ" } },

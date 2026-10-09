@@ -4,7 +4,7 @@
   "order": 1,
   "template": "scan",
   "weather": "snow",
-  "timeGoal": 180,
+  "timeGoal": 240,
   "baseReward": 330,
   "starReward": 110,
   "objectives": [

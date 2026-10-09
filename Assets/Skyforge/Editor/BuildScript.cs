@@ -24,7 +24,7 @@ namespace Skyforge.EditorTools
 
         const string ScreenshotDir = "build/Screenshots";
         /// <summary>Longest the screenshot run may take before the build carries on without it.</summary>
-        const double ScreenshotTimeoutSeconds = 540;
+        const double ScreenshotTimeoutSeconds = 840;
 
         static string _scene;
         static bool _screenshotsRan;

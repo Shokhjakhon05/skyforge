@@ -66,7 +66,8 @@ namespace Skyforge.Tests
                 foreach (ZoneDefinition zone in _mission.Zones)
                 {
                     float dx = position.x - zone.Position.x, dz = position.z - zone.Position.z;
-                    if (Mathf.Sqrt(dx * dx + dz * dz) < zone.Radius + 25f) return true;
+                    // Start descending well before the circle: the drone sinks slowly.
+                    if (Mathf.Sqrt(dx * dx + dz * dz) < zone.Radius + 130f) return true;
                 }
                 return false;
             }
@@ -190,16 +191,24 @@ namespace Skyforge.Tests
                     turn = Mathf.Clamp(Mathf.DeltaAngle(state.YawDeg, bearing) / 25f, -1f, 1f);
                 }
 
-                float wanted = height;
-                if (!exactHeight)
-                {
-                    float reach = cruise < 20f ? 12f : 45f;
-                    float ground = Ground(position.x, position.z);
-                    ground = Mathf.Max(ground, Ground(position.x + direction.x * reach * 0.5f, position.z + direction.z * reach * 0.5f));
-                    ground = Mathf.Max(ground, Ground(position.x + direction.x * reach, position.z + direction.z * reach));
-                    wanted = cruise < 20f ? ground + cruise : Mathf.Max(height, ground + cruise);
-                }
-                float throttle = Mathf.Clamp((wanted - position.y) * 0.5f, -0.6f, 1f);
+                // The highest ground under the drone and a little way ahead of it.
+                float reach = cruise < 20f ? 14f : 45f;
+                float ground = Ground(position.x, position.z);
+                ground = Mathf.Max(ground, Ground(position.x + direction.x * reach * 0.5f, position.z + direction.z * reach * 0.5f));
+                ground = Mathf.Max(ground, Ground(position.x + direction.x * reach, position.z + direction.z * reach));
+
+                float wanted;
+                if (exactHeight) wanted = Mathf.Max(height, ground + 6f);
+                else if (cruise < 20f) wanted = ground + cruise;
+                else wanted = Mathf.Max(height, ground + cruise);
+
+                // What any pilot does: climb first, then go. Below the wanted height the drone
+                // slows down, and well below it, it stops and climbs. Under a radar it creeps.
+                float lacking = wanted - position.y;
+                move *= Mathf.Clamp01(1f - (lacking - 3f) / 10f);
+                if (cruise < 20f) move *= 0.5f;
+
+                float throttle = Mathf.Clamp(lacking * 0.5f, -0.6f, 1f);
                 return new FlightInput { Move = move, Yaw = turn, Throttle = throttle };
             }
         }

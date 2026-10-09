@@ -72,19 +72,19 @@ REGIONS = {
 
 # (pattern, id, template, time goal, base reward, star reward)
 PATTERNS = [
-    ("scan", "first_contact", "scan", 180, 150, 50),
+    ("scan", "first_contact", "scan", 240, 150, 50),
     ("recon", "coast_watch", "recon", 150, 180, 60),
     ("photo", "evidence", "photo", 200, 200, 60),
-    ("race", "sprint", "race", 150, 220, 70),
+    ("race", "sprint", "race", 210, 220, 70),
     ("delivery", "supply_run", "delivery", 240, 240, 70),
     ("search", "lost_signal", "search", 260, 260, 80),
     ("stealth", "silent_path", "stealth", 300, 300, 90),
     ("tail", "shadow", "tail", 150, 320, 90),
     ("strike", "clean_strike", "strike", 200, 350, 100),
-    ("escort", "safe_passage", "escort", 170, 380, 100),
+    ("escort", "safe_passage", "escort", 220, 380, 100),
     ("storm", "storm_front", "storm", 170, 420, 110),
     ("night", "night_watch", "recon", 200, 440, 110),
-    ("mover", "moving_target", "strike", 220, 470, 120),
+    ("mover", "moving_target", "strike", 270, 470, 120),
     ("haul", "long_haul", "delivery", 300, 500, 120),
     ("special", "broken_arrow", "special", 360, 650, 150),
 ]

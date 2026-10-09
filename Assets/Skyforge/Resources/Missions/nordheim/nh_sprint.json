@@ -4,7 +4,7 @@
   "order": 4,
   "template": "race",
   "weather": "overcast",
-  "timeGoal": 150,
+  "timeGoal": 210,
   "baseReward": 480,
   "starReward": 150,
   "objectives": [
