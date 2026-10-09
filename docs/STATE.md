@@ -27,7 +27,10 @@
 - Ударные и снайперские миссии остаются, рейтинг 16+.
 - Покупки за реальные деньги добавляем.
 
+## Получено от владельца
+
+- AdMob (2026-10-09): App ID, ID блоков interstitial и rewarded. Лежат в секретах `ADMOB_APP_ID`, `ADMOB_INTERSTITIAL_ID`, `ADMOB_REWARDED_ID` и в `~/.config/skyforge-admob/ids.txt` на ноутбуке. До этапа 8 не используются; dev-сборки всегда идут с тестовыми ID Google.
+
 ## Понадобится позже (этап 8)
 
-- AdMob: App ID приложения, ID блока rewarded, ID блока interstitial.
 - Приложение в Play Console и товары для покупок.
