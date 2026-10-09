@@ -16,7 +16,7 @@ namespace Skyforge
 
             var root = new GameObject("Skyforge");
             Object.DontDestroyOnLoad(root);
-            root.AddComponent<SmokeScene>();
+            root.AddComponent<FlightScene>();
         }
     }
 }

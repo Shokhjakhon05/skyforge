@@ -1,0 +1,128 @@
+using UnityEngine;
+
+namespace Skyforge.Core
+{
+    public enum FlightMode
+    {
+        /// <summary>Stick sets the wanted speed; the drone holds position and brakes by itself.</summary>
+        Assist,
+        /// <summary>Stick sets the tilt directly; no braking, the drone coasts.</summary>
+        Sport,
+    }
+
+    public struct FlightInput
+    {
+        /// <summary>x = strafe right, y = forward, each -1..1.</summary>
+        public Vector2 Move;
+        /// <summary>-1 descend .. 1 climb.</summary>
+        public float Throttle;
+        /// <summary>-1 turn left .. 1 turn right.</summary>
+        public float Yaw;
+    }
+
+    public struct FlightState
+    {
+        public Vector3 Position;
+        public Vector3 Velocity;
+        public float YawDeg;
+        public float YawRateDeg;
+        /// <summary>Lean of the airframe in degrees: x = to the right, y = forward.</summary>
+        public Vector2 TiltDeg;
+        public bool Grounded;
+    }
+
+    /// <summary>Handling parameters of one drone. Differences between drones live here.</summary>
+    public sealed class DroneSpec
+    {
+        public string Id = "sparrow";
+        public float MaxSpeed = 16f;
+        public float MaxTiltDeg = 34f;
+        /// <summary>How fast the airframe reaches the wanted tilt, 1/s.</summary>
+        public float TiltResponse = 7f;
+        /// <summary>How hard Assist chases the wanted speed, 1/s.</summary>
+        public float AssistGain = 2.5f;
+        public float MaxClimb = 6f;
+        public float MaxDescent = 5f;
+        public float VerticalResponse = 4f;
+        public float YawRateDeg = 115f;
+        public float YawResponse = 8f;
+        public float Radius = 0.45f;
+        /// <summary>Touching the ground faster than this is a crash.</summary>
+        public float SafeTouchdownSpeed = 3.5f;
+
+        public static DroneSpec Sparrow() => new DroneSpec();
+    }
+
+    /// <summary>
+    /// Flight dynamics of a multirotor, free of scene objects so it can be unit tested.
+    /// Horizontal motion comes from tilting the thrust vector; linear drag is sized so that
+    /// full tilt tops out exactly at <see cref="DroneSpec.MaxSpeed"/>.
+    /// </summary>
+    public static class FlightModel
+    {
+        public const float Gravity = 9.81f;
+
+        public static void Step(ref FlightState s, FlightInput input, DroneSpec spec, FlightMode mode,
+            Vector3 wind, float dt)
+        {
+            input.Move = Vector2.ClampMagnitude(input.Move, 1f);
+            input.Throttle = Mathf.Clamp(input.Throttle, -1f, 1f);
+            input.Yaw = Mathf.Clamp(input.Yaw, -1f, 1f);
+
+            s.YawRateDeg = Approach(s.YawRateDeg, input.Yaw * spec.YawRateDeg, spec.YawResponse, dt);
+            s.YawDeg = Mathf.Repeat(s.YawDeg + s.YawRateDeg * dt, 360f);
+
+            float yaw = s.YawDeg * Mathf.Deg2Rad;
+            var forward = new Vector3(Mathf.Sin(yaw), 0f, Mathf.Cos(yaw));
+            var right = new Vector3(Mathf.Cos(yaw), 0f, -Mathf.Sin(yaw));
+
+            float maxAccel = Gravity * Mathf.Tan(spec.MaxTiltDeg * Mathf.Deg2Rad);
+            float drag = maxAccel / spec.MaxSpeed;
+
+            var airVelocity = new Vector3(s.Velocity.x - wind.x, 0f, s.Velocity.z - wind.z);
+            var groundLocal = new Vector2(Vector3.Dot(s.Velocity, right), Vector3.Dot(s.Velocity, forward));
+            var airLocal = new Vector2(Vector3.Dot(airVelocity, right), Vector3.Dot(airVelocity, forward));
+
+            Vector2 targetTilt;
+            if (mode == FlightMode.Assist)
+            {
+                // Acceleration needed to reach the wanted ground speed, plus what drag (and wind) takes away.
+                Vector2 wanted = input.Move * spec.MaxSpeed;
+                Vector2 accel = (wanted - groundLocal) * spec.AssistGain + airLocal * drag;
+                accel = Vector2.ClampMagnitude(accel, maxAccel);
+                targetTilt = new Vector2(
+                    Mathf.Atan(accel.x / Gravity) * Mathf.Rad2Deg,
+                    Mathf.Atan(accel.y / Gravity) * Mathf.Rad2Deg);
+            }
+            else
+            {
+                targetTilt = input.Move * spec.MaxTiltDeg;
+            }
+
+            s.TiltDeg.x = Approach(s.TiltDeg.x, targetTilt.x, spec.TiltResponse, dt);
+            s.TiltDeg.y = Approach(s.TiltDeg.y, targetTilt.y, spec.TiltResponse, dt);
+
+            Vector3 thrust =
+                right * (Gravity * Mathf.Tan(s.TiltDeg.x * Mathf.Deg2Rad)) +
+                forward * (Gravity * Mathf.Tan(s.TiltDeg.y * Mathf.Deg2Rad));
+            Vector3 horizontalAccel = thrust - airVelocity * drag;
+
+            float targetVertical = input.Throttle >= 0f
+                ? input.Throttle * spec.MaxClimb
+                : input.Throttle * spec.MaxDescent;
+            float vertical = Approach(s.Velocity.y, targetVertical, spec.VerticalResponse, dt);
+
+            s.Velocity = new Vector3(
+                s.Velocity.x + horizontalAccel.x * dt,
+                vertical,
+                s.Velocity.z + horizontalAccel.z * dt);
+            s.Position += s.Velocity * dt;
+        }
+
+        /// <summary>Exponential approach; gives the same result for any step size.</summary>
+        public static float Approach(float current, float target, float rate, float dt)
+        {
+            return target + (current - target) * Mathf.Exp(-rate * dt);
+        }
+    }
+}

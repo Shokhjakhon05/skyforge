@@ -4,6 +4,7 @@ using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
 using UnityEditor.SceneManagement;
+using UnityEditor.TestTools.TestRunner.Api;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
@@ -25,6 +26,11 @@ namespace Skyforge.EditorTools
         {
             try
             {
+                if (!RunTests())
+                {
+                    EditorApplication.Exit(1);
+                    return;
+                }
                 ApplyPlayerSettings();
                 ApplySigning();
                 Directory.CreateDirectory(GeneratedDir);
@@ -75,6 +81,78 @@ namespace Skyforge.EditorTools
             PlayerSettings.allowedAutorotateToPortraitUpsideDown = false;
 
             EditorUserBuildSettings.buildAppBundle = false;
+            UseLegacyInput();
+        }
+
+        /// <summary>
+        /// The touch sticks and the uGUI event system read UnityEngine.Input, so the classic input
+        /// manager has to be the active handler. The setting has no public API.
+        /// </summary>
+        static void UseLegacyInput()
+        {
+            var assets = AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/ProjectSettings.asset");
+            if (assets == null || assets.Length == 0)
+            {
+                Debug.LogWarning("[Skyforge] Could not open ProjectSettings to check the input handler.");
+                return;
+            }
+            var settings = new SerializedObject(assets[0]);
+            SerializedProperty handler = settings.FindProperty("activeInputHandler");
+            if (handler == null)
+            {
+                Debug.LogWarning("[Skyforge] activeInputHandler property not found.");
+                return;
+            }
+            Debug.Log("[Skyforge] activeInputHandler was " + handler.intValue);
+            if (handler.intValue == 0) return;
+            handler.intValue = 0;
+            settings.ApplyModifiedPropertiesWithoutUndo();
+            AssetDatabase.SaveAssets();
+        }
+
+        sealed class TestCallbacks : ICallbacks
+        {
+            public bool Finished;
+            public int Passed, Failed;
+
+            public void RunStarted(ITestAdaptor testsToRun) { }
+            public void TestStarted(ITestAdaptor test) { }
+
+            public void TestFinished(ITestResultAdaptor result)
+            {
+                if (!result.HasChildren && result.TestStatus == TestStatus.Failed)
+                    Debug.LogError("[Skyforge] TEST FAILED " + result.FullName + ": " + result.Message);
+            }
+
+            public void RunFinished(ITestResultAdaptor result)
+            {
+                Finished = true;
+                Passed = result.PassCount;
+                Failed = result.FailCount;
+            }
+        }
+
+        /// <summary>
+        /// Runs the EditMode tests inside the build, which saves starting a second editor in CI.
+        /// Returns false when a test failed.
+        /// </summary>
+        static bool RunTests()
+        {
+            var api = ScriptableObject.CreateInstance<TestRunnerApi>();
+            var callbacks = new TestCallbacks();
+            api.RegisterCallbacks(callbacks);
+            api.Execute(new ExecutionSettings(new Filter { testMode = TestMode.EditMode }) { runSynchronously = true });
+            api.UnregisterCallbacks(callbacks);
+
+            if (!callbacks.Finished)
+            {
+                Debug.LogWarning("[Skyforge] TESTS NOT RUN: the test runner did not finish synchronously.");
+                return true;
+            }
+            Debug.Log($"[Skyforge] Tests: {callbacks.Passed} passed, {callbacks.Failed} failed");
+            if (callbacks.Passed + callbacks.Failed == 0)
+                Debug.LogWarning("[Skyforge] TESTS NOT RUN: no tests were found.");
+            return callbacks.Failed == 0;
         }
 
         /// <summary>
@@ -111,7 +189,8 @@ namespace Skyforge.EditorTools
             var pipeline = UniversalRenderPipelineAsset.Create(rendererData);
             pipeline.msaaSampleCount = 2;
             pipeline.supportsHDR = false;
-            pipeline.shadowDistance = 60f;
+            pipeline.shadowDistance = 140f;
+            pipeline.shadowCascadeCount = 2;
             AssetDatabase.CreateAsset(pipeline, GeneratedDir + "/Urp.asset");
 
             GraphicsSettings.defaultRenderPipeline = pipeline;
@@ -126,16 +205,35 @@ namespace Skyforge.EditorTools
             string dir = GeneratedDir + "/Resources/Materials";
             Directory.CreateDirectory(dir);
 
-            var shader = Shader.Find("Universal Render Pipeline/Lit");
+            AssetDatabase.CreateAsset(new Material(FindShader("Universal Render Pipeline/Lit")), dir + "/Lit.mat");
+            AssetDatabase.CreateAsset(new Material(FindShader("Universal Render Pipeline/Unlit")), dir + "/Unlit.mat");
+
+            var sky = new Material(FindShader("Skybox/Procedural"));
+            // A material made in code gets no keywords, and without one the sky has no sun disc.
+            sky.EnableKeyword("_SUNDISK_SIMPLE");
+            sky.SetFloat("_SunDisk", 1f);
+            sky.SetFloat("_SunSize", 0.035f);
+            sky.SetFloat("_AtmosphereThickness", 0.95f);
+            sky.SetFloat("_Exposure", 1.25f);
+            sky.SetColor("_SkyTint", new Color(0.50f, 0.52f, 0.55f));
+            AssetDatabase.CreateAsset(sky, dir + "/Sky.mat");
+        }
+
+        static Shader FindShader(string name)
+        {
+            Shader shader = Shader.Find(name);
             if (shader == null)
-                throw new InvalidOperationException("URP Lit shader not found.");
-            AssetDatabase.CreateAsset(new Material(shader), dir + "/Lit.mat");
+                throw new InvalidOperationException("Shader not found: " + name);
+            return shader;
         }
 
         static string CreateBootScene()
         {
             string path = GeneratedDir + "/Boot.unity";
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            // Fog shader variants are kept only for the fog modes that scenes in the build use.
+            RenderSettings.fog = true;
+            RenderSettings.fogMode = FogMode.Linear;
             if (!EditorSceneManager.SaveScene(scene, path))
                 throw new InvalidOperationException("Could not save " + path);
             return path;

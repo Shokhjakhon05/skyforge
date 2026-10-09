@@ -2,6 +2,8 @@
   "name": "Skyforge.Game",
   "rootNamespace": "Skyforge",
   "references": [
+    "Skyforge.Core",
+    "UnityEngine.UI",
     "Unity.RenderPipelines.Core.Runtime",
     "Unity.RenderPipelines.Universal.Runtime"
   ],

@@ -1,0 +1,6 @@
+{
+  "name": "Skyforge.Core",
+  "rootNamespace": "Skyforge.Core",
+  "references": [],
+  "autoReferenced": true
+}

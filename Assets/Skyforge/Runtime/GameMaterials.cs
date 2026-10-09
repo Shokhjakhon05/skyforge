@@ -1,0 +1,58 @@
+using Skyforge.World;
+using UnityEngine;
+
+namespace Skyforge
+{
+    /// <summary>
+    /// Materials the build script baked into Resources. Runtime code clones these; it never
+    /// calls Shader.Find, because a shader nothing references is left out of the build.
+    /// </summary>
+    public static class GameMaterials
+    {
+        static Material _lit, _unlit, _palette;
+
+        static Material LitSource => _lit != null ? _lit : _lit = Load("Materials/Lit");
+        static Material UnlitSource => _unlit != null ? _unlit : _unlit = Load("Materials/Unlit");
+
+        public static Material Sky => Load("Materials/Sky");
+
+        public static Material Lit(Color color, float smoothness = 0.1f)
+        {
+            var material = new Material(LitSource);
+            material.SetColor("_BaseColor", color);
+            material.SetFloat("_Smoothness", smoothness);
+            return material;
+        }
+
+        public static Material LitTextured(Texture texture, float smoothness = 0.05f)
+        {
+            Material material = Lit(Color.white, smoothness);
+            material.SetTexture("_BaseMap", texture);
+            return material;
+        }
+
+        public static Material Unlit(Color color)
+        {
+            var material = new Material(UnlitSource);
+            material.SetColor("_BaseColor", color);
+            return material;
+        }
+
+        /// <summary>Shared by every mesh made with <see cref="MeshBuilder"/>.</summary>
+        public static Material PaletteLit
+        {
+            get
+            {
+                if (_palette == null) _palette = LitTextured(Palette.CreateTexture(), 0.25f);
+                return _palette;
+            }
+        }
+
+        static Material Load(string path)
+        {
+            var material = Resources.Load<Material>(path);
+            if (material == null) Debug.LogError("[Skyforge] Missing material " + path);
+            return material;
+        }
+    }
+}
