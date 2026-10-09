@@ -32,6 +32,19 @@ namespace Skyforge
             obj.AddComponent<AudioListener>();
         }
 
+        /// <summary>Slow circle around a point, used behind the menu and result screens.</summary>
+        public void Orbit(Vector3 center, float time)
+        {
+            float angle = time * 0.12f;
+            Vector3 eye = center + new Vector3(Mathf.Sin(angle) * 11f, 4.2f, Mathf.Cos(angle) * 11f);
+            Transform t = Camera.transform;
+            t.position = eye;
+            t.rotation = Quaternion.LookRotation(center + Vector3.up * 0.8f - eye, Vector3.up);
+            _fieldOfView = 46f;
+            Camera.fieldOfView = _fieldOfView;
+            _snap = true;
+        }
+
         /// <summary>Jump straight to the drone on the next update instead of easing over to it.</summary>
         public void Snap() => _snap = true;
 
@@ -47,7 +60,8 @@ namespace Skyforge
             {
                 Quaternion heading = Quaternion.Euler(0f, yawDeg, 0f);
                 t.position = position + heading * new Vector3(0f, -0.02f, 0.45f);
-                t.rotation = Quaternion.Euler(6f + tiltDeg.y * 0.35f, yawDeg, -tiltDeg.x * 0.7f);
+                // A stabilised gimbal: only a hint of the airframe's lean reaches the picture.
+                t.rotation = Quaternion.Euler(6f + tiltDeg.y * 0.2f, yawDeg, -tiltDeg.x * 0.3f);
                 targetFov = 62f + speedShare * 10f;
             }
             else

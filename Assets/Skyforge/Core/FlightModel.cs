@@ -49,6 +49,10 @@ namespace Skyforge.Core
         public float Radius = 0.45f;
         /// <summary>Touching the ground faster than this is a crash.</summary>
         public float SafeTouchdownSpeed = 3.5f;
+        /// <summary>Flight time on a full battery at hover effort.</summary>
+        public float BatterySeconds = 480f;
+        /// <summary>Distance from the operator at which the link is gone.</summary>
+        public float SignalRange = 900f;
 
         public static DroneSpec Sparrow() => new DroneSpec();
     }

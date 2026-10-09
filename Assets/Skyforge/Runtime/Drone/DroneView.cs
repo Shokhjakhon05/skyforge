@@ -111,8 +111,21 @@ namespace Skyforge.Drone
         readonly Renderer[] _renderers;
         readonly Material _next, _later;
 
+        bool _visible = true;
+
         public int NextIndex { get; private set; }
         public int Count => _centers.Length;
+
+        /// <summary>The course is hidden outside free flight.</summary>
+        public bool Visible
+        {
+            set
+            {
+                _visible = value;
+                Refresh();
+            }
+        }
+
         public bool Finished => NextIndex >= _centers.Length;
         public Vector3 NextCenter => _centers[Mathf.Min(NextIndex, _centers.Length - 1)];
 
@@ -164,7 +177,7 @@ namespace Skyforge.Drone
         {
             for (int i = 0; i < _renderers.Length; i++)
             {
-                _renderers[i].enabled = i >= NextIndex;
+                _renderers[i].enabled = _visible && i >= NextIndex;
                 _renderers[i].sharedMaterial = i == NextIndex ? _next : _later;
             }
         }

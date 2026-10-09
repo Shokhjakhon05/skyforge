@@ -18,11 +18,14 @@ namespace Skyforge.Core
     {
         public const float WaterLevel = 0f;
         public const float RingRadius = 7f;
+        public const float BeaconHeight = 12f;
 
         public HeightMap Map { get; private set; }
         public ObstacleField Obstacles { get; private set; }
         public List<TreeSpec> Trees { get; private set; }
         public List<Vector3> Rings { get; private set; }
+        /// <summary>Ground positions of the weather beacons, in the order a mission visits them.</summary>
+        public List<Vector3> Beacons { get; private set; }
         public Vector3 Spawn { get; private set; }
         public float SpawnYawDeg { get; private set; }
 
@@ -34,6 +37,7 @@ namespace Skyforge.Core
                 Obstacles = new ObstacleField(),
                 Trees = new List<TreeSpec>(),
                 Rings = new List<Vector3>(),
+                Beacons = new List<Vector3>(),
             };
             var random = new System.Random(seed);
             float offsetX = (float)random.NextDouble() * 1000f;
@@ -41,6 +45,7 @@ namespace Skyforge.Core
 
             island.BuildHeights(offsetX, offsetZ);
             island.PlaceSpawn();
+            island.PlaceBeacons();
             island.PlaceTrees(random, offsetX, offsetZ);
             island.PlaceRings();
             return island;
@@ -102,12 +107,51 @@ namespace Skyforge.Core
                 if (Mathf.PerlinNoise(x * 0.006f + offsetX + 200f, z * 0.006f + offsetZ + 200f) < 0.45f) continue;
                 float sx = x - Spawn.x, sz = z - Spawn.z;
                 if (sx * sx + sz * sz < 45f * 45f) continue;
+                if (NearBeacon(x, z, 18f)) continue;
 
                 float height = 8f * scale;
                 float radius = 1.9f * scale;
                 Trees.Add(new TreeSpec { Base = new Vector3(x, ground, z), Height = height, Radius = radius });
                 Obstacles.Add(new Obstacle { X = x, Z = z, Radius = radius * 0.6f, Top = ground + height * 0.9f });
             }
+        }
+
+        /// <summary>Three masts spread around the island, each on dry and fairly level ground.</summary>
+        void PlaceBeacons()
+        {
+            float startAngle = Mathf.Atan2(Spawn.z, Spawn.x);
+            float[] turns = { 70f, 180f, 290f };
+            foreach (float turn in turns)
+            {
+                float angle = startAngle + turn * Mathf.Deg2Rad;
+                Vector3 best = Vector3.zero;
+                float bestScore = float.MaxValue;
+                // Look around the ideal spot and take the flattest dry point.
+                for (int ring = 0; ring <= 6; ring++)
+                for (int step = 0; step < 8; step++)
+                {
+                    float offset = ring * 12f, around = step * Mathf.PI / 4f;
+                    float x = Mathf.Cos(angle) * Map.HalfSize * 0.38f + Mathf.Cos(around) * offset;
+                    float z = Mathf.Sin(angle) * Map.HalfSize * 0.38f + Mathf.Sin(around) * offset;
+                    float ground = Map.Height(x, z);
+                    float score = Map.Steepness(x, z) * 100f + offset * 0.05f + (ground < 4f ? 1000f : 0f);
+                    if (score >= bestScore) continue;
+                    bestScore = score;
+                    best = new Vector3(x, ground, z);
+                }
+                Beacons.Add(best);
+                Obstacles.Add(new Obstacle { X = best.x, Z = best.z, Radius = 0.9f, Top = best.y + BeaconHeight });
+            }
+        }
+
+        bool NearBeacon(float x, float z, float distance)
+        {
+            foreach (Vector3 beacon in Beacons)
+            {
+                float dx = x - beacon.x, dz = z - beacon.z;
+                if (dx * dx + dz * dz < distance * distance) return true;
+            }
+            return false;
         }
 
         /// <summary>A loop of rings around the island that starts and ends near the pad.</summary>

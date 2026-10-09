@@ -21,6 +21,9 @@ namespace Skyforge.Core
         public readonly DroneSpec Spec;
         readonly Island _island;
 
+        /// <summary>Downward speed at the most recent landing or crash into the ground.</summary>
+        public float LastTouchdownSpeed { get; private set; }
+
         public FlightSim(Island island, DroneSpec spec)
         {
             _island = island;
@@ -81,6 +84,7 @@ namespace Skyforge.Core
             else if (underside <= terrain)
             {
                 float horizontal = new Vector2(State.Velocity.x, State.Velocity.z).magnitude;
+                LastTouchdownSpeed = Mathf.Max(0f, -State.Velocity.y);
                 bool hard = -State.Velocity.y > Spec.SafeTouchdownSpeed || horizontal > Spec.SafeTouchdownSpeed * 2f;
                 if (hard) return SimEvent.Crashed;
 
