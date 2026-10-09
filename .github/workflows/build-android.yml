@@ -65,7 +65,12 @@ jobs:
           printf '%s\n%s\n%s\n' "$KEYSTORE_PASS" "$KEY_ALIAS" "$KEY_PASS" > ci/signing/signing.txt
 
       - name: Build APK
+        id: unity
         uses: game-ci/unity-builder@v6
+        # The builder reports a failure when handing the Personal seat back ("Serial number
+        # unavailable for ULF return") even though the build itself succeeded, so the result
+        # is judged by the next step instead.
+        continue-on-error: true
         # Personal licence: the builder signs in with the account. A .ulf file from another
         # machine is rejected by Unity, so UNITY_LICENSE is deliberately not passed.
         env:
@@ -78,6 +83,11 @@ jobs:
           versioning: None
           allowDirtyBuild: true
           customParameters: -sfVersion ${{ env.VERSION }} -sfVersionCode ${{ github.run_number }}
+
+      - name: Check that the APK exists
+        run: |
+          ls -lh build/Android/Skyforge.apk
+          test -s build/Android/Skyforge.apk
 
       - name: Remove signing files
         if: always()
