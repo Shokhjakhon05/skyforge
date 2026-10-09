@@ -9,7 +9,7 @@ namespace Skyforge.UI
     /// <summary>The screen between flights: who you are, what the next operation is, and how to start it.</summary>
     public sealed class MenuScreen
     {
-        public event Action StartPressed, FreeFlightPressed, SettingsPressed, WeatherPressed, PreviousPressed, NextPressed;
+        public event Action StartPressed, FreeFlightPressed, SettingsPressed, WeatherPressed, PreviousPressed, NextPressed, HangarPressed;
 
         readonly GameObject _root;
         readonly Text _credits, _title, _body, _best, _weather, _heading, _start;
@@ -39,8 +39,9 @@ namespace Skyforge.UI
             tagline.color = UiKit.Accent;
             UiKit.Place(tagline.rectTransform, topLeft, new Vector2(64f, -136f), new Vector2(700f, 40f));
 
-            _credits = UiKit.Label(p, 34, TextAnchor.UpperRight);
-            UiKit.Place(_credits.rectTransform, new Vector2(1f, 1f), new Vector2(-50f, -60f), new Vector2(420f, 44f));
+            _credits = UiKit.Label(p, 28, TextAnchor.UpperRight);
+            _credits.lineSpacing = 1.15f;
+            UiKit.Place(_credits.rectTransform, new Vector2(1f, 1f), new Vector2(-50f, -44f), new Vector2(420f, 120f));
 
             _heading = UiKit.Label(p, 26, TextAnchor.UpperLeft);
             _heading.color = new Color(1f, 1f, 1f, 0.6f);
@@ -82,6 +83,11 @@ namespace Skyforge.UI
             settings.text = Loc.T("menu.settings");
             UiKit.Place((RectTransform)settings.transform.parent, new Vector2(1f, 1f), new Vector2(-36f, -26f), new Vector2(320f, 84f));
 
+            Text hangar = UiKit.Button(safe, "Hangar", UiKit.Accent, 30, () => HangarPressed?.Invoke());
+            hangar.text = Loc.T("menu.hangar");
+            hangar.color = new Color(0.08f, 0.06f, 0.02f);
+            UiKit.Place((RectTransform)hangar.transform.parent, new Vector2(1f, 1f), new Vector2(-370f, -26f), new Vector2(320f, 84f));
+
             _start = UiKit.Button(p, "Start", UiKit.Accent, 40, () => StartPressed?.Invoke());
             var startRect = (RectTransform)_start.transform.parent;
             UiKit.Place(startRect, new Vector2(0f, 0f), new Vector2(60f, 50f), new Vector2(500f, 110f));
@@ -101,7 +107,8 @@ namespace Skyforge.UI
         /// <param name="locked">The previous mission has not been completed yet.</param>
         public void Show(MissionDefinition mission, SaveData save, int number, int total, bool locked)
         {
-            _credits.text = Loc.T("menu.credits", save.Credits);
+            _credits.text = Loc.T("menu.credits", save.Credits) + "\n" + Loc.T("menu.parts", save.Parts) + "\n" +
+                            Loc.T("menu.drone", Loc.T(Garage.Selected(save).NameKey));
             _title.text = Loc.T(mission.TitleKey);
             _heading.text = Loc.T("menu.mission_number", number, total) + "  ·  " + Loc.T("template." + mission.Template);
 
@@ -303,7 +310,9 @@ namespace Skyforge.UI
                     Mark(true) + Loc.T("result.completed") + "\n" +
                     Mark(outcome.TimeGoalMet) + Loc.T("result.time", time, goal) + "\n" +
                     Mark(outcome.NoDamage) + Loc.T(outcome.NoDamage ? "result.undamaged" : "result.damaged");
-                _reward.text = Loc.T("result.reward", outcome.CreditsGranted) + "\n" +
+                _reward.text = (outcome.PartsGranted > 0
+                                   ? Loc.T("result.parts", outcome.CreditsGranted, outcome.PartsGranted)
+                                   : Loc.T("result.reward", outcome.CreditsGranted)) + "\n" +
                                "<size=32><color=#FFFFFFBF>" + Loc.T("menu.credits", save.Credits) + "</color></size>";
             }
             else

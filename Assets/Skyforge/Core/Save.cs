@@ -14,11 +14,29 @@ namespace Skyforge.Core
         public int Completions;
     }
 
+    /// <summary>A drone the player owns, with what has been done to it.</summary>
+    [Serializable]
+    public sealed class DroneRecord
+    {
+        public string Id;
+        /// <summary>Level 0..5 per <see cref="UpgradeTrack"/>.</summary>
+        public int[] Upgrades = new int[Loadout.Tracks];
+        /// <summary>Module id per slot; an empty string is an empty slot.</summary>
+        public string[] Modules = new string[Loadout.ModuleSlots];
+
+        public static DroneRecord New(string id)
+        {
+            var record = new DroneRecord { Id = id };
+            for (int i = 0; i < record.Modules.Length; i++) record.Modules[i] = "";
+            return record;
+        }
+    }
+
     /// <summary>Everything about the player that survives closing the game.</summary>
     [Serializable]
     public sealed class SaveData
     {
-        public const int CurrentVersion = 2;
+        public const int CurrentVersion = 3;
 
         public int Version = CurrentVersion;
         public int Credits;
@@ -35,6 +53,20 @@ namespace Skyforge.Core
         public bool Muted;
         /// <summary>Weather chosen for free flight.</summary>
         public string FreeFlightWeather = WeatherCatalog.Clear;
+
+        // Added in version 3.
+        /// <summary>Second currency: earned with stars, spent on the top upgrade levels.</summary>
+        public int Parts;
+        public List<DroneRecord> Drones = new List<DroneRecord> { DroneRecord.New(DroneCatalog.Starter) };
+        public string SelectedDrone = DroneCatalog.Starter;
+        public List<string> OwnedModules = new List<string>();
+
+        public DroneRecord FindDrone(string id)
+        {
+            foreach (DroneRecord drone in Drones)
+                if (drone.Id == id) return drone;
+            return null;
+        }
 
         public MissionRecord Find(string id)
         {
@@ -57,6 +89,16 @@ namespace Skyforge.Core
             if (Version < 1 || Version > CurrentVersion) return false;
             if (Credits < 0 || Missions == null) return false;
             if (Quality < 0 || Quality > 4) return false;
+            if (Parts < 0 || Drones == null || OwnedModules == null) return false;
+            foreach (DroneRecord drone in Drones)
+            {
+                if (drone == null || string.IsNullOrEmpty(drone.Id)) return false;
+                if (drone.Upgrades == null || drone.Upgrades.Length != Loadout.Tracks) return false;
+                if (drone.Modules == null || drone.Modules.Length != Loadout.ModuleSlots) return false;
+                foreach (int level in drone.Upgrades)
+                    if (level < 0 || level > Loadout.MaxLevel) return false;
+            }
+            if (FindDrone(SelectedDrone) == null) return false;
             foreach (MissionRecord record in Missions)
             {
                 if (record == null || string.IsNullOrEmpty(record.Id)) return false;
@@ -180,6 +222,41 @@ namespace Skyforge.Core
                 data.Version = 2;
             }
             if (string.IsNullOrEmpty(data.FreeFlightWeather)) data.FreeFlightWeather = WeatherCatalog.Clear;
+            if (data.Version == 2)
+            {
+                // Version 3 added the hangar. The player keeps the starter drone and receives the
+                // parts their stars would have earned.
+                data.Drones = new List<DroneRecord> { DroneRecord.New(DroneCatalog.Starter) };
+                data.SelectedDrone = DroneCatalog.Starter;
+                data.OwnedModules = new List<string>();
+                data.Parts = 0;
+                foreach (MissionRecord record in data.Missions) data.Parts += Mathf.Max(0, record.Stars) * Progress.PartsPerStar;
+                data.Version = 3;
+            }
+            Repair(data);
+        }
+
+        /// <summary>Fills in anything a hand-edited or partly written file left out, without touching progress.</summary>
+        static void Repair(SaveData data)
+        {
+            if (data.OwnedModules == null) data.OwnedModules = new List<string>();
+            if (data.Drones == null) data.Drones = new List<DroneRecord>();
+            data.Drones.RemoveAll(drone => drone == null || string.IsNullOrEmpty(drone.Id));
+            foreach (DroneRecord drone in data.Drones)
+            {
+                if (drone.Upgrades == null || drone.Upgrades.Length != Loadout.Tracks)
+                {
+                    var levels = new int[Loadout.Tracks];
+                    if (drone.Upgrades != null) Array.Copy(drone.Upgrades, levels, Math.Min(levels.Length, drone.Upgrades.Length));
+                    drone.Upgrades = levels;
+                }
+                if (drone.Modules == null || drone.Modules.Length != Loadout.ModuleSlots)
+                    drone.Modules = new string[Loadout.ModuleSlots];
+                for (int i = 0; i < drone.Modules.Length; i++)
+                    if (drone.Modules[i] == null) drone.Modules[i] = "";
+            }
+            if (data.FindDrone(DroneCatalog.Starter) == null) data.Drones.Insert(0, DroneRecord.New(DroneCatalog.Starter));
+            if (data.FindDrone(data.SelectedDrone) == null) data.SelectedDrone = DroneCatalog.Starter;
         }
 
         static void TryCopy(string from, string to)
@@ -199,6 +276,8 @@ namespace Skyforge.Core
     {
         /// <summary>Share of the base reward paid for replaying a mission without doing better.</summary>
         public const float ReplayShare = 0.1f;
+        /// <summary>Parts paid for each star the first time it is earned.</summary>
+        public const int PartsPerStar = 1;
 
         /// <summary>
         /// Records an outcome and pays for it, once. The base reward is paid on the first
@@ -213,7 +292,10 @@ namespace Skyforge.Core
             MissionRecord record = save.GetOrAdd(mission.Id);
             int credits = 0;
             if (record.Completions == 0) credits += mission.BaseReward;
-            if (outcome.Stars > record.Stars) credits += (outcome.Stars - record.Stars) * mission.StarReward;
+            int newStars = Mathf.Max(0, outcome.Stars - record.Stars);
+            credits += newStars * mission.StarReward;
+            save.Parts += newStars * PartsPerStar;
+            outcome.PartsGranted = newStars * PartsPerStar;
             if (credits == 0) credits = Mathf.RoundToInt(mission.BaseReward * ReplayShare);
 
             record.Completions++;

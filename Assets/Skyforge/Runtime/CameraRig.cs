@@ -37,13 +37,18 @@ namespace Skyforge
         }
 
         /// <summary>Slow circle around a point, used behind the menu and result screens.</summary>
-        public void Orbit(Vector3 center, float time)
+        /// <param name="side">Metres to slide the view sideways, so the subject sits beside a panel instead of under it.</param>
+        public void Orbit(Vector3 center, float time, float side = 0f, float distance = 11f)
         {
             float angle = time * 0.12f;
-            Vector3 eye = center + new Vector3(Mathf.Sin(angle) * 11f, 4.2f, Mathf.Cos(angle) * 11f);
+            Vector3 eye = center + new Vector3(Mathf.Sin(angle) * distance, distance * 0.38f, Mathf.Cos(angle) * distance);
+            Vector3 target = center + Vector3.up * 0.8f;
+            Vector3 right = Vector3.Cross(Vector3.up, target - eye).normalized;
+            eye += right * side;
+            target += right * side;
             Transform t = Camera.transform;
             t.position = eye;
-            t.rotation = Quaternion.LookRotation(center + Vector3.up * 0.8f - eye, Vector3.up);
+            t.rotation = Quaternion.LookRotation(target - eye, Vector3.up);
             _fieldOfView = 46f;
             Camera.fieldOfView = _fieldOfView;
             _snap = true;
@@ -70,9 +75,9 @@ namespace Skyforge
             }
             else if (View == CameraView.Top)
             {
-                t.position = position + Vector3.up * 55f;
+                t.position = position + Vector3.up * 30f;
                 t.rotation = Quaternion.LookRotation(Vector3.down, Quaternion.Euler(0f, yawDeg, 0f) * Vector3.forward);
-                targetFov = 56f;
+                targetFov = 62f;
             }
             else
             {

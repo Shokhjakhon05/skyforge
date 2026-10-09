@@ -79,7 +79,19 @@ namespace Skyforge.Core
 
             if (terrain < Island.WaterLevel)
             {
-                if (underside <= Island.WaterLevel) return SimEvent.Crashed;
+                if (underside <= Island.WaterLevel)
+                {
+                    float sideways = new Vector2(State.Velocity.x, State.Velocity.z).magnitude;
+                    LastTouchdownSpeed = Mathf.Max(0f, -State.Velocity.y);
+                    bool gentle = LastTouchdownSpeed <= Spec.SafeTouchdownSpeed && sideways <= Spec.SafeTouchdownSpeed * 2f;
+                    if (!Spec.WaterLanding || !gentle) return SimEvent.Crashed;
+
+                    // A drone with floats settles on the surface.
+                    State.Position = new Vector3(position.x, Island.WaterLevel + Spec.Radius, position.z);
+                    State.Velocity = Vector3.zero;
+                    State.Grounded = true;
+                    return SimEvent.Landed;
+                }
             }
             else if (underside <= terrain)
             {

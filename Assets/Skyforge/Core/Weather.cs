@@ -30,6 +30,8 @@ namespace Skyforge.Core
         public float BatteryDrain = 1f;
         /// <summary>Multiplier on signal range.</summary>
         public float SignalRange = 1f;
+        /// <summary>Multiplier on how far a camera can see; thermal sensors ignore it.</summary>
+        public float Visibility = 1f;
 
         // Look.
         public float SunPitchDeg = 38f;
@@ -97,7 +99,7 @@ namespace Skyforge.Core
             },
             new Weather
             {
-                Id = "rain", NameKey = "weather.rain", Overcast = true,
+                Id = "rain", NameKey = "weather.rain", Visibility = 0.8f, Overcast = true,
                 WindSpeed = 5f, WindHeadingDeg = 110f, Gust = 3f, BatteryDrain = 1.15f, SignalRange = 0.9f,
                 SunColor = new Color(0.72f, 0.76f, 0.80f), SunIntensity = 0.5f,
                 AmbientSky = new Color(0.46f, 0.50f, 0.55f), AmbientEquator = new Color(0.40f, 0.43f, 0.46f),
@@ -109,7 +111,7 @@ namespace Skyforge.Core
             },
             new Weather
             {
-                Id = "fog", NameKey = "weather.fog", Overcast = true,
+                Id = "fog", NameKey = "weather.fog", Visibility = 0.45f, Overcast = true,
                 SignalRange = 0.85f,
                 SunColor = new Color(0.90f, 0.90f, 0.88f), SunIntensity = 0.6f,
                 AmbientSky = new Color(0.62f, 0.64f, 0.66f), AmbientEquator = new Color(0.56f, 0.57f, 0.58f),
@@ -120,7 +122,7 @@ namespace Skyforge.Core
             },
             new Weather
             {
-                Id = "storm", NameKey = "weather.storm", Overcast = true,
+                Id = "storm", NameKey = "weather.storm", Visibility = 0.6f, Overcast = true,
                 WindSpeed = 9f, WindHeadingDeg = 140f, Gust = 5f, BatteryDrain = 1.3f, SignalRange = 0.75f,
                 SunColor = new Color(0.60f, 0.64f, 0.72f), SunIntensity = 0.35f,
                 AmbientSky = new Color(0.32f, 0.35f, 0.42f), AmbientEquator = new Color(0.28f, 0.30f, 0.34f),
@@ -132,7 +134,7 @@ namespace Skyforge.Core
             },
             new Weather
             {
-                Id = "dust", NameKey = "weather.dust", Overcast = true,
+                Id = "dust", NameKey = "weather.dust", Visibility = 0.6f, Overcast = true,
                 WindSpeed = 6f, WindHeadingDeg = 250f, Gust = 4f, SignalRange = 0.85f,
                 SunColor = new Color(1f, 0.82f, 0.58f), SunIntensity = 0.9f,
                 AmbientSky = new Color(0.66f, 0.56f, 0.42f), AmbientEquator = new Color(0.60f, 0.50f, 0.38f),
@@ -144,7 +146,7 @@ namespace Skyforge.Core
             },
             new Weather
             {
-                Id = "snow", NameKey = "weather.snow", Overcast = true,
+                Id = "snow", NameKey = "weather.snow", Visibility = 0.7f, Overcast = true,
                 WindSpeed = 4f, WindHeadingDeg = 20f, Gust = 2f, BatteryDrain = 1.35f,
                 SunColor = new Color(0.86f, 0.90f, 0.96f), SunIntensity = 0.65f,
                 AmbientSky = new Color(0.66f, 0.70f, 0.76f), AmbientEquator = new Color(0.60f, 0.63f, 0.68f),
@@ -156,7 +158,7 @@ namespace Skyforge.Core
             },
             new Weather
             {
-                Id = "night", NameKey = "weather.night",
+                Id = "night", NameKey = "weather.night", Visibility = 0.55f,
                 SunPitchDeg = 50f, SunYawDeg = 30f, SunColor = new Color(0.55f, 0.65f, 0.95f), SunIntensity = 0.28f,
                 AmbientSky = new Color(0.10f, 0.13f, 0.22f), AmbientEquator = new Color(0.08f, 0.10f, 0.16f),
                 AmbientGround = new Color(0.04f, 0.05f, 0.08f),

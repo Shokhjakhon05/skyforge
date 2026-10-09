@@ -54,6 +54,35 @@ namespace Skyforge.Core
         /// <summary>Distance from the operator at which the link is gone.</summary>
         public float SignalRange = 900f;
 
+        // What sets one drone apart from another beyond raw speed.
+        /// <summary>Highest camera magnification: 2, 4 or 8.</summary>
+        public float MaxZoom = 4f;
+        /// <summary>Multiplier on how far the camera can observe, photograph and mark.</summary>
+        public float OpticsRange = 1f;
+        /// <summary>Multiplier on damage taken; below 1 is a tougher airframe.</summary>
+        public float DamageScale = 1f;
+        /// <summary>Share of a cargo's handling penalty this drone feels.</summary>
+        public float PayloadEase = 1f;
+        /// <summary>Multiplier on how fast watchers notice the drone; below 1 is stealthier.</summary>
+        public float DetectScale = 1f;
+        /// <summary>Share of the wind the drone is pushed by.</summary>
+        public float WindFactor = 1f;
+        /// <summary>Bad weather does not drain this drone's battery faster.</summary>
+        public bool WeatherProof;
+        public bool WaterLanding;
+        /// <summary>Fog and darkness do not shorten this drone's sight.</summary>
+        public bool Thermal;
+        /// <summary>Multiplier on the radius of radars; below 1 the drone jams them.</summary>
+        public float JamScale = 1f;
+        /// <summary>A winged drone cannot fly slower than this.</summary>
+        public float MinSpeed;
+        /// <summary>Metres added to the hit radius of a strike.</summary>
+        public float StrikeBonus;
+        /// <summary>How much of the wind speed this drone's munition picks up while falling.</summary>
+        public float WindCarry = Ballistics.WindCarry;
+        /// <summary>Multiplier on how fast scans, observations and marks fill up.</summary>
+        public float ScanSpeed = 1f;
+
         public static DroneSpec Sparrow() => new DroneSpec();
 
         public DroneSpec Clone() => (DroneSpec)MemberwiseClone();
@@ -62,7 +91,7 @@ namespace Skyforge.Core
         /// <param name="payload">0 = empty, 1 = the heaviest load.</param>
         public DroneSpec WithPayload(float payload)
         {
-            payload = Mathf.Clamp01(payload);
+            payload = Mathf.Clamp01(payload) * PayloadEase;
             DroneSpec loaded = Clone();
             loaded.MaxSpeed *= 1f - 0.30f * payload;
             loaded.TiltResponse *= 1f - 0.45f * payload;
@@ -99,6 +128,7 @@ namespace Skyforge.Core
             float maxAccel = Gravity * Mathf.Tan(spec.MaxTiltDeg * Mathf.Deg2Rad);
             float drag = maxAccel / spec.MaxSpeed;
 
+            wind *= spec.WindFactor;
             var airVelocity = new Vector3(s.Velocity.x - wind.x, 0f, s.Velocity.z - wind.z);
             var groundLocal = new Vector2(Vector3.Dot(s.Velocity, right), Vector3.Dot(s.Velocity, forward));
             var airLocal = new Vector2(Vector3.Dot(airVelocity, right), Vector3.Dot(airVelocity, forward));
@@ -108,6 +138,8 @@ namespace Skyforge.Core
             {
                 // Acceleration needed to reach the wanted ground speed, plus what drag (and wind) takes away.
                 Vector2 wanted = input.Move * spec.MaxSpeed;
+                // A wing keeps flying forward whatever the stick says.
+                if (spec.MinSpeed > 0f) wanted.y = Mathf.Max(wanted.y, spec.MinSpeed);
                 Vector2 accel = (wanted - groundLocal) * spec.AssistGain + airLocal * drag;
                 accel = Vector2.ClampMagnitude(accel, maxAccel);
                 targetTilt = new Vector2(
@@ -117,6 +149,8 @@ namespace Skyforge.Core
             else
             {
                 targetTilt = input.Move * spec.MaxTiltDeg;
+                if (spec.MinSpeed > 0f)
+                    targetTilt.y = Mathf.Max(targetTilt.y, Mathf.Atan(drag * spec.MinSpeed / Gravity) * Mathf.Rad2Deg);
             }
 
             s.TiltDeg.x = Approach(s.TiltDeg.x, targetTilt.x, spec.TiltResponse, dt);

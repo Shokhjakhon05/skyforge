@@ -269,13 +269,20 @@ namespace Skyforge.Core
         {
             ObjectiveDefinition objective = CurrentObjective;
             if (objective == null || objective.Type != ObjectiveType.Find || objective.Range <= 0f) return 0f;
-            return Mathf.Clamp01(1f - Vector3.Distance(dronePosition, objective.Position) / objective.Range);
+            return Mathf.Clamp01(1f - Vector3.Distance(dronePosition, objective.Position) / (objective.Range * _spec.ScanSpeed));
         }
 
         /// <summary>Where a munition released now would land.</summary>
         public Vector3 PredictImpact(FlightState state, out float seconds)
         {
-            return Ballistics.Impact(state.Position, state.Velocity, _lastWind, _map, out seconds);
+            return Ballistics.Impact(state.Position, state.Velocity, _lastWind, _map, out seconds, _spec.WindCarry);
+        }
+
+        /// <summary>How far the camera reaches for an objective: optics, zoom, and weather unless the sensor is thermal.</summary>
+        public float SightRange(ObjectiveDefinition objective, float zoom)
+        {
+            float visibility = _spec.Thermal ? 1f : _weather.Visibility;
+            return objective.Range * zoom * _spec.OpticsRange * visibility;
         }
 
         /// <param name="load">Motor effort 0..1, as shown by the drone.</param>
@@ -298,7 +305,7 @@ namespace Skyforge.Core
             if (simEvent == SimEvent.Landed && touchdownSpeed > GentleTouchdownSpeed)
             {
                 float severity = Mathf.InverseLerp(GentleTouchdownSpeed, _spec.SafeTouchdownSpeed, touchdownSpeed);
-                Hull = Mathf.Max(0.05f, Hull - 0.1f - 0.3f * severity);
+                Hull = Mathf.Max(0.05f, Hull - (0.1f + 0.3f * severity) * _spec.DamageScale);
             }
 
             // The clock starts with the first take-off, so reading the HUD on the pad costs nothing.
@@ -307,7 +314,8 @@ namespace Skyforge.Core
 
             if (!state.Grounded)
             {
-                float drain = (0.6f + 0.8f * Mathf.Clamp01(load)) * _weather.BatteryDrain;
+                float weatherDrain = _spec.WeatherProof ? 1f : _weather.BatteryDrain;
+                float drain = (0.6f + 0.8f * Mathf.Clamp01(load)) * weatherDrain;
                 Battery = Mathf.Max(0f, Battery - dt / _spec.BatterySeconds * drain);
                 if (Battery <= 0f)
                 {
@@ -392,7 +400,7 @@ namespace Skyforge.Core
             bool seen = false;
             foreach (ZoneDefinition zone in Definition.Zones)
             {
-                if (HorizontalDistance(state.Position, zone.Position) > zone.Radius) continue;
+                if (HorizontalDistance(state.Position, zone.Position) > zone.Radius * _spec.JamScale) continue;
                 if (HeightAboveGround(state.Position) > zone.Floor) seen = true;
             }
             for (int i = 0; i < _actors.Length && !seen; i++)
@@ -403,7 +411,7 @@ namespace Skyforge.Core
 
             BeingDetected = seen && !state.Grounded;
             Detection = BeingDetected
-                ? Mathf.Min(1f, Detection + dt / DetectSeconds)
+                ? Mathf.Min(1f, Detection + dt / DetectSeconds * _spec.DetectScale)
                 : Mathf.Max(0f, Detection - dt / ForgetSeconds);
             if (Detection < 1f) return true;
             Fail(FailReason.Detected);
@@ -440,7 +448,7 @@ namespace Skyforge.Core
             ObjectiveDefinition objective = CurrentObjective;
             if (objective == null || objective.Type != ObjectiveType.Strike) return true;
 
-            ShotHit = HorizontalDistance(_shot.Impact, TargetPosition(objective)) <= objective.Radius;
+            ShotHit = HorizontalDistance(_shot.Impact, TargetPosition(objective)) <= objective.Radius + _spec.StrikeBonus;
             if (ShotHit)
             {
                 CompleteObjective();
@@ -495,25 +503,26 @@ namespace Skyforge.Core
                     done = Vector3.Distance(state.Position, target) <= objective.Radius;
                     break;
 
+
                 case ObjectiveType.Scan:
                     if (IsInside(state.Position, objective))
-                        ObjectiveProgress = Mathf.Min(1f, ObjectiveProgress + dt / objective.HoldSeconds);
+                        ObjectiveProgress = Mathf.Min(1f, ObjectiveProgress + dt / objective.HoldSeconds * _spec.ScanSpeed);
                     else
                         ObjectiveProgress = Mathf.Max(0f, ObjectiveProgress - dt / objective.HoldSeconds * 0.5f);
                     done = ObjectiveProgress >= 1f;
                     break;
 
                 case ObjectiveType.Observe:
-                    TargetFramed = IsFramed(state, target, objective.Range * zoom);
+                    TargetFramed = IsFramed(state, target, SightRange(objective, zoom));
                     if (TargetFramed)
-                        ObjectiveProgress = Mathf.Min(1f, ObjectiveProgress + dt / objective.HoldSeconds);
+                        ObjectiveProgress = Mathf.Min(1f, ObjectiveProgress + dt / objective.HoldSeconds * _spec.ScanSpeed);
                     else
                         ObjectiveProgress = Mathf.Max(0f, ObjectiveProgress - dt / objective.HoldSeconds * 0.5f);
                     done = ObjectiveProgress >= 1f;
                     break;
 
                 case ObjectiveType.Photo:
-                    TargetFramed = IsFramed(state, target, objective.Range * zoom);
+                    TargetFramed = IsFramed(state, target, SightRange(objective, zoom));
                     if (action)
                     {
                         result = TargetFramed ? ActionResult.PhotoTaken : ActionResult.PhotoMissed;
@@ -541,7 +550,7 @@ namespace Skyforge.Core
                         }
                         else
                         {
-                            Vector3 impact = Ballistics.Impact(state.Position, state.Velocity, _lastWind, _map, out float fall);
+                            Vector3 impact = Ballistics.Impact(state.Position, state.Velocity, _lastWind, _map, out float fall, _spec.WindCarry);
                             _shot = new Shot { Active = true, From = state.Position, Impact = impact, Duration = fall };
                             ShotsLeft--;
                             result = ActionResult.Released;
@@ -556,10 +565,10 @@ namespace Skyforge.Core
                     {
                         if (_marked[i]) continue;
                         remaining++;
-                        if (IsFramed(state, objective.Targets[i], objective.Range * zoom))
+                        if (IsFramed(state, objective.Targets[i], SightRange(objective, zoom)))
                         {
                             TargetFramed = true;
-                            _markProgress[i] += dt / objective.HoldSeconds;
+                            _markProgress[i] += dt / objective.HoldSeconds * _spec.ScanSpeed;
                             if (_markProgress[i] >= 1f)
                             {
                                 _marked[i] = true;
@@ -649,7 +658,8 @@ namespace Skyforge.Core
         /// <summary>How much of the wind speed the falling munition picks up.</summary>
         public const float WindCarry = 0.5f;
 
-        public static Vector3 Impact(Vector3 from, Vector3 velocity, Vector3 wind, HeightMap map, out float seconds)
+        public static Vector3 Impact(Vector3 from, Vector3 velocity, Vector3 wind, HeightMap map, out float seconds,
+            float windCarry = WindCarry)
         {
             // The ground under the landing point is not known until the drift is, so settle it in a few rounds.
             float ground = GroundAt(map, from.x, from.z);
@@ -660,9 +670,9 @@ namespace Skyforge.Core
                 float height = Mathf.Max(0f, from.y - ground);
                 seconds = Mathf.Sqrt(2f * height / FlightModel.Gravity);
                 impact = new Vector3(
-                    from.x + (velocity.x + wind.x * WindCarry) * seconds,
+                    from.x + (velocity.x + wind.x * windCarry) * seconds,
                     ground,
-                    from.z + (velocity.z + wind.z * WindCarry) * seconds);
+                    from.z + (velocity.z + wind.z * windCarry) * seconds);
                 ground = GroundAt(map, impact.x, impact.z);
             }
             impact.y = ground;
@@ -687,6 +697,7 @@ namespace Skyforge.Core
         public int Stars;
         /// <summary>Filled in by <see cref="Progress.Grant"/>.</summary>
         public int CreditsGranted;
+        public int PartsGranted;
         public bool Granted;
 
         public static MissionOutcome From(MissionRun run)

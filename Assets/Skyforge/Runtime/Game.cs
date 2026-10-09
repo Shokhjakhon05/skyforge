@@ -20,6 +20,7 @@ namespace Skyforge
             Mission,
             FreeFlight,
             Result,
+            Hangar,
         }
 
         /// <summary>The simulation always advances in these steps, whatever the frame rate.</summary>
@@ -36,6 +37,8 @@ namespace Skyforge
         MenuScreen _menu;
         ResultScreen _result;
         SettingsScreen _settings;
+        HangarScreen _hangar;
+        DroneDefinition _shownDrone;
         DroneAudio _audio;
         Sfx _sfx;
         SceneLook _look;
@@ -85,7 +88,7 @@ namespace Skyforge
 
             _sim = CreateSim(0f);
             _previous = _sim.State;
-            _drone = DroneView.Create(transform);
+            ShowDroneModel(Garage.Selected(_save));
             _course = new RingCourse(_island, transform);
             BeaconsView.Build(_island, transform);
             _world = new MissionWorld(transform, _island.Map);
@@ -113,6 +116,14 @@ namespace Skyforge
             _menu.WeatherPressed += NextFreeFlightWeather;
             _menu.PreviousPressed += () => SelectMission(_missionIndex - 1);
             _menu.NextPressed += () => SelectMission(_missionIndex + 1);
+            _menu.HangarPressed += () => { Click(); ShowHangar(); };
+
+            _hangar = new HangarScreen(transform);
+            _hangar.Viewed += ShowDroneModel;
+            _hangar.Changed += () => _store.Save(_save);
+            _hangar.Pressed += refused => _sfx.Play(refused ? Sound.Warning : Sound.Click);
+            _hangar.BackPressed += () => { Click(); ShowMenu(); };
+            _hangar.Visible = false;
 
             _result = new ResultScreen(transform);
             _result.RetryPressed += () => { Click(); StartMission(); };
@@ -150,6 +161,8 @@ namespace Skyforge
         void ShowMenu()
         {
             _phase = Phase.Menu;
+            _hangar.Visible = false;
+            ShowDroneModel(Garage.Selected(_save));
             ResetFlight();
             _world.Hide();
             _course.Visible = false;
@@ -157,6 +170,22 @@ namespace Skyforge
             _result.Visible = false;
             ApplyWeather(WeatherCatalog.Get(_mission.WeatherId));
             ShowMenuScreen();
+        }
+
+        void ShowHangar()
+        {
+            _phase = Phase.Hangar;
+            _menu.Visible = false;
+            _hangar.Show(_save);
+        }
+
+        /// <summary>Swaps the drone standing on the pad for another model from the catalog.</summary>
+        void ShowDroneModel(DroneDefinition drone)
+        {
+            if (_shownDrone == drone && _drone != null) return;
+            if (_drone != null) Destroy(_drone.gameObject);
+            _drone = DroneView.Create(transform, drone.Look);
+            _shownDrone = drone;
         }
 
         void ShowMenuScreen()
@@ -193,7 +222,7 @@ namespace Skyforge
 
         FlightSim CreateSim(float payload)
         {
-            var sim = new FlightSim(_island, DroneSpec.Sparrow().WithPayload(payload));
+            var sim = new FlightSim(_island, Garage.SelectedSpec(_save).WithPayload(payload));
             sim.Mode = (FlightMode)Mathf.Clamp(_save.FlightModeIndex, 0, 1);
             return sim;
         }
@@ -402,7 +431,9 @@ namespace Skyforge
 
             if (!flying)
             {
-                _camera.Orbit(_island.Spawn, Time.unscaledTime);
+                // The drone sits beside whichever panel is open: menu on the left, hangar on the right.
+                float side = _phase == Phase.Hangar ? 2.6f : _phase == Phase.Menu ? -2.6f : 0f;
+                _camera.Orbit(_island.Spawn, Time.unscaledTime, side, _phase == Phase.Hangar ? 7.5f : 11f);
                 return;
             }
 
@@ -719,7 +750,7 @@ namespace Skyforge
         void ToggleZoom()
         {
             Click();
-            _zoom = _zoom >= 4f ? 1f : _zoom * 2f;
+            _zoom = _zoom >= _sim.Spec.MaxZoom ? 1f : _zoom * 2f;
             _camera.Zoom = _zoom;
             RefreshLabels();
         }
@@ -758,6 +789,21 @@ namespace Skyforge
         public void AutomationStartMission() => StartMission();
         public void AutomationShowMenu() => ShowMenu();
         public void AutomationShowSettings() => ShowSettings();
+
+        public void AutomationShowHangar(string droneId, int tab, int credits)
+        {
+            _save.Credits = credits;
+            ShowHangar();
+            _hangar.Show(_save, droneId, tab);
+        }
+
+        /// <summary>Flies the next flights with the given drone, owned or not.</summary>
+        public void AutomationUseDrone(string droneId)
+        {
+            if (_save.FindDrone(droneId) == null) _save.Drones.Add(DroneRecord.New(droneId));
+            _save.SelectedDrone = droneId;
+            ShowDroneModel(Garage.Selected(_save));
+        }
         public void AutomationHideSettings() => _settings.Visible = false;
 
         public void AutomationFreeFlight(string weatherId)

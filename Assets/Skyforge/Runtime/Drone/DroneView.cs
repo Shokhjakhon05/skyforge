@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Skyforge.Core;
 using Skyforge.World;
 using UnityEngine;
@@ -5,71 +6,134 @@ using UnityEngine;
 namespace Skyforge.Drone
 {
     /// <summary>
-    /// The visible quadcopter, assembled from simple solids. Drawn larger than a real drone of
-    /// this class so it reads well on a phone from the chase camera. Nose points along +Z.
+    /// The visible drone, assembled from simple solids according to its <see cref="DroneLook"/>.
+    /// Drawn larger than a real drone of its class so it reads well on a phone from the chase
+    /// camera. Nose points along +Z.
     /// </summary>
     public sealed class DroneView : MonoBehaviour
     {
-        const float ArmReach = 0.62f;
+        /// <summary>How far below the centre the feet are; matches the radius the simulation rests on.</summary>
+        const float FootDepth = 0.38f;
+
         Transform _tilt;
-        readonly Transform[] _rotors = new Transform[4];
+        readonly List<Transform> _rotors = new List<Transform>();
         Renderer[] _renderers;
         float _rotorSpeed;
 
-        public static DroneView Create(Transform parent)
+        public static DroneView Create(Transform parent, DroneLook look)
         {
             var root = new GameObject("Drone");
             root.transform.SetParent(parent, false);
             var view = root.AddComponent<DroneView>();
-            view.Build();
+            view.Build(look);
             return view;
         }
 
-        void Build()
+        void Build(DroneLook look)
         {
             _tilt = new GameObject("Tilt").transform;
             _tilt.SetParent(transform, false);
 
+            float s = look.Scale;
+            float reach = 0.62f * s * look.ArmReach;
+            float length = 0.62f * s * look.BodyLength;
+            float width = 0.36f * s;
             var body = new MeshBuilder();
-            body.Box(new Vector3(0f, 0f, 0f), new Vector3(0.36f, 0.16f, 0.62f), Palette.Graphite);
-            body.Box(new Vector3(0f, 0.09f, -0.04f), new Vector3(0.26f, 0.06f, 0.40f), Palette.Orange);
-            body.Box(new Vector3(0f, -0.02f, 0.33f), new Vector3(0.20f, 0.14f, 0.10f), Palette.DarkGrey);
-            body.Box(new Vector3(0f, -0.04f, 0.39f), new Vector3(0.11f, 0.09f, 0.04f), Palette.Lens);
-            body.Box(new Vector3(0f, 0.02f, -0.32f), new Vector3(0.22f, 0.05f, 0.03f), Palette.Red);
 
-            for (int i = 0; i < 4; i++)
+            body.Box(Vector3.zero, new Vector3(width, 0.16f * s, length), look.BodyColor);
+            body.Box(new Vector3(0f, 0.09f * s, -0.04f * s), new Vector3(width * 0.72f, 0.06f * s, length * 0.65f), look.AccentColor);
+            // Camera pod at the nose, tail light at the back.
+            float pod = look.BigCamera ? 1.6f : 1f;
+            body.Box(new Vector3(0f, -0.02f * s, length * 0.5f + 0.03f * s), new Vector3(0.20f * s * pod, 0.14f * s * pod, 0.10f * s), Palette.DarkGrey);
+            body.Box(new Vector3(0f, -0.04f * s, length * 0.5f + 0.09f * s), new Vector3(0.11f * s * pod, 0.09f * s * pod, 0.04f * s), Palette.Lens);
+            body.Box(new Vector3(0f, 0.02f * s, -length * 0.5f), new Vector3(width * 0.6f, 0.05f * s, 0.03f * s), Palette.Red);
+
+            if (look.Rack)
+                body.Box(new Vector3(0f, -0.16f * s, 0f), new Vector3(width * 0.8f, 0.14f * s, length * 0.6f), Palette.DarkGrey);
+            if (look.Dish)
             {
-                Vector3 direction = ArmDirection(i);
-                Vector3 tip = direction * ArmReach;
-                Quaternion along = Quaternion.LookRotation(direction, Vector3.up);
-                body.Box(tip * 0.55f, new Vector3(0.07f, 0.05f, ArmReach * 0.95f), along, Palette.DarkGrey);
-                body.Cylinder(tip + Vector3.down * 0.05f, 0.075f, 0.075f, 0.16f, 10, Palette.LightGrey);
-                // Leg under each motor; its foot is the lowest point of the drone.
-                body.Box(tip + Vector3.down * 0.215f, new Vector3(0.04f, 0.33f, 0.04f), Palette.Graphite);
-                // Navigation lights: green at the front, red at the back.
-                body.Box(tip + new Vector3(0f, -0.07f, 0f) + direction * 0.09f, new Vector3(0.05f, 0.04f, 0.05f),
-                    direction.z > 0f ? Palette.Green : Palette.Red);
+                body.Cylinder(new Vector3(0f, 0.10f * s, -0.05f * s), 0.03f * s, 0.03f * s, 0.16f * s, 6, Palette.LightGrey);
+                body.Cylinder(new Vector3(0f, 0.26f * s, -0.05f * s), 0.06f * s, 0.22f * s, 0.07f * s, 10, look.AccentColor);
+            }
+
+            var rotorPositions = new List<Vector3>();
+            if (look.Wing)
+            {
+                // A wing with two tractor rotors, a tail boom and a fin.
+                body.Box(new Vector3(0f, 0.06f * s, 0.05f * s), new Vector3(2.4f * s, 0.035f * s, 0.34f * s), look.BodyColor);
+                body.Box(new Vector3(0f, 0.07f * s, 0.05f * s), new Vector3(1.2f * s, 0.04f * s, 0.20f * s), look.AccentColor);
+                body.Box(new Vector3(0f, 0.02f * s, -length * 0.5f - 0.25f * s), new Vector3(0.06f * s, 0.06f * s, 0.55f * s), Palette.DarkGrey);
+                body.Box(new Vector3(0f, 0.04f * s, -length * 0.5f - 0.5f * s), new Vector3(0.7f * s, 0.03f * s, 0.16f * s), look.BodyColor);
+                body.Box(new Vector3(0f, 0.16f * s, -length * 0.5f - 0.5f * s), new Vector3(0.03f * s, 0.24f * s, 0.16f * s), look.AccentColor);
+                foreach (float side in new[] { -1f, 1f })
+                {
+                    var motor = new Vector3(side * 0.62f * s, 0.06f * s, 0.26f * s);
+                    body.Cylinder(motor + Vector3.down * 0.06f * s, 0.06f * s, 0.06f * s, 0.14f * s, 8, Palette.LightGrey);
+                    rotorPositions.Add(motor + Vector3.up * 0.10f * s);
+                    body.Box(new Vector3(side * 1.15f * s, 0.06f * s, 0.05f * s), new Vector3(0.05f * s, 0.05f * s, 0.05f * s),
+                        side > 0f ? Palette.Green : Palette.Red);
+                }
+                AddLandingGear(body, look, new[] { new Vector3(-0.3f * s, 0f, 0.1f * s), new Vector3(0.3f * s, 0f, 0.1f * s), new Vector3(0f, 0f, -length * 0.5f) });
+            }
+            else
+            {
+                int arms = Mathf.Clamp(look.Arms, 3, 8);
+                var feet = new List<Vector3>();
+                for (int i = 0; i < arms; i++)
+                {
+                    float angle = (i + 0.5f) * 2f * Mathf.PI / arms;
+                    var direction = new Vector3(Mathf.Sin(angle), 0f, Mathf.Cos(angle));
+                    Vector3 tip = direction * reach;
+                    Quaternion along = Quaternion.LookRotation(direction, Vector3.up);
+                    body.Box(tip * 0.55f, new Vector3(0.07f * s, 0.05f * s, reach * 0.95f), along, Palette.DarkGrey);
+                    body.Cylinder(tip + Vector3.down * 0.05f * s, 0.075f * s, 0.075f * s, 0.16f * s, 10, Palette.LightGrey);
+                    // Navigation lights: green at the front, red at the back.
+                    body.Box(tip + new Vector3(0f, -0.07f * s, 0f) + direction * 0.09f * s, new Vector3(0.05f, 0.04f, 0.05f) * s,
+                        direction.z > 0f ? Palette.Green : Palette.Red);
+                    rotorPositions.Add(tip + Vector3.up * 0.125f * s);
+                    feet.Add(tip);
+                }
+                AddLandingGear(body, look, feet.ToArray());
             }
             AddPart("Body", _tilt, body.Build("DroneBody"));
 
+            float blade = (look.Wing ? 0.42f : 0.62f) * s * Mathf.Lerp(1f, 0.8f, Mathf.InverseLerp(4f, 8f, look.Arms));
             var blades = new MeshBuilder();
-            blades.Box(Vector3.zero, new Vector3(0.62f, 0.012f, 0.06f), Palette.LightGrey);
-            blades.Box(Vector3.zero, new Vector3(0.06f, 0.012f, 0.62f), Palette.LightGrey);
+            blades.Box(Vector3.zero, new Vector3(blade, 0.012f, 0.06f * s), Palette.LightGrey);
+            blades.Box(Vector3.zero, new Vector3(0.06f * s, 0.012f, blade), Palette.LightGrey);
             Mesh bladeMesh = blades.Build("Rotor");
-            for (int i = 0; i < 4; i++)
+            for (int i = 0; i < rotorPositions.Count; i++)
             {
-                _rotors[i] = AddPart("Rotor" + i, _tilt, bladeMesh);
-                _rotors[i].localPosition = ArmDirection(i) * ArmReach + Vector3.up * 0.125f;
+                Transform rotor = AddPart("Rotor" + i, _tilt, bladeMesh);
+                rotor.localPosition = rotorPositions[i];
+                _rotors.Add(rotor);
             }
 
             _renderers = GetComponentsInChildren<Renderer>();
         }
 
-        static Vector3 ArmDirection(int index)
+        /// <summary>Legs down to the ground, or two floats for a drone that lands on water.</summary>
+        static void AddLandingGear(MeshBuilder body, DroneLook look, Vector3[] feet)
         {
-            float x = index % 2 == 0 ? 1f : -1f;
-            float z = index < 2 ? 1f : -1f;
-            return new Vector3(x, 0f, z).normalized;
+            float s = look.Scale;
+            if (look.Floats)
+            {
+                foreach (float side in new[] { -1f, 1f })
+                {
+                    float x = side * 0.30f * s;
+                    body.Box(new Vector3(x, -FootDepth + 0.06f, 0f), new Vector3(0.13f * s, 0.12f, 0.95f * s), Palette.Orange);
+                    body.Box(new Vector3(x, (-FootDepth + 0.12f - 0.05f * s) * 0.5f, 0.2f * s), new Vector3(0.03f, FootDepth - 0.12f - 0.05f * s, 0.03f), Palette.DarkGrey);
+                    body.Box(new Vector3(x, (-FootDepth + 0.12f - 0.05f * s) * 0.5f, -0.2f * s), new Vector3(0.03f, FootDepth - 0.12f - 0.05f * s, 0.03f), Palette.DarkGrey);
+                }
+                return;
+            }
+            foreach (Vector3 foot in feet)
+            {
+                float top = foot.y - 0.05f * s;
+                float height = top + FootDepth;
+                if (height <= 0.02f) continue;
+                body.Box(new Vector3(foot.x, top - height * 0.5f, foot.z), new Vector3(0.04f, height, 0.04f), Palette.Graphite);
+            }
         }
 
         static Transform AddPart(string name, Transform parent, Mesh mesh)
@@ -96,9 +160,9 @@ namespace Skyforge.Drone
             _tilt.localRotation = Quaternion.Euler(tiltDeg.y, 0f, -tiltDeg.x);
 
             _rotorSpeed = Mathf.Lerp(_rotorSpeed, Mathf.Lerp(500f, 2600f, throttle), 1f - Mathf.Exp(-6f * deltaTime));
-            for (int i = 0; i < 4; i++)
+            for (int i = 0; i < _rotors.Count; i++)
             {
-                float direction = i == 0 || i == 3 ? 1f : -1f;
+                float direction = i % 2 == 0 ? 1f : -1f;
                 _rotors[i].Rotate(0f, direction * _rotorSpeed * deltaTime, 0f, Space.Self);
             }
         }

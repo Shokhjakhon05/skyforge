@@ -85,6 +85,25 @@ namespace Skyforge
             _game.AutomationShowMenu();
             yield return Shot("12_menu_strike");
 
+            // The hangar, and a few of the drones in the air.
+            _game.AutomationShowHangar("sparrow", 0, 2500);
+            yield return Shot("13a_hangar_sparrow_upgrades");
+            _game.AutomationShowHangar("kestrel", 1, 2500);
+            yield return Shot("13b_hangar_kestrel_modules");
+            _game.AutomationShowHangar("albatross", 0, 2500);
+            yield return Shot("13c_hangar_albatross");
+            _game.AutomationShowHangar("aegis", 0, 2500);
+            yield return Shot("13d_hangar_aegis");
+            int drone = 0;
+            foreach (string id in new[] { "viper", "mule", "petrel", "relay", "albatross", "talon" })
+            {
+                _game.AutomationUseDrone(id);
+                _game.AutomationFreeFlight(WeatherCatalog.Clear);
+                _game.AutomationPlace(overview, 0f);
+                yield return Shot("14" + (char)('a' + drone++) + "_drone_" + id);
+            }
+            _game.AutomationUseDrone("sparrow");
+
             _game.AutomationSelectMission("first_contact");
             _game.AutomationShowMenu();
             Finished = true;

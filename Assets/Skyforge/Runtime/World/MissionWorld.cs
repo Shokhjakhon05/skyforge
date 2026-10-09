@@ -183,7 +183,7 @@ namespace Skyforge.World
             if (aiming)
             {
                 Vector3 impact = run.PredictImpact(drone, out _);
-                _aimRing.position = impact + Vector3.up * 0.6f;
+                _aimRing.position = impact + Vector3.up * 1.4f;
                 _aimRing.localScale = Vector3.one * Mathf.Max(3f, current.Radius);
             }
 
