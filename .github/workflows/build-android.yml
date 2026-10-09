@@ -30,23 +30,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      # Docker Hub limits anonymous pulls per runner address, and runners share addresses.
-      # When it refuses, the same image is taken through Google's public mirror of Docker Hub.
-      - name: Pick a registry for the Unity image
-        id: image
-        run: |
-          TAG=ubuntu-6000.3.26f1-android-3
-          for candidate in "unityci/editor:$TAG" "mirror.gcr.io/unityci/editor:$TAG"; do
-            if docker manifest inspect "$candidate" > /dev/null 2>&1; then
-              echo "Using $candidate"
-              echo "name=$candidate" >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
-            echo "$candidate cannot be pulled from this runner"
-          done
-          echo "::error::No registry would serve the Unity image. Re-run the job to get another runner."
-          exit 1
-
       - name: Free runner disk
         uses: jlumbroso/free-disk-space@v1.3.1
         with:
@@ -57,6 +40,25 @@ jobs:
           large-packages: false
           docker-images: true
           swap-storage: false
+
+      # Docker Hub limits anonymous pulls per runner address, and runners share addresses.
+      # When it refuses, the same image is pulled through Google's public mirror of Docker Hub.
+      - name: Pull the Unity image
+        id: image
+        run: |
+          TAG=ubuntu-6000.3.26f1-android-3
+          for candidate in "unityci/editor:$TAG" "mirror.gcr.io/unityci/editor:$TAG"; do
+            for attempt in 1 2; do
+              if docker pull --quiet "$candidate"; then
+                echo "name=$candidate" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+              sleep 15
+            done
+            echo "$candidate could not be pulled from this runner"
+          done
+          echo "::error::No registry would serve the Unity image. Re-run the job to get another runner."
+          exit 1
 
       - uses: actions/checkout@v4
 
