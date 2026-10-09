@@ -511,7 +511,7 @@ namespace Skyforge
 
         void ApplyQuality()
         {
-            QualityLevel level = _save.Quality == 0 ? SceneLook.Recommend() : (QualityLevel)_save.Quality;
+            GraphicsTier level = _save.Quality == 0 ? SceneLook.Recommend() : (GraphicsTier)_save.Quality;
             _look.SetQuality(level);
         }
 

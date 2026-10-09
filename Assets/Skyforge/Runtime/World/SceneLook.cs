@@ -5,7 +5,7 @@ using UnityEngine.Rendering.Universal;
 
 namespace Skyforge.World
 {
-    public enum QualityLevel
+    public enum GraphicsTier
     {
         Low = 1,
         Medium = 2,
@@ -15,7 +15,7 @@ namespace Skyforge.World
 
     /// <summary>
     /// Light, sky, fog, sea colour, precipitation and screen effects. A <see cref="Weather"/>
-    /// decides how it looks; a <see cref="QualityLevel"/> decides how much of it the phone draws.
+    /// decides how it looks; a <see cref="GraphicsTier"/> decides how much of it the phone draws.
     /// </summary>
     public sealed class SceneLook
     {
@@ -28,9 +28,9 @@ namespace Skyforge.World
         readonly Volume _volume;
         readonly Bloom _bloom;
         Weather _weather;
-        QualityLevel _quality = QualityLevel.High;
+        GraphicsTier _quality = GraphicsTier.High;
 
-        public QualityLevel Quality => _quality;
+        public GraphicsTier Quality => _quality;
 
         public SceneLook(Transform parent, Camera camera, Material sea)
         {
@@ -92,30 +92,30 @@ namespace Skyforge.World
         }
 
         /// <summary>Picks a tier from the phone's memory. Ultra is never chosen automatically.</summary>
-        public static QualityLevel Recommend()
+        public static GraphicsTier Recommend()
         {
             int memory = SystemInfo.systemMemorySize;
-            if (memory < 3500) return QualityLevel.Low;
-            if (memory < 5500) return QualityLevel.Medium;
-            return QualityLevel.High;
+            if (memory < 3500) return GraphicsTier.Low;
+            if (memory < 5500) return GraphicsTier.Medium;
+            return GraphicsTier.High;
         }
 
-        public void SetQuality(QualityLevel quality)
+        public void SetQuality(GraphicsTier quality)
         {
             _quality = quality;
             var pipeline = GraphicsSettings.currentRenderPipeline as UniversalRenderPipelineAsset;
             if (pipeline != null)
             {
-                pipeline.renderScale = quality == QualityLevel.Low ? 0.7f : quality == QualityLevel.Medium ? 0.85f : 1f;
-                pipeline.msaaSampleCount = quality == QualityLevel.Low ? 1 : quality == QualityLevel.Ultra ? 4 : 2;
-                pipeline.shadowDistance = quality == QualityLevel.Medium ? 70f : quality == QualityLevel.Ultra ? 220f : 140f;
+                pipeline.renderScale = quality == GraphicsTier.Low ? 0.7f : quality == GraphicsTier.Medium ? 0.85f : 1f;
+                pipeline.msaaSampleCount = quality == GraphicsTier.Low ? 1 : quality == GraphicsTier.Ultra ? 4 : 2;
+                pipeline.shadowDistance = quality == GraphicsTier.Medium ? 70f : quality == GraphicsTier.Ultra ? 220f : 140f;
             }
 
-            _sun.shadows = quality == QualityLevel.Low ? LightShadows.None : LightShadows.Soft;
+            _sun.shadows = quality == GraphicsTier.Low ? LightShadows.None : LightShadows.Soft;
 
-            bool effects = quality >= QualityLevel.High;
+            bool effects = quality >= GraphicsTier.High;
             _volume.enabled = effects;
-            _bloom.active = quality == QualityLevel.Ultra;
+            _bloom.active = quality == GraphicsTier.Ultra;
             UniversalAdditionalCameraData cameraData = _camera.GetUniversalAdditionalCameraData();
             if (cameraData != null) cameraData.renderPostProcessing = effects;
 
@@ -168,7 +168,7 @@ namespace Skyforge.World
                 return;
             }
 
-            float density = _quality == QualityLevel.Low ? 0.35f : _quality == QualityLevel.Medium ? 0.6f : 1f;
+            float density = _quality == GraphicsTier.Low ? 0.35f : _quality == GraphicsTier.Medium ? 0.6f : 1f;
             float amount = weather.PrecipitationAmount * density;
             Vector3 wind = weather.WindAt(0f);
 
