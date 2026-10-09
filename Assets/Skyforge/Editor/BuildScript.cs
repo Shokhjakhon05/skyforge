@@ -213,7 +213,16 @@ namespace Skyforge.EditorTools
         static void ApplyIcon()
         {
             const string path = "Assets/Skyforge/Branding/icon.png";
-            AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceSynchronousImport);
+            // The .meta written by gen_meta.py carries no import settings, and Unity guessed "cubemap"
+            // for this picture; say what it is.
+            if (AssetImporter.GetAtPath(path) is TextureImporter importer &&
+                (importer.textureShape != TextureImporterShape.Texture2D || importer.mipmapEnabled))
+            {
+                importer.textureType = TextureImporterType.Default;
+                importer.textureShape = TextureImporterShape.Texture2D;
+                importer.mipmapEnabled = false;
+                importer.SaveAndReimport();
+            }
             var icon = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
             if (icon == null)
             {
