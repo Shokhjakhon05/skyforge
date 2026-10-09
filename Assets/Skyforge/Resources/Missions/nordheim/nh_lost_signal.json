@@ -4,7 +4,7 @@
   "order": 6,
   "template": "search",
   "weather": "fog",
-  "timeGoal": 260,
+  "timeGoal": 320,
   "baseReward": 570,
   "starReward": 180,
   "props": [

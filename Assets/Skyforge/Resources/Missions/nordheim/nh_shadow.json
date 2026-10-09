@@ -4,7 +4,7 @@
   "order": 8,
   "template": "tail",
   "weather": "snow",
-  "timeGoal": 150,
+  "timeGoal": 190,
   "baseReward": 700,
   "starReward": 200,
   "actors": [

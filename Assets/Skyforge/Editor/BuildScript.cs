@@ -19,7 +19,9 @@ namespace Skyforge.EditorTools
     {
         const string GeneratedDir = "Assets/Generated";
         const string ApplicationId = "com.skyforge.globalops";
-        const string OutputPath = "build/Android/Skyforge.apk";
+        /// <summary>CI passes -sfBundle to get an App Bundle for Google Play instead of an APK for a phone.</summary>
+        static bool Bundle => HasArgument("-sfBundle");
+        static string OutputPath => Bundle ? "build/Android/Skyforge.aab" : "build/Android/Skyforge.apk";
         const string SigningDir = "ci/signing";
 
         const string ScreenshotDir = "build/Screenshots";
@@ -202,7 +204,7 @@ namespace Skyforge.EditorTools
             PlayerSettings.allowedAutorotateToPortrait = false;
             PlayerSettings.allowedAutorotateToPortraitUpsideDown = false;
 
-            EditorUserBuildSettings.buildAppBundle = false;
+            EditorUserBuildSettings.buildAppBundle = Bundle;
             UseLegacyInput();
             ApplyIcon();
         }

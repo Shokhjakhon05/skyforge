@@ -4,7 +4,7 @@
   "order": 9,
   "template": "strike",
   "weather": "overcast",
-  "timeGoal": 200,
+  "timeGoal": 250,
   "baseReward": 770,
   "starReward": 220,
   "props": [

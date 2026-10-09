@@ -4,7 +4,7 @@
   "order": 14,
   "template": "delivery",
   "weather": "snow",
-  "timeGoal": 300,
+  "timeGoal": 380,
   "baseReward": 1100,
   "starReward": 260,
   "payload": 1.0,

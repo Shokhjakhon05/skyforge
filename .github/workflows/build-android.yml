@@ -12,6 +12,10 @@ on:
         description: Run the game in the editor and attach screenshots to the release
         type: boolean
         default: true
+      bundle:
+        description: Build an App Bundle (.aab) for Google Play instead of an APK
+        type: boolean
+        default: false
   push:
     tags: ["v*"]
 
@@ -24,6 +28,7 @@ permissions:
 
 env:
   VERSION: ${{ github.event.inputs.version || github.ref_name }}
+  EXTENSION: ${{ github.event.inputs.bundle == 'true' && 'aab' || 'apk' }}
 
 jobs:
   build:
@@ -113,11 +118,12 @@ jobs:
           customParameters: >-
             -sfVersion ${{ env.VERSION }} -sfVersionCode ${{ github.run_number }}
             ${{ github.event.inputs.screenshots != 'false' && '-sfScreenshots' || '' }}
+            ${{ github.event.inputs.bundle == 'true' && '-sfBundle' || '' }}
 
-      - name: Check that the APK exists
+      - name: Check that the build exists
         run: |
-          ls -lh build/Android/Skyforge.apk
-          test -s build/Android/Skyforge.apk
+          ls -lh "build/Android/Skyforge.$EXTENSION"
+          test -s "build/Android/Skyforge.$EXTENSION"
 
       - name: Remove signing files
         if: always()
@@ -127,8 +133,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          APK="skyforge-${VERSION}-${{ github.run_number }}.apk"
-          sudo cp build/Android/Skyforge.apk "$APK"
+          APK="skyforge-${VERSION}-${{ github.run_number }}.${EXTENSION}"
+          sudo cp "build/Android/Skyforge.$EXTENSION" "$APK"
           ls -lh "$APK"
           FILES=("$APK")
           if ls build/Screenshots/*.png >/dev/null 2>&1; then

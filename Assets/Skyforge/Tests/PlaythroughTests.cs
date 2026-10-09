@@ -81,7 +81,8 @@ namespace Skyforge.Tests
                 Vector3 position = state.Position;
                 Vector3 target = _run.TargetPosition(objective);
                 bool low = UnderRadar(position);
-                float cruise = low ? 14f : 30f;
+                // Under a radar: just above the tallest trees, well under the radar's floor.
+                float cruise = low ? 11f : 30f;
 
                 switch (objective.Type)
                 {
@@ -91,7 +92,7 @@ namespace Skyforge.Tests
                     case ObjectiveType.Land:
                     {
                         float away = Flat(position, target);
-                        if (away > 2.5f) return Steer(target, Ground(target.x, target.z) + (low ? 14f : 20f), target, false, cruise);
+                        if (away > 2.5f) return Steer(target, Ground(target.x, target.z) + (low ? 11f : 20f), target, false, cruise);
                         // Over the spot: hold it and sink gently.
                         FlightInput hold = Steer(target, position.y, target, true, cruise);
                         hold.Throttle = -0.35f;
@@ -113,7 +114,7 @@ namespace Skyforge.Tests
                         back.y = 0f;
                         back = back.sqrMagnitude < 1f ? Vector3.back : back.normalized;
                         Vector3 post = target + back * 22f;
-                        float height = Ground(target.x, target.z) + (low ? 13f : 22f);
+                        float height = Ground(target.x, target.z) + (low ? 11f : 22f);
                         action = objective.Type == ObjectiveType.Photo && _run.TargetFramed;
                         return Steer(post, height, target, Flat(position, post) < 40f, cruise);
                     }
@@ -142,7 +143,7 @@ namespace Skyforge.Tests
                         float height = Ground(aim.x, aim.z) + objective.MinAltitude + 12f;
                         float above = position.y - Ground(position.x, position.z);
                         action = miss.magnitude < objective.Radius * 0.35f && above > objective.MinAltitude + 2f && _run.ShotsLeft > 0 && !_run.Shot.Active;
-                        return Steer(position + miss, low ? Ground(position.x, position.z) + 14f : height, aim, true, cruise);
+                        return Steer(position + miss, low ? Ground(position.x, position.z) + 11f : height, aim, true, cruise);
                     }
 
                     default:
@@ -192,7 +193,7 @@ namespace Skyforge.Tests
                 }
 
                 // The highest ground under the drone and a little way ahead of it.
-                float reach = cruise < 20f ? 14f : 45f;
+                float reach = cruise < 20f ? 8f : 45f;
                 float ground = Ground(position.x, position.z);
                 ground = Mathf.Max(ground, Ground(position.x + direction.x * reach * 0.5f, position.z + direction.z * reach * 0.5f));
                 ground = Mathf.Max(ground, Ground(position.x + direction.x * reach, position.z + direction.z * reach));
@@ -206,9 +207,9 @@ namespace Skyforge.Tests
                 // slows down, and well below it, it stops and climbs. Under a radar it creeps.
                 float lacking = wanted - position.y;
                 move *= Mathf.Clamp01(1f - (lacking - 3f) / 10f);
-                if (cruise < 20f) move *= 0.5f;
+                if (cruise < 20f) move *= 0.4f;
 
-                float throttle = Mathf.Clamp(lacking * 0.5f, -0.6f, 1f);
+                float throttle = Mathf.Clamp(lacking * 0.5f, cruise < 20f ? -1f : -0.6f, 1f);
                 return new FlightInput { Move = move, Yaw = turn, Throttle = throttle };
             }
         }

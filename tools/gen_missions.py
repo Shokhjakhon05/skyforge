@@ -57,7 +57,7 @@ REGIONS = {
                      storm="dust", night="night", mover="sunset", haul="clear", special="night"),
     ),
     "nordheim": dict(
-        prefix="nh_", pay=2.2,
+        prefix="nh_", pay=2.2, clock=1.25,
         scan=["beacon1", "beacon0", "beacon2"], camp="poi0", boat="sea3",
         photo=["poi10", "poi11", "poi9", "coast7"], drop="poi6", source="poi8",
         relay="poi5", radars=["poi3", "poi6"], tail=["coast7", "coast0", "coast1"],
@@ -116,7 +116,7 @@ def build(pattern, r):
                                 scan(r["source"], dy=10, radius=10, height=10, text="objective.scan_source"), HOME])
     if pattern == "stealth":
         return dict(props=[{"id": "relay", "kind": "antenna", "at": at(r["relay"])}],
-                    zones=[{"at": at(a), "radius": 170, "floor": 22} for a in r["radars"]],
+                    zones=[{"at": at(a), "radius": 170, "floor": 26} for a in r["radars"]],
                     objectives=[TAKEOFF, scan(r["relay"], hold=4, text="objective.scan_relay"), HOME])
     if pattern == "tail":
         return dict(actors=[{"id": "courier", "kind": "truck", "path": [at(a) for a in r["tail"]], "speed": 7,
@@ -150,7 +150,7 @@ def build(pattern, r):
     if pattern == "special":
         s = r["special"]
         return dict(props=[{"id": "papers", "kind": "crates", "at": at(s["papers"])}, {"id": "command_van", "kind": "vehicle", "at": at(s["van"])}],
-                    zones=[{"at": at(a), "radius": 170, "floor": 22} for a in s["radars"]],
+                    zones=[{"at": at(a), "radius": 170, "floor": 26} for a in s["radars"]],
                     objectives=[TAKEOFF, {"type": "photo", "target": "papers", "range": 45},
                                 {"type": "strike", "target": "command_van", "radius": 7, "minAltitude": 40, "shots": 1}, HOME])
     raise ValueError(pattern)
@@ -171,7 +171,8 @@ def main():
                 "order": order,
                 "template": template,
                 "weather": r["weather"][pattern],
-                "timeGoal": goal,
+                # Mountains make every route longer: a region may stretch the clock.
+                "timeGoal": int(round(goal * r.get("clock", 1.0) / 10.0)) * 10,
                 "baseReward": int(round(base * r["pay"] / 10.0)) * 10,
                 "starReward": int(round(star * r["pay"] / 10.0)) * 10,
             }

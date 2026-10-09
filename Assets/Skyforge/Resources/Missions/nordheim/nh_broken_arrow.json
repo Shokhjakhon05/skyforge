@@ -4,7 +4,7 @@
   "order": 15,
   "template": "special",
   "weather": "night",
-  "timeGoal": 360,
+  "timeGoal": 450,
   "baseReward": 1430,
   "starReward": 330,
   "props": [
@@ -29,14 +29,14 @@
         "anchor": "poi3"
       },
       "radius": 170,
-      "floor": 22
+      "floor": 26
     },
     {
       "at": {
         "anchor": "poi6"
       },
       "radius": 170,
-      "floor": 22
+      "floor": 26
     }
   ],
   "objectives": [

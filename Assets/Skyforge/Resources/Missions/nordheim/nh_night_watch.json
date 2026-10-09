@@ -4,7 +4,7 @@
   "order": 12,
   "template": "recon",
   "weather": "night",
-  "timeGoal": 200,
+  "timeGoal": 250,
   "baseReward": 970,
   "starReward": 240,
   "props": [

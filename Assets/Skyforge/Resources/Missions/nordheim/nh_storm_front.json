@@ -4,7 +4,7 @@
   "order": 11,
   "template": "storm",
   "weather": "storm",
-  "timeGoal": 170,
+  "timeGoal": 210,
   "baseReward": 920,
   "starReward": 240,
   "batteryStart": 0.6,

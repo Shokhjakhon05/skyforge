@@ -4,7 +4,7 @@
   "order": 3,
   "template": "photo",
   "weather": "snow",
-  "timeGoal": 200,
+  "timeGoal": 250,
   "baseReward": 440,
   "starReward": 130,
   "props": [
