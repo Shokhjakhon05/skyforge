@@ -60,14 +60,13 @@ namespace Skyforge.Tests
 
             float Ground(float x, float z) => Mathf.Max(_island.Map.Height(x, z), Island.WaterLevel);
 
-            /// <summary>Inside a radar's circle the pilot stays under its floor.</summary>
-            bool UnderRadar(Vector3 position)
+            /// <summary>Inside a radar's circle, and for a margin around it, the pilot stays under its floor.</summary>
+            bool UnderRadar(Vector3 position, float margin)
             {
                 foreach (ZoneDefinition zone in _mission.Zones)
                 {
                     float dx = position.x - zone.Position.x, dz = position.z - zone.Position.z;
-                    // Start descending well before the circle: the drone sinks slowly.
-                    if (Mathf.Sqrt(dx * dx + dz * dz) < zone.Radius + 130f) return true;
+                    if (Mathf.Sqrt(dx * dx + dz * dz) < zone.Radius + margin) return true;
                 }
                 return false;
             }
@@ -80,7 +79,9 @@ namespace Skyforge.Tests
                 if (objective == null) return default;
                 Vector3 position = state.Position;
                 Vector3 target = _run.TargetPosition(objective);
-                bool low = UnderRadar(position);
+                // Start descending well before the circle, because the drone sinks slowly. A strike
+                // needs height, so there the pilot climbs as soon as it is clear of the circle itself.
+                bool low = UnderRadar(position, objective.Type == ObjectiveType.Strike ? 12f : 130f);
                 // Under a radar: just above the tallest trees, well under the radar's floor.
                 float cruise = low ? 11f : 30f;
 

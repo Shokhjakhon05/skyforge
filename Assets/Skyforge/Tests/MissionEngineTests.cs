@@ -119,6 +119,23 @@ namespace Skyforge.Tests
         }
 
         [Test]
+        public void StrikeTargetsAreOutsideEveryRadar()
+        {
+            // A strike is released from high up; under a radar that height would give the drone away.
+            foreach (RegionDefinition region in RegionCatalog.All)
+                foreach (MissionDefinition mission in LoadAll(region, new List<string>()))
+                    foreach (ObjectiveDefinition objective in mission.Objectives)
+                    {
+                        if (objective.Type != ObjectiveType.Strike || !string.IsNullOrEmpty(objective.ActorId)) continue;
+                        foreach (ZoneDefinition zone in mission.Zones)
+                        {
+                            float dx = objective.Position.x - zone.Position.x, dz = objective.Position.z - zone.Position.z;
+                            Assert.Greater(Mathf.Sqrt(dx * dx + dz * dz), zone.Radius + 20f, mission.Id + ": the strike target is inside a radar's circle");
+                        }
+                    }
+        }
+
+        [Test]
         public void EveryRegionHasAUsableIsland()
         {
             foreach (RegionDefinition region in RegionCatalog.All)

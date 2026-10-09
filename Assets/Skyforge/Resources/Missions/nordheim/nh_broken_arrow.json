@@ -29,14 +29,14 @@
         "anchor": "poi3"
       },
       "radius": 170,
-      "floor": 26
+      "floor": 38
     },
     {
       "at": {
         "anchor": "poi6"
       },
       "radius": 170,
-      "floor": 26
+      "floor": 38
     }
   ],
   "objectives": [
