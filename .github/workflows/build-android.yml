@@ -66,8 +66,9 @@ jobs:
 
       - name: Build APK
         uses: game-ci/unity-builder@v6
+        # Personal licence: the builder signs in with the account. A .ulf file from another
+        # machine is rejected by Unity, so UNITY_LICENSE is deliberately not passed.
         env:
-          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         with:

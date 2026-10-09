@@ -26,4 +26,4 @@ gh release download dev-<номер> --pattern '*.apk'
 
 APK публикуется как prerelease `dev-<номер запуска>`, хранятся пять последних.
 
-Секреты репозитория: `UNITY_LICENSE`, `UNITY_EMAIL`, `UNITY_PASSWORD`, `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASS`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASS`.
+Секреты репозитория: `UNITY_EMAIL`, `UNITY_PASSWORD`, `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASS`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASS`.

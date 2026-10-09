@@ -6,16 +6,8 @@
 
 ## 2026-10-09. Лицензия Unity в CI
 
-Unity Hub 3.22.2 при активации Personal создаёт только `UnityEntitlementLicense.xml`, а GameCI нужен `Unity_lic.ulf`.
-Файл получен консольным клиентом из состава Hub:
-
-```
-~/.local/opt/unityhub/usr/lib/unityhub/UnityLicensingClient_V1/Unity.Licensing.Client \
-  --activate-ulf --username <логин> --password <пароль>
-```
-
-Результат: `~/.local/share/unity3d/Unity/Unity_lic.ulf`, его содержимое лежит в секрете `UNITY_LICENSE`.
-Если сборка начнёт падать на активации, первым делом повторить эту команду и обновить секрет.
+GameCI (`unity-builder@v6`, внутри `game-ci/cli`) активирует Personal по логину и паролю: секреты `UNITY_EMAIL` и `UNITY_PASSWORD`.
+Секрет `UNITY_LICENSE` с файлом `.ulf` в сборку не передаётся: файл привязан к ноутбуку, и сервер Unity отклоняет его на раннере с ошибкой `TimeStamp validation failed` (запуск 37959440705).
 
 ## 2026-10-09. В репозитории нет сцен, префабов и ассетов настроек
 
