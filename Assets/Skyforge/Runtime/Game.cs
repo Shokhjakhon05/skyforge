@@ -575,6 +575,8 @@ namespace Skyforge
             _daily.Visible = false;
             _achievements.Visible = false;
             _save.Stats.Flights++;
+            // Whatever model the hangar was showing, the drone that flies is the selected one.
+            ShowDroneModel(Garage.Selected(_save));
             _hud.Visible = true;
             _hud.GaugesVisible = gauges;
             _hud.SetMessage("");
