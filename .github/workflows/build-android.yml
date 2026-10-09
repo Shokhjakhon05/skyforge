@@ -31,15 +31,20 @@ jobs:
     timeout-minutes: 60
     steps:
       # Docker Hub limits anonymous pulls per runner address, and runners share addresses.
-      # Asking for the manifest first fails in seconds instead of after the disk clean-up.
-      - name: Check that the Unity image can be pulled
+      # When it refuses, the same image is taken through Google's public mirror of Docker Hub.
+      - name: Pick a registry for the Unity image
+        id: image
         run: |
-          for attempt in 1 2 3; do
-            if docker manifest inspect unityci/editor:ubuntu-6000.3.26f1-android-3 > /dev/null; then exit 0; fi
-            echo "Docker Hub refused (attempt $attempt), waiting"
-            sleep 20
+          TAG=ubuntu-6000.3.26f1-android-3
+          for candidate in "unityci/editor:$TAG" "mirror.gcr.io/unityci/editor:$TAG"; do
+            if docker manifest inspect "$candidate" > /dev/null 2>&1; then
+              echo "Using $candidate"
+              echo "name=$candidate" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "$candidate cannot be pulled from this runner"
           done
-          echo "::error::Docker Hub pull rate limit on this runner. Re-run the job to get another runner."
+          echo "::error::No registry would serve the Unity image. Re-run the job to get another runner."
           exit 1
 
       - name: Free runner disk
@@ -94,6 +99,7 @@ jobs:
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         with:
           targetPlatform: Android
+          customImage: ${{ steps.image.outputs.name }}
           buildName: Skyforge
           buildMethod: Skyforge.EditorTools.BuildScript.BuildAndroid
           versioning: None

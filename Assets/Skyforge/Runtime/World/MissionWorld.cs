@@ -12,6 +12,28 @@ namespace Skyforge.World
         sealed class IdOnly
         {
             public string id;
+            public int order;
+            public int baseReward;
+        }
+
+        static readonly Dictionary<string, List<KeyValuePair<string, int>>> SummaryCache =
+            new Dictionary<string, List<KeyValuePair<string, int>>>();
+
+        /// <summary>Id and base reward of a region's missions in campaign order, without building its island.</summary>
+        public static List<KeyValuePair<string, int>> Summaries(RegionDefinition region)
+        {
+            if (SummaryCache.TryGetValue(region.Id, out List<KeyValuePair<string, int>> summaries)) return summaries;
+            var parsed = new List<IdOnly>();
+            foreach (TextAsset file in Resources.LoadAll<TextAsset>("Missions/" + region.Id))
+            {
+                var entry = JsonUtility.FromJson<IdOnly>(file.text);
+                if (entry != null && !string.IsNullOrEmpty(entry.id)) parsed.Add(entry);
+            }
+            parsed.Sort((a, b) => a.order.CompareTo(b.order));
+            summaries = new List<KeyValuePair<string, int>>();
+            foreach (IdOnly entry in parsed) summaries.Add(new KeyValuePair<string, int>(entry.id, entry.baseReward));
+            SummaryCache[region.Id] = summaries;
+            return summaries;
         }
 
         static readonly Dictionary<string, List<string>> IdCache = new Dictionary<string, List<string>>();
@@ -254,6 +276,42 @@ namespace Skyforge.World
             renderer.shadowCastingMode = castShadows ? ShadowCastingMode.On : ShadowCastingMode.Off;
             _spawned.Add(obj);
             return renderer;
+        }
+    }
+
+    /// <summary>The region's hidden caches: slowly turning crates that vanish when collected.</summary>
+    public sealed class CachesView
+    {
+        readonly Transform[] _crates = new Transform[Caches.PerRegion];
+
+        public CachesView(Island island, Transform parent, System.Func<int, bool> isFound)
+        {
+            var builder = new MeshBuilder();
+            builder.Box(Vector3.zero, new Vector3(1.6f, 1.6f, 1.6f), Palette.White);
+            builder.Box(Vector3.zero, new Vector3(1.9f, 0.3f, 1.9f), Palette.White);
+            Mesh mesh = builder.Build("Cache");
+            Material material = GameMaterials.Unlit(new Color(1f, 0.78f, 0.20f));
+
+            for (int i = 0; i < _crates.Length; i++)
+            {
+                var crate = new GameObject("Cache" + i);
+                crate.transform.SetParent(parent, false);
+                crate.transform.position = Caches.Position(island, i);
+                crate.AddComponent<MeshFilter>().sharedMesh = mesh;
+                var renderer = crate.AddComponent<MeshRenderer>();
+                renderer.sharedMaterial = material;
+                renderer.shadowCastingMode = ShadowCastingMode.Off;
+                crate.SetActive(!isFound(i));
+                _crates[i] = crate.transform;
+            }
+        }
+
+        public void Hide(int index) => _crates[index].gameObject.SetActive(false);
+
+        public void Update(float deltaTime)
+        {
+            foreach (Transform crate in _crates)
+                if (crate != null && crate.gameObject.activeSelf) crate.Rotate(0f, 50f * deltaTime, 0f, Space.World);
         }
     }
 

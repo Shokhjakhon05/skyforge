@@ -205,6 +205,55 @@ namespace Skyforge.Tests
         }
 
         [Test]
+        public void OtherLanguagesTranslateEveryTextAndKeepItsPlaceholders()
+        {
+            foreach (string language in Loc.Languages)
+            {
+                if (language == "en" || language == "ru") continue;
+                IReadOnlyDictionary<string, string> table = Loc.Translations(language);
+                Assert.IsNotNull(table, language);
+                foreach (KeyValuePair<string, string[]> row in Loc.All)
+                {
+                    // Names and bare number formats read the same in every language and may be left out.
+                    bool neutral = row.Value[0] == row.Value[1];
+                    if (!table.TryGetValue(row.Key, out string text))
+                    {
+                        Assert.IsTrue(neutral, language + " has no translation for " + row.Key);
+                        continue;
+                    }
+                    Assert.IsFalse(string.IsNullOrEmpty(text) && row.Value[0] != "", language + ": empty " + row.Key);
+                    for (int slot = 0; slot < 4; slot++)
+                        Assert.AreEqual(row.Value[0].Contains("{" + slot + "}"), text.Contains("{" + slot + "}"),
+                            language + ": " + row.Key + " slot " + slot);
+                }
+                foreach (string key in table.Keys) Assert.IsTrue(Loc.Has(key), language + " translates an unknown key " + key);
+            }
+        }
+
+        [Test]
+        public void LanguageSwitchChangesTheTextAndUnknownCodesFallBack()
+        {
+            string before = Loc.Language;
+            try
+            {
+                Loc.SetLanguage("en");
+                Assert.AreEqual("HANGAR", Loc.T("menu.hangar"));
+                Loc.SetLanguage("ru");
+                Assert.AreEqual("АНГАР", Loc.T("menu.hangar"));
+                Loc.SetLanguage("uz");
+                Assert.AreEqual("ANGAR", Loc.T("menu.hangar"));
+                Assert.AreEqual("Sparrow", Loc.T("drone.sparrow.name"), "a key the language leaves out is shown in English");
+                Loc.SetLanguage("xx");
+                Assert.AreEqual("en", Loc.Language);
+                Assert.AreEqual(Loc.Languages.Length, Loc.LanguageNames.Length);
+            }
+            finally
+            {
+                Loc.SetLanguage(before);
+            }
+        }
+
+        [Test]
         public void PlaceholdersMatchAcrossLanguages()
         {
             foreach (KeyValuePair<string, string[]> row in Loc.All)

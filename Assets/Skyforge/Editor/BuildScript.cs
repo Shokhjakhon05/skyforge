@@ -24,7 +24,7 @@ namespace Skyforge.EditorTools
 
         const string ScreenshotDir = "build/Screenshots";
         /// <summary>Longest the screenshot run may take before the build carries on without it.</summary>
-        const double ScreenshotTimeoutSeconds = 300;
+        const double ScreenshotTimeoutSeconds = 540;
 
         static string _scene;
         static bool _screenshotsRan;
@@ -128,6 +128,7 @@ namespace Skyforge.EditorTools
                 Directory.CreateDirectory(ScreenshotDir);
                 ShotDirector.OutputDir = Path.GetFullPath(ScreenshotDir);
                 ShotDirector.Finished = false;
+                ShotDirector.Stage = 0;
 
                 // Without a domain reload the statics above and the update hook survive entering play mode.
                 EditorSettings.enterPlayModeOptionsEnabled = true;

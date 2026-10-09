@@ -36,7 +36,7 @@ namespace Skyforge.Core
     [Serializable]
     public sealed class SaveData
     {
-        public const int CurrentVersion = 4;
+        public const int CurrentVersion = 5;
 
         public int Version = CurrentVersion;
         public int Credits;
@@ -66,6 +66,20 @@ namespace Skyforge.Core
         public string Region = "arvelia";
         /// <summary>Negotiation outcomes, as "missionId=choiceIndex".</summary>
         public List<string> Choices = new List<string>();
+
+        // Added in version 5.
+        /// <summary>The latest date the game has seen, "yyyy-MM-dd"; see <see cref="Daily.Today"/>.</summary>
+        public string LastDate = "";
+        /// <summary>The day the entries in <see cref="DailyDone"/> belong to.</summary>
+        public string DailyDate = "";
+        public List<int> DailyDone = new List<int>();
+        public string StreakDate = "";
+        public int StreakDay;
+        public PlayerStats Stats = new PlayerStats();
+        public List<string> Achievements = new List<string>();
+        public List<string> Caches = new List<string>();
+        /// <summary>Language code chosen in settings; empty means follow the device.</summary>
+        public string Language = "";
 
         public DroneRecord FindDrone(string id)
         {
@@ -246,6 +260,19 @@ namespace Skyforge.Core
                 data.Choices = new List<string>();
                 data.Version = 4;
             }
+            if (data.Version == 4)
+            {
+                // Version 5 added daily operations, the streak, achievements and caches: all start empty.
+                data.LastDate = "";
+                data.DailyDate = "";
+                data.DailyDone = new List<int>();
+                data.StreakDate = "";
+                data.StreakDay = 0;
+                data.Stats = new PlayerStats();
+                data.Achievements = new List<string>();
+                data.Caches = new List<string>();
+                data.Version = 5;
+            }
             Repair(data);
         }
 
@@ -254,6 +281,15 @@ namespace Skyforge.Core
         {
             if (data.OwnedModules == null) data.OwnedModules = new List<string>();
             if (data.Choices == null) data.Choices = new List<string>();
+            if (data.DailyDone == null) data.DailyDone = new List<int>();
+            if (data.Achievements == null) data.Achievements = new List<string>();
+            if (data.Caches == null) data.Caches = new List<string>();
+            if (data.Stats == null) data.Stats = new PlayerStats();
+            if (data.LastDate == null) data.LastDate = "";
+            if (data.DailyDate == null) data.DailyDate = "";
+            if (data.StreakDate == null) data.StreakDate = "";
+            if (data.Language == null) data.Language = "";
+            data.StreakDay = Mathf.Clamp(data.StreakDay, 0, Daily.StreakCredits.Length);
             if (RegionCatalog.Get(data.Region).Id != data.Region) data.Region = RegionCatalog.All[0].Id;
             if (data.Drones == null) data.Drones = new List<DroneRecord>();
             data.Drones.RemoveAll(drone => drone == null || string.IsNullOrEmpty(drone.Id));
@@ -318,6 +354,7 @@ namespace Skyforge.Core
             if (record.BestTime <= 0f || outcome.Time < record.BestTime) record.BestTime = outcome.Time;
 
             save.Credits += credits;
+            save.Stats.CreditsEarned += credits;
             outcome.CreditsGranted = credits;
             return credits;
         }

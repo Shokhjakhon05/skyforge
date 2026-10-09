@@ -4,13 +4,26 @@ using UnityEngine;
 namespace Skyforge
 {
     /// <summary>
-    /// User-facing strings. Every text on screen goes through <see cref="T"/>, so adding the
-    /// remaining languages later means adding columns here, not hunting through the code.
+    /// User-facing strings. Every text on screen goes through <see cref="T"/>. English and Russian
+    /// are the two columns of the table below; every other language is a file of its own (see
+    /// LocUz.cs) holding the same keys, and a key it lacks is shown in English.
     /// </summary>
     public static class Loc
     {
-        const int English = 0, Russian = 1;
-        static readonly int Language = Detect();
+        /// <summary>Languages the player can choose, in the order the settings screen lists them.</summary>
+        public static readonly string[] Languages = { "en", "ru", "uz" };
+        public static readonly string[] LanguageNames = { "English", "Русский", "O'zbekcha" };
+
+        /// <summary>Code of the language in use; set once at start, before any screen is built.</summary>
+        public static string Language { get; private set; } = "en";
+
+        static readonly Dictionary<string, Dictionary<string, string>> Others =
+            new Dictionary<string, Dictionary<string, string>> { { "uz", LocUz.Table } };
+
+        public static void SetLanguage(string code)
+        {
+            Language = System.Array.IndexOf(Languages, code) >= 0 ? code : "en";
+        }
 
         static readonly Dictionary<string, string[]> Table = new Dictionary<string, string[]>
         {
@@ -258,6 +271,44 @@ namespace Skyforge
             { "talk.continue", new[] { "START THE OPERATION", "НАЧАТЬ ОПЕРАЦИЮ" } },
             { "talk.cannot_pay", new[] { "NOT ENOUGH CREDITS", "НЕ ХВАТАЕТ КРЕДИТОВ" } },
             { "menu.major", new[] { "MAJOR OPERATION, STAGE {0} OF 3", "КРУПНАЯ ОПЕРАЦИЯ, ЭТАП {0} ИЗ 3" } },
+            { "menu.daily", new[] { "DAILY OPS", "ЕЖЕДНЕВНЫЕ" } },
+            { "menu.achievements", new[] { "ACHIEVEMENTS", "ДОСТИЖЕНИЯ" } },
+            { "daily.title", new[] { "DAILY OPERATIONS", "ЕЖЕДНЕВНЫЕ ОПЕРАЦИИ" } },
+            { "daily.none", new[] { "Complete your first mission to open daily operations.", "Пройди первую миссию, чтобы открыть ежедневные операции." } },
+            { "daily.fly", new[] { "FLY", "ЛЕТЕТЬ" } },
+            { "daily.done", new[] { "DONE TODAY", "ВЫПОЛНЕНО" } },
+            { "daily.reward", new[] { "Reward: {0} credits, {1} parts", "Награда: {0} кредитов, {1} дет." } },
+            { "daily.modifier.AgainstTheClock", new[] { "Against the clock: finish within the time goal", "На время: уложись в целевое время" } },
+            { "daily.modifier.LowBattery", new[] { "Low battery: the charge starts at 70%", "Севшая батарея: заряд на старте 70%" } },
+            { "daily.modifier.NotAScratch", new[] { "Not a scratch: no damage to the drone", "Ни царапины: без повреждений дрона" } },
+            { "daily.streak", new[] { "Login streak: day {0} of 7", "Серия входов: день {0} из 7" } },
+            { "daily.streak_reward", new[] { "Today: {0} credits, {1} parts", "Сегодня: {0} кредитов, {1} дет." } },
+            { "daily.claim", new[] { "CLAIM", "ЗАБРАТЬ" } },
+            { "daily.claimed", new[] { "CLAIMED TODAY", "ПОЛУЧЕНО СЕГОДНЯ" } },
+            { "daily.completed", new[] { "DAILY OPERATION COMPLETE  +{0} credits  +{1} parts", "ЕЖЕДНЕВНАЯ ОПЕРАЦИЯ ВЫПОЛНЕНА  +{0} кредитов  +{1} дет." } },
+            { "daily.not_met", new[] { "Daily condition not met", "Условие ежедневной операции не выполнено" } },
+            { "achievements.title", new[] { "ACHIEVEMENTS  {0}/{1}", "ДОСТИЖЕНИЯ  {0}/{1}" } },
+            { "achievements.earned", new[] { "EARNED", "ПОЛУЧЕНО" } },
+            { "achievements.reward", new[] { "+{0} parts", "+{0} дет." } },
+            { "achievements.progress", new[] { "{0}/{1}", "{0}/{1}" } },
+            { "achievements.page", new[] { "{0}/{1}", "{0}/{1}" } },
+            { "achievements.toast", new[] { "ACHIEVEMENT: {0}", "ДОСТИЖЕНИЕ: {0}" } },
+            { "achievement.missions", new[] { "Complete {0} missions", "Пройти миссий: {0}" } },
+            { "achievement.stars", new[] { "Earn {0} stars", "Заработать звёзд: {0}" } },
+            { "achievement.perfect", new[] { "Three stars on {0} missions", "Три звезды в миссиях: {0}" } },
+            { "achievement.drones", new[] { "Own {0} drones", "Дронов в ангаре: {0}" } },
+            { "achievement.upgrades", new[] { "Buy {0} upgrades", "Куплено улучшений: {0}" } },
+            { "achievement.modules", new[] { "Own {0} modules", "Модулей в наличии: {0}" } },
+            { "achievement.regions", new[] { "Open {0} regions", "Открыто регионов: {0}" } },
+            { "achievement.daily", new[] { "Complete {0} daily operations", "Ежедневных операций: {0}" } },
+            { "achievement.streak", new[] { "Reach day {0} of the login streak", "Серия входов: день {0}" } },
+            { "achievement.distance", new[] { "Fly {0} km", "Налетать километров: {0}" } },
+            { "achievement.laps", new[] { "Finish {0} ring laps", "Пройти кругов по кольцам: {0}" } },
+            { "achievement.caches", new[] { "Find {0} caches", "Найти тайников: {0}" } },
+            { "achievement.flights", new[] { "Take off {0} times", "Совершить вылетов: {0}" } },
+            { "msg.cache", new[] { "CACHE FOUND  +{0} parts", "ТАЙНИК НАЙДЕН  +{0} дет." } },
+            { "settings.close_short", new[] { "CLOSE", "ЗАКРЫТЬ" } },
+            { "settings.language", new[] { "LANGUAGE", "ЯЗЫК" } },
             { "menu.locked_short", new[] { "LOCKED", "ЗАКРЫТО" } },
             { "menu.locked", new[] { "Complete the previous operation first", "Сначала пройди предыдущую операцию" } },
             { "menu.mission_number", new[] { "OPERATION {0} OF {1}", "ОПЕРАЦИЯ {0} ИЗ {1}" } },
@@ -382,29 +433,40 @@ namespace Skyforge
             { "quality.ultra", new[] { "ULTRA", "УЛЬТРА" } },
         };
 
-        static int Detect()
+        /// <summary>The language of the device, as far as the engine reports it. Uzbek is not on its list.</summary>
+        public static string Detect()
         {
             switch (Application.systemLanguage)
             {
                 case SystemLanguage.Russian:
                 case SystemLanguage.Ukrainian:
                 case SystemLanguage.Belarusian:
-                    return Russian;
+                    return "ru";
                 default:
-                    return English;
+                    return "en";
             }
         }
 
         public static bool Has(string key) => Table.ContainsKey(key);
 
-        /// <summary>Every language column of every key, for the tests that check the table.</summary>
+        /// <summary>The English and Russian columns of every key, for the tests that check the table.</summary>
         public static IEnumerable<KeyValuePair<string, string[]>> All => Table;
+
+        /// <summary>The keys a language other than English and Russian translates, for the tests.</summary>
+        public static IReadOnlyDictionary<string, string> Translations(string language) =>
+            Others.TryGetValue(language, out Dictionary<string, string> table) ? table : null;
 
         public static string T(string key)
         {
-            if (Table.TryGetValue(key, out string[] row)) return row[Language];
-            Debug.LogWarning("[Skyforge] Missing string " + key);
-            return key;
+            if (!Table.TryGetValue(key, out string[] row))
+            {
+                Debug.LogWarning("[Skyforge] Missing string " + key);
+                return key;
+            }
+            if (Language == "ru") return row[1];
+            if (Language != "en" && Others.TryGetValue(Language, out Dictionary<string, string> table) &&
+                table.TryGetValue(key, out string text)) return text;
+            return row[0];
         }
 
         public static string T(string key, params object[] args) => string.Format(T(key), args);

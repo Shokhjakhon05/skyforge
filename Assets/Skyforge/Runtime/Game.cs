@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using Skyforge.Core;
@@ -43,6 +44,14 @@ namespace Skyforge
         GlobeView _globe;
         GlobeScreen _globeScreen;
         TalkScreen _talk;
+        DailyScreen _daily;
+        AchievementsScreen _achievements;
+        CachesView _caches;
+        UnityEngine.UI.Text _toast;
+        float _toastTimer;
+        string _today;
+        List<DailyOp> _dailyOps = new List<DailyOp>();
+        int _dailySlot = -1;
         int _globeIndex;
         Transform _regionRoot;
         RegionDefinition _region;
@@ -88,6 +97,7 @@ namespace Skyforge
             _save = _store.Load(out LoadResult loadResult);
             Debug.Log("[Skyforge] Save: " + loadResult);
             if (_save.RingBest <= 0f) _save.RingBest = PlayerPrefs.GetFloat("rings.best", 0f);
+            Loc.SetLanguage(string.IsNullOrEmpty(_save.Language) ? DeviceLanguage() : _save.Language);
 
             _camera = new CameraRig(transform, null);
             _camera.View = (CameraView)Mathf.Clamp(_save.CameraViewIndex, 0, 2);
@@ -120,7 +130,11 @@ namespace Skyforge
 
             _hangar = new HangarScreen(transform);
             _hangar.Viewed += ShowDroneModel;
-            _hangar.Changed += () => _store.Save(_save);
+            _hangar.Changed += () =>
+            {
+                Announce(Achievements.Collect(_save));
+                _store.Save(_save);
+            };
             _hangar.Pressed += refused => _sfx.Play(refused ? Sound.Warning : Sound.Click);
             _hangar.BackPressed += () => { Click(); ShowMenu(); };
             _hangar.Visible = false;
@@ -139,6 +153,25 @@ namespace Skyforge
             _talk.ContinuePressed += () => { Click(); _talk.Visible = false; StartMission(); };
             _talk.BackPressed += () => { Click(); _talk.Visible = false; };
             _talk.Visible = false;
+
+            _daily = new DailyScreen(transform);
+            _daily.FlyPressed += FlyDaily;
+            _daily.ClaimPressed += ClaimStreak;
+            _daily.ClosePressed += () => { Click(); _daily.Visible = false; };
+            _daily.Visible = false;
+            _menu.DailyPressed += () => { Click(); ShowDaily(); };
+
+            _achievements = new AchievementsScreen(transform);
+            _achievements.ClosePressed += () => { Click(); _achievements.Visible = false; };
+            _achievements.PagePressed += Click;
+            _achievements.Visible = false;
+            _menu.AchievementsPressed += () => { Click(); _achievements.Show(_save); };
+
+            // Announcements that must be seen on any screen: achievements.
+            Canvas toastCanvas = UiKit.CreateCanvas(transform, "Toast", 50);
+            _toast = UiKit.Label(UiKit.SafeArea(toastCanvas.transform), 34, TextAnchor.LowerCenter);
+            _toast.color = UiKit.Accent;
+            UiKit.Place(_toast.rectTransform, new Vector2(0.5f, 0f), new Vector2(0f, 26f), new Vector2(1600f, 50f));
 
             _result = new ResultScreen(transform);
             _result.RetryPressed += () => { Click(); StartMission(); };
@@ -159,6 +192,7 @@ namespace Skyforge
             _settings.QualityPressed += SetQuality;
             _settings.FpsPressed += ToggleFps;
             _settings.SoundPressed += ToggleSound;
+            _settings.LanguagePressed += SetLanguage;
             _settings.ClosePressed += () => { Click(); _settings.Visible = false; };
             _settings.Visible = false;
 
@@ -176,8 +210,13 @@ namespace Skyforge
         void ShowMenu()
         {
             _phase = Phase.Menu;
+            _dailySlot = -1;
+            _mission = AppliedMission();
+            Announce(Achievements.Collect(_save));
             _hangar.Visible = false;
             _globeScreen.Visible = false;
+            _daily.Visible = false;
+            _achievements.Visible = false;
             ShowDroneModel(Garage.Selected(_save));
             ResetFlight();
             _world.Hide();
@@ -252,6 +291,7 @@ namespace Skyforge
             BeaconsView.Build(_island, _regionRoot);
             _course = new RingCourse(_island, _regionRoot);
             _world = new MissionWorld(_regionRoot, _island.Map);
+            _caches = new CachesView(_island, _regionRoot, index => Caches.IsFound(_save, region.Id, index));
             _camera.SetMap(_island.Map);
             _look.SetSea(sea);
 
@@ -392,7 +432,9 @@ namespace Skyforge
                 _talk.Ask(negotiation, _save);
                 return;
             }
-            _mission = AppliedMission();
+            _mission = _dailySlot >= 0 && _dailySlot < _dailyOps.Count
+                ? Daily.Apply(AppliedMission(), _dailyOps[_dailySlot].Modifier)
+                : AppliedMission();
             _phase = Phase.Mission;
             _sim = CreateSim(_mission.Payload);
             ResetFlight();
@@ -424,6 +466,9 @@ namespace Skyforge
             _hangar.Visible = false;
             _globeScreen.Visible = false;
             _talk.Visible = false;
+            _daily.Visible = false;
+            _achievements.Visible = false;
+            _save.Stats.Flights++;
             _hud.Visible = true;
             _hud.GaugesVisible = gauges;
             _hud.SetMessage("");
@@ -441,13 +486,92 @@ namespace Skyforge
             _phase = Phase.Result;
             MissionOutcome outcome = MissionOutcome.From(_run);
             Progress.Grant(_save, _mission, outcome);
-            _advanceOnContinue = outcome.Succeeded && _save.Find(_mission.Id).Completions == 1;
+            _advanceOnContinue = outcome.Succeeded && _save.Find(_mission.Id).Completions == 1 && _dailySlot < 0;
+
+            // A daily operation pays on top, once, if its twist was honoured.
+            string extra = null;
+            if (_dailySlot >= 0 && _dailySlot < _dailyOps.Count && outcome.Succeeded)
+            {
+                DailyOp op = _dailyOps[_dailySlot];
+                if (!Daily.Satisfied(outcome, op.Modifier)) extra = Loc.T("daily.not_met");
+                else if (Daily.Complete(_save, _today, _dailySlot, op)) extra = Loc.T("daily.completed", op.Credits, op.Parts);
+            }
+            Announce(Achievements.Collect(_save));
             if (!_store.Save(_save)) Debug.LogError("[Skyforge] Progress could not be saved.");
 
             ResetFlight();
             _world.Hide();
             _hud.Visible = false;
-            _result.Show(_mission, outcome, _save);
+            _result.Show(_mission, outcome, _save, extra);
+        }
+
+        // ---------------------------------------------------------------- daily operations and achievements
+
+        void ShowDaily()
+        {
+            _today = Daily.Today(_save, DateTime.Now);
+            int stars = Garage.TotalStars(_save);
+            var beaten = new List<KeyValuePair<string, string>>();
+            var rewards = new List<int>();
+            foreach (RegionDefinition region in RegionCatalog.All)
+            {
+                if (stars < region.StarsRequired) continue;
+                foreach (KeyValuePair<string, int> mission in MissionCatalog.Summaries(region))
+                {
+                    MissionRecord record = _save.Find(mission.Key);
+                    if (record == null || record.Completions == 0) continue;
+                    beaten.Add(new KeyValuePair<string, string>(region.Id, mission.Key));
+                    rewards.Add(mission.Value);
+                }
+            }
+            _dailyOps = Daily.Ops(_today, beaten, rewards);
+
+            var titles = new List<string>();
+            foreach (DailyOp op in _dailyOps)
+                titles.Add(Loc.T(RegionCatalog.Get(op.RegionId).NameKey) + "  ·  " + Loc.T("mission." + op.MissionId + ".title"));
+            _daily.Show(_save, _today, _dailyOps, titles);
+        }
+
+        void ClaimStreak()
+        {
+            if (Daily.ClaimStreak(_save, _today) == 0)
+            {
+                _sfx.Play(Sound.Warning);
+                return;
+            }
+            _sfx.Play(Sound.Success);
+            Announce(Achievements.Collect(_save));
+            _store.Save(_save);
+            ShowDaily();
+            ShowMenuScreen();
+        }
+
+        void FlyDaily(int slot)
+        {
+            if (slot >= _dailyOps.Count || Daily.IsDone(_save, _today, slot))
+            {
+                _sfx.Play(Sound.Warning);
+                return;
+            }
+            Click();
+            DailyOp op = _dailyOps[slot];
+            if (op.RegionId != _region.Id) LoadRegion(RegionCatalog.Get(op.RegionId));
+            for (int i = 0; i < _missions.Count; i++)
+                if (_missions[i].Id == op.MissionId) _missionIndex = i;
+            _mission = AppliedMission();
+            _dailySlot = slot;
+            StartMission();
+        }
+
+        /// <summary>Tells the player about newly earned achievements, wherever they are in the game.</summary>
+        void Announce(List<Achievement> earned)
+        {
+            if (earned.Count == 0) return;
+            Achievement last = earned[earned.Count - 1];
+            _toast.text = Loc.T("achievements.toast", Loc.T(last.NameKey, last.Goal));
+            _toastTimer = 5f;
+            _sfx.Play(Sound.Success);
+            _store.Save(_save);
         }
 
         void ResetFlight()
@@ -491,6 +615,12 @@ namespace Skyforge
             // AfterFreeze may have left the flight.
             flying = _phase == Phase.Mission || _phase == Phase.FreeFlight;
             Present(deltaTime, flying);
+            _caches.Update(deltaTime);
+            if (_toastTimer > 0f)
+            {
+                _toastTimer -= Time.unscaledDeltaTime;
+                if (_toastTimer <= 0f) _toast.text = "";
+            }
             _look.Update();
             CountFrames();
         }
@@ -516,7 +646,19 @@ namespace Skyforge
                 _previous = _sim.State;
                 SimEvent simEvent = _sim.Step(input, StepSeconds);
                 if (simEvent == SimEvent.TookOff) _hasFlown = true;
+                if (simEvent == SimEvent.Crashed) _save.Stats.Crashes++;
                 _load = ComputeLoad(_sim.State);
+                _save.Stats.DistanceMeters += new Vector2(_sim.State.Velocity.x, _sim.State.Velocity.z).magnitude * StepSeconds;
+
+                int cache = Caches.TryCollect(_save, _region.Id, _island, _sim.State.Position);
+                if (cache >= 0)
+                {
+                    _caches.Hide(cache);
+                    _sfx.Play(Sound.Success);
+                    ShowMessage(Loc.T("msg.cache", Caches.PartsEach), 2.5f);
+                    Announce(Achievements.Collect(_save));
+                    _store.Save(_save);
+                }
 
                 if (_phase == Phase.Mission)
                 {
@@ -843,6 +985,8 @@ namespace Skyforge
             if (!_course.Finished) return;
 
             _lapRunning = false;
+            _save.Stats.Laps++;
+            Announce(Achievements.Collect(_save));
             bool record = _save.RingBest <= 0f || _lapTime < _save.RingBest;
             if (record)
             {
@@ -893,6 +1037,43 @@ namespace Skyforge
             ApplyQuality();
             _store.Save(_save);
             ShowSettings();
+        }
+
+        /// <summary>Every screen holds text in the old language, so the game is rebuilt from the save.</summary>
+        void SetLanguage(string code)
+        {
+            if (code == Loc.Language)
+            {
+                Click();
+                return;
+            }
+            _save.Language = code;
+            _store.Save(_save);
+            Bootstrap.Restart();
+        }
+
+        /// <summary>
+        /// The device's language if the game has it. The engine's own list has no Uzbek, so on a
+        /// phone the system locale is asked directly.
+        /// </summary>
+        static string DeviceLanguage()
+        {
+#if UNITY_ANDROID && !UNITY_EDITOR
+            try
+            {
+                using (var locale = new AndroidJavaClass("java.util.Locale"))
+                using (AndroidJavaObject current = locale.CallStatic<AndroidJavaObject>("getDefault"))
+                {
+                    string code = current.Call<string>("getLanguage");
+                    if (Array.IndexOf(Loc.Languages, code) >= 0) return code;
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("[Skyforge] Could not read the system locale: " + e.Message);
+            }
+#endif
+            return Loc.Detect();
         }
 
         void ToggleFps()
@@ -980,6 +1161,25 @@ namespace Skyforge
         }
 
         public string AutomationFirstMissionId => _missions[0].Id;
+
+        /// <summary>Restarts the game in another language; the screenshot run carries on in the new game object.</summary>
+        public void AutomationSetLanguage(string code)
+        {
+            _save.Language = code;
+            _store.Save(_save);
+        }
+
+        public void AutomationShowDaily()
+        {
+            ShowMenu();
+            ShowDaily();
+        }
+
+        public void AutomationShowAchievements()
+        {
+            ShowMenu();
+            _achievements.Show(_save);
+        }
 
         public void AutomationShowTalk()
         {

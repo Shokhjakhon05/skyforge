@@ -15,6 +15,8 @@ namespace Skyforge
         /// <summary>Set by the build script; null everywhere else.</summary>
         public static string OutputDir;
         public static bool Finished;
+        /// <summary>0: the main run. 1: after a restart in another language, a few shots to check its text.</summary>
+        public static int Stage;
 
         const int Width = 1600, Height = 720;
         Game _game;
@@ -23,6 +25,28 @@ namespace Skyforge
         {
             _game = GetComponent<Game>();
             yield return Frames(40);
+
+            if (Stage == 1)
+            {
+                yield return Shot("20a_uz_menu");
+                _game.AutomationShowSettings();
+                yield return Shot("20b_uz_settings");
+                _game.AutomationHideSettings();
+                _game.AutomationShowHangar("kestrel", 1, 2500);
+                yield return Shot("20c_uz_hangar");
+                _game.AutomationSelectMission("clean_strike");
+                _game.AutomationStartMission();
+                _game.AutomationPlace(_game.Island.Anchors["poi2"] + new Vector3(6f, 60f, -4f), 0f);
+                yield return Shot("20d_uz_mission");
+                _game.AutomationShowResult();
+                yield return Shot("20e_uz_result");
+                _game.AutomationShowDaily();
+                yield return Shot("20f_uz_daily");
+                _game.AutomationSetLanguage("");
+                Stage = 0;
+                Finished = true;
+                yield break;
+            }
 
             Island island = _game.Island;
             Vector3 spawn = island.Spawn;
@@ -110,6 +134,12 @@ namespace Skyforge
             yield return Shot("14z_negotiation");
             _game.AutomationHideTalk();
 
+            _game.AutomationShowDaily();
+            yield return Shot("14y_daily");
+            _game.AutomationShowAchievements();
+            yield return Shot("14x_achievements");
+            _game.AutomationShowMenu();
+
             // The world map, then a look at the other two regions.
             for (int region = 0; region < RegionCatalog.All.Count; region++)
             {
@@ -134,9 +164,12 @@ namespace Skyforge
             }
             _game.AutomationLoadRegion("arvelia");
 
+            // Start again in Uzbek; the new game object's director takes the last few shots.
             _game.AutomationSelectMission("first_contact");
             _game.AutomationShowMenu();
-            Finished = true;
+            _game.AutomationSetLanguage("uz");
+            Stage = 1;
+            Bootstrap.Restart();
         }
 
         IEnumerator MissionShot(string prefix, string missionId, Vector3 position, float yawDeg, CameraView view)

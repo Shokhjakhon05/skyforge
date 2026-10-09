@@ -94,6 +94,7 @@ namespace Skyforge.Core
             save.Credits -= credits;
             save.Parts -= parts;
             record.Upgrades[(int)track]++;
+            save.Stats.UpgradesBought++;
             return PurchaseResult.Ok;
         }
 

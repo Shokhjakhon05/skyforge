@@ -9,7 +9,7 @@ namespace Skyforge.UI
     /// <summary>The screen between flights: who you are, what the next operation is, and how to start it.</summary>
     public sealed class MenuScreen
     {
-        public event Action StartPressed, FreeFlightPressed, SettingsPressed, WeatherPressed, PreviousPressed, NextPressed, HangarPressed, GlobePressed;
+        public event Action StartPressed, FreeFlightPressed, SettingsPressed, WeatherPressed, PreviousPressed, NextPressed, HangarPressed, GlobePressed, DailyPressed, AchievementsPressed;
 
         readonly GameObject _root;
         readonly Text _credits, _title, _body, _best, _weather, _heading, _start;
@@ -92,6 +92,14 @@ namespace Skyforge.UI
             globe.text = Loc.T("menu.globe");
             UiKit.Place((RectTransform)globe.transform.parent, new Vector2(1f, 1f), new Vector2(-36f, -222f), new Vector2(320f, 84f));
 
+            Text daily = UiKit.Button(safe, "Daily", UiKit.SolidPanelColor, 30, () => DailyPressed?.Invoke());
+            daily.text = Loc.T("menu.daily");
+            UiKit.Place((RectTransform)daily.transform.parent, new Vector2(1f, 1f), new Vector2(-36f, -320f), new Vector2(320f, 84f));
+
+            Text achievements = UiKit.Button(safe, "Achievements", UiKit.SolidPanelColor, 30, () => AchievementsPressed?.Invoke());
+            achievements.text = Loc.T("menu.achievements");
+            UiKit.Place((RectTransform)achievements.transform.parent, new Vector2(1f, 1f), new Vector2(-36f, -418f), new Vector2(320f, 84f));
+
             _start = UiKit.Button(p, "Start", UiKit.Accent, 40, () => StartPressed?.Invoke());
             var startRect = (RectTransform)_start.transform.parent;
             UiKit.Place(startRect, new Vector2(0f, 0f), new Vector2(60f, 50f), new Vector2(500f, 110f));
@@ -162,6 +170,8 @@ namespace Skyforge.UI
     {
         /// <summary>0 = automatic, 1..4 = Low..Ultra.</summary>
         public event Action<int> QualityPressed;
+        /// <summary>The player picked a language; the game restarts to rebuild every screen in it.</summary>
+        public event Action<string> LanguagePressed;
         public event Action FpsPressed, SoundPressed, ClosePressed;
 
         static readonly string[] QualityKeys =
@@ -171,6 +181,8 @@ namespace Skyforge.UI
         readonly Image[] _qualityButtons = new Image[5];
         readonly Text[] _qualityLabels = new Text[5];
         readonly Text _applied, _fps, _sound;
+        readonly Image[] _languageButtons = new Image[Loc.Languages.Length];
+        readonly Text[] _languageLabels = new Text[Loc.Languages.Length];
 
         public SettingsScreen(Transform parent)
         {
@@ -183,9 +195,23 @@ namespace Skyforge.UI
 
             RectTransform safe = UiKit.SafeArea(canvas.transform);
             Image panel = UiKit.Box(safe, "Panel", UiKit.SolidPanelColor);
-            UiKit.Place(panel.rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1500f, 780f));
+            UiKit.Place(panel.rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1500f, 940f));
             Transform p = panel.transform;
             var topLeft = new Vector2(0f, 1f);
+
+            Text language = UiKit.Label(p, 32, TextAnchor.UpperLeft);
+            language.text = Loc.T("settings.language");
+            language.color = new Color(1f, 1f, 1f, 0.7f);
+            UiKit.Place(language.rectTransform, topLeft, new Vector2(60f, -530f), new Vector2(900f, 44f));
+            for (int i = 0; i < Loc.Languages.Length; i++)
+            {
+                string code = Loc.Languages[i];
+                _languageLabels[i] = UiKit.Button(p, "Language" + i, UiKit.Faint, 30, () => LanguagePressed?.Invoke(code));
+                _languageLabels[i].text = Loc.LanguageNames[i];
+                var rect = (RectTransform)_languageLabels[i].transform.parent;
+                UiKit.Place(rect, topLeft, new Vector2(60f + i * 278f, -584f), new Vector2(264f, 96f));
+                _languageButtons[i] = rect.GetComponent<Image>();
+            }
 
             Text title = UiKit.Label(p, 56, TextAnchor.UpperLeft);
             title.text = Loc.T("menu.settings");
@@ -235,6 +261,12 @@ namespace Skyforge.UI
                 _qualityLabels[i].color = selected ? new Color(0.08f, 0.06f, 0.02f) : Color.white;
             }
             _applied.text = save.Quality == 0 ? Loc.T("settings.auto_picked", Loc.T(appliedKey)) : "";
+            for (int i = 0; i < Loc.Languages.Length; i++)
+            {
+                bool current = Loc.Languages[i] == Loc.Language;
+                _languageButtons[i].color = current ? UiKit.Accent : UiKit.Faint;
+                _languageLabels[i].color = current ? new Color(0.08f, 0.06f, 0.02f) : Color.white;
+            }
             _fps.text = Loc.T(save.ShowFps ? "settings.fps_on" : "settings.fps_off");
             _sound.text = Loc.T(save.Muted ? "settings.sound_off" : "settings.sound_on");
             Visible = true;
@@ -304,7 +336,8 @@ namespace Skyforge.UI
             set => _root.SetActive(value);
         }
 
-        public void Show(MissionDefinition mission, MissionOutcome outcome, SaveData save)
+        /// <param name="extra">One more line under the star explanations, or null.</param>
+        public void Show(MissionDefinition mission, MissionOutcome outcome, SaveData save, string extra = null)
         {
             _title.text = Loc.T(outcome.Succeeded ? "result.success" : "result.failed");
             _title.color = outcome.Succeeded ? Color.white : UiKit.Bad;
@@ -317,7 +350,8 @@ namespace Skyforge.UI
                 _lines.text =
                     Mark(true) + Loc.T("result.completed") + "\n" +
                     Mark(outcome.TimeGoalMet) + Loc.T("result.time", time, goal) + "\n" +
-                    Mark(outcome.NoDamage) + Loc.T(outcome.NoDamage ? "result.undamaged" : "result.damaged");
+                    Mark(outcome.NoDamage) + Loc.T(outcome.NoDamage ? "result.undamaged" : "result.damaged") +
+                    (string.IsNullOrEmpty(extra) ? "" : "\n<color=" + UiKit.AccentHex + ">" + extra + "</color>");
                 _reward.text = (outcome.PartsGranted > 0
                                    ? Loc.T("result.parts", outcome.CreditsGranted, outcome.PartsGranted)
                                    : Loc.T("result.reward", outcome.CreditsGranted)) + "\n" +
