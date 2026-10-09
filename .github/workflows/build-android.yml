@@ -1,0 +1,99 @@
+name: Build Android
+
+# Started by hand or by a version tag: a build takes a large image and many minutes,
+# so it does not run on every push.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version name shown in the game
+        default: "0.0.1"
+  push:
+    tags: ["v*"]
+
+concurrency:
+  group: build-android
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+env:
+  VERSION: ${{ github.event.inputs.version || github.ref_name }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Free runner disk
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+          docker-images: true
+          swap-storage: false
+
+      - uses: actions/checkout@v4
+
+      - name: Check .meta files
+        run: python3 tools/gen_meta.py --check
+
+      - uses: actions/cache@v4
+        with:
+          path: Library
+          key: Library-Android-${{ hashFiles('Packages/manifest.json', 'ProjectSettings/ProjectVersion.txt') }}-${{ github.run_number }}
+          restore-keys: |
+            Library-Android-${{ hashFiles('Packages/manifest.json', 'ProjectSettings/ProjectVersion.txt') }}-
+
+      - name: Write signing files
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASS }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::warning::No keystore secret, the APK will have a debug signature"
+            exit 0
+          fi
+          mkdir -p ci/signing
+          echo "$KEYSTORE_BASE64" | base64 -d > ci/signing/skyforge.keystore
+          printf '%s\n%s\n%s\n' "$KEYSTORE_PASS" "$KEY_ALIAS" "$KEY_PASS" > ci/signing/signing.txt
+
+      - name: Build APK
+        uses: game-ci/unity-builder@v6
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          targetPlatform: Android
+          buildName: Skyforge
+          buildMethod: Skyforge.EditorTools.BuildScript.BuildAndroid
+          versioning: None
+          allowDirtyBuild: true
+          customParameters: -sfVersion ${{ env.VERSION }} -sfVersionCode ${{ github.run_number }}
+
+      - name: Remove signing files
+        if: always()
+        run: sudo rm -rf ci/signing
+
+      - name: Publish prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          APK="skyforge-${VERSION}-${{ github.run_number }}.apk"
+          sudo cp build/Android/Skyforge.apk "$APK"
+          ls -lh "$APK"
+          gh release create "dev-${{ github.run_number }}" "$APK" \
+            --prerelease --target "$GITHUB_SHA" \
+            --title "Skyforge ${VERSION} (build ${{ github.run_number }})" \
+            --notes "Development build from ${GITHUB_SHA::7}."
+          # Keep the five newest development builds.
+          gh release list --limit 100 --json tagName,createdAt \
+            --jq '[.[] | select(.tagName | startswith("dev-"))] | sort_by(.createdAt) | reverse | .[5:] | .[].tagName' \
+            | xargs -r -n1 gh release delete --cleanup-tag --yes

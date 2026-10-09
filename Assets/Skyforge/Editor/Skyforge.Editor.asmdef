@@ -1,0 +1,13 @@
+{
+  "name": "Skyforge.Editor",
+  "rootNamespace": "Skyforge.EditorTools",
+  "references": [
+    "Skyforge.Game",
+    "Unity.RenderPipelines.Core.Runtime",
+    "Unity.RenderPipelines.Universal.Runtime"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "autoReferenced": false
+}
