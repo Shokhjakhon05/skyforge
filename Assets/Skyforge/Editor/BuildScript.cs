@@ -71,6 +71,7 @@ namespace Skyforge.EditorTools
             try
             {
                 if (_screenshotsRan) RestoreAssetsAfterPlayMode();
+                ApplyIcon();
 
                 Directory.CreateDirectory(Path.GetDirectoryName(OutputPath));
                 var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
@@ -206,18 +207,22 @@ namespace Skyforge.EditorTools
 
             EditorUserBuildSettings.buildAppBundle = Bundle;
             UseLegacyInput();
-            ApplyIcon();
         }
 
         /// <summary>The icon is drawn by tools/gen_icon.py; one large picture serves every size.</summary>
         static void ApplyIcon()
         {
-            var icon = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Skyforge/Branding/icon.png");
+            const string path = "Assets/Skyforge/Branding/icon.png";
+            AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceSynchronousImport);
+            var icon = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
             if (icon == null)
             {
-                Debug.LogWarning("[Skyforge] ICON MISSING: the build will carry Unity's default icon.");
+                UnityEngine.Object main = AssetDatabase.LoadMainAssetAtPath(path);
+                Debug.LogWarning("[Skyforge] ICON MISSING: the build will carry Unity's default icon. The file loads as " +
+                                 (main == null ? "nothing" : main.GetType().Name) + ".");
                 return;
             }
+            Debug.Log("[Skyforge] Icon applied.");
             try
             {
                 PlayerSettings.SetIcons(NamedBuildTarget.Unknown, new[] { icon }, IconKind.Any);
