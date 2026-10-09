@@ -100,8 +100,8 @@ Shader "Skyforge/Water"
                 float ripple = _WaveStrength * saturate(1.0 - distanceToCamera / 900.0);
                 float3 normal = normalize(float3((h - hx) * ripple, 1.0, (h - hz) * ripple));
 
-                float fresnel = pow(1.0 - saturate(dot(normal, viewDir)), 4.0);
-                float3 color = lerp(_DeepColor.rgb, _SkyColor.rgb, saturate(fresnel * 0.85 + 0.04));
+                float fresnel = pow(1.0 - saturate(dot(normal, viewDir)), 5.0);
+                float3 color = lerp(_DeepColor.rgb, _SkyColor.rgb, saturate(fresnel * 0.6 + 0.03));
 
                 Light mainLight = GetMainLight();
                 float3 halfVector = normalize(mainLight.direction + viewDir);

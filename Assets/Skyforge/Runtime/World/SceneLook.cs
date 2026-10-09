@@ -50,9 +50,9 @@ namespace Skyforge.World
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.Linear;
 
-            // Precipitation rides with the camera and falls in world space around it.
+            // Precipitation is emitted from a box that Update keeps above and ahead of the camera.
             var particleObject = new GameObject("Precipitation");
-            particleObject.transform.SetParent(camera.transform, false);
+            particleObject.transform.SetParent(parent, false);
             _particles = particleObject.AddComponent<ParticleSystem>();
             _particleRenderer = particleObject.GetComponent<ParticleSystemRenderer>();
             _particleMaterial = GameMaterials.Unlit(Color.white);
@@ -89,6 +89,16 @@ namespace Skyforge.World
             _bloom.intensity.value = 0.22f;
             _bloom.scatter.value = 0.6f;
             _volume.sharedProfile = profile;
+        }
+
+        /// <summary>Call every frame: keeps the precipitation around wherever the camera is looking.</summary>
+        public void Update()
+        {
+            Transform cam = _camera.transform;
+            Vector3 ahead = cam.forward;
+            ahead.y = 0f;
+            if (ahead.sqrMagnitude > 0.01f) ahead.Normalize();
+            _particles.transform.position = cam.position + ahead * 9f;
         }
 
         /// <summary>Picks a tier from the phone's memory. Ultra is never chosen automatically.</summary>
@@ -136,6 +146,9 @@ namespace Skyforge.World
             RenderSettings.fogStartDistance = weather.FogStart;
             RenderSettings.fogEndDistance = weather.FogEnd;
 
+            // Under a cloud deck the sky is simply the colour of the fog, so the horizon disappears into it.
+            _camera.clearFlags = weather.Overcast ? CameraClearFlags.SolidColor : CameraClearFlags.Skybox;
+            _camera.backgroundColor = weather.Fog;
             if (_sky != null)
             {
                 _sky.SetColor("_SkyTint", weather.SkyTint);
@@ -178,19 +191,21 @@ namespace Skyforge.World
             switch (weather.Precipitation)
             {
                 case Precipitation.Rain:
-                    fall = 24f; lifetime = 0.9f; size = 0.035f; rate = 2600f; stretch = 0.05f;
-                    color = new Color(0.72f, 0.78f, 0.84f);
-                    boxSize = new Vector3(36f, 1f, 36f); boxOffset = new Vector3(0f, 11f, 10f);
+                    // Thin streaks only a little lighter than the fog: rain is seen as texture, not as lines.
+                    fall = 22f; lifetime = 1.1f; size = 0.014f; rate = 3200f; stretch = 0.035f;
+                    color = Color.Lerp(weather.Fog, Color.white, 0.35f);
+                    boxSize = new Vector3(34f, 1f, 34f); boxOffset = new Vector3(0f, 12f, 0f);
                     break;
                 case Precipitation.Snow:
-                    fall = 2.6f; lifetime = 5f; size = 0.07f; rate = 700f; stretch = 0f;
-                    color = new Color(0.96f, 0.97f, 1f);
-                    boxSize = new Vector3(40f, 1f, 40f); boxOffset = new Vector3(0f, 9f, 10f);
+                    fall = 2.6f; lifetime = 6f; size = 0.05f; rate = 900f; stretch = 0f;
+                    color = new Color(0.97f, 0.98f, 1f);
+                    boxSize = new Vector3(40f, 1f, 40f); boxOffset = new Vector3(0f, 10f, 0f);
                     break;
                 default:
-                    fall = 0.6f; lifetime = 3.5f; size = 0.06f; rate = 600f; stretch = 0.02f;
-                    color = new Color(0.80f, 0.66f, 0.46f);
-                    boxSize = new Vector3(40f, 14f, 40f); boxOffset = new Vector3(0f, 2f, 10f);
+                    // Dust: fine specks drifting through the whole volume around the camera.
+                    fall = 0.4f; lifetime = 4f; size = 0.022f; rate = 900f; stretch = 0f;
+                    color = Color.Lerp(weather.Fog, new Color(0.45f, 0.36f, 0.24f), 0.5f);
+                    boxSize = new Vector3(40f, 18f, 40f); boxOffset = new Vector3(0f, 2f, 0f);
                     break;
             }
 

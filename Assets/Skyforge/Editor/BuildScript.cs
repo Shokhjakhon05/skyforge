@@ -68,8 +68,7 @@ namespace Skyforge.EditorTools
         {
             try
             {
-                // Play mode changes the generated pipeline and sky assets, so they are made afresh.
-                if (_screenshotsRan) PrepareAssets();
+                if (_screenshotsRan) RestoreAssetsAfterPlayMode();
 
                 Directory.CreateDirectory(Path.GetDirectoryName(OutputPath));
                 var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
@@ -90,6 +89,29 @@ namespace Skyforge.EditorTools
                 Debug.LogError("[Skyforge] Build failed: " + e);
                 EditorApplication.Exit(1);
             }
+        }
+
+        /// <summary>
+        /// Playing the game changes the generated pipeline asset (quality settings) and the sky
+        /// material (weather). They are put back in place rather than recreated: replacing the
+        /// pipeline asset destroys the object URP's build step still holds.
+        /// </summary>
+        static void RestoreAssetsAfterPlayMode()
+        {
+            var pipeline = AssetDatabase.LoadAssetAtPath<UniversalRenderPipelineAsset>(GeneratedDir + "/Urp.asset");
+            if (pipeline != null)
+            {
+                ConfigurePipeline(pipeline);
+                EditorUtility.SetDirty(pipeline);
+                GraphicsSettings.defaultRenderPipeline = pipeline;
+            }
+            var sky = AssetDatabase.LoadAssetAtPath<Material>(GeneratedDir + "/Resources/Materials/Sky.mat");
+            if (sky != null)
+            {
+                ConfigureSky(sky);
+                EditorUtility.SetDirty(sky);
+            }
+            AssetDatabase.SaveAssets();
         }
 
         /// <summary>
@@ -291,13 +313,32 @@ namespace Skyforge.EditorTools
             AssetDatabase.CreateAsset(rendererData, GeneratedDir + "/UrpRenderer.asset");
 
             var pipeline = UniversalRenderPipelineAsset.Create(rendererData);
+            ConfigurePipeline(pipeline);
+            AssetDatabase.CreateAsset(pipeline, GeneratedDir + "/Urp.asset");
+
+            GraphicsSettings.defaultRenderPipeline = pipeline;
+        }
+
+        /// <summary>The settings the player is built with; shader variants are kept or stripped to match.</summary>
+        static void ConfigurePipeline(UniversalRenderPipelineAsset pipeline)
+        {
+            pipeline.renderScale = 1f;
             pipeline.msaaSampleCount = 2;
             pipeline.supportsHDR = false;
             pipeline.shadowDistance = 140f;
             pipeline.shadowCascadeCount = 2;
-            AssetDatabase.CreateAsset(pipeline, GeneratedDir + "/Urp.asset");
+        }
 
-            GraphicsSettings.defaultRenderPipeline = pipeline;
+        static void ConfigureSky(Material sky)
+        {
+            // A material made in code gets no keywords, and without one the sky has no sun disc.
+            sky.EnableKeyword("_SUNDISK_SIMPLE");
+            sky.SetFloat("_SunDisk", 1f);
+            sky.SetFloat("_SunSize", 0.035f);
+            sky.SetFloat("_AtmosphereThickness", 0.95f);
+            sky.SetFloat("_Exposure", 1.25f);
+            sky.SetColor("_SkyTint", new Color(0.50f, 0.52f, 0.55f));
+            sky.SetColor("_GroundColor", new Color(0.70f, 0.80f, 0.90f));
         }
 
         /// <summary>
@@ -313,13 +354,7 @@ namespace Skyforge.EditorTools
             AssetDatabase.CreateAsset(new Material(FindShader("Universal Render Pipeline/Unlit")), dir + "/Unlit.mat");
 
             var sky = new Material(FindShader("Skybox/Procedural"));
-            // A material made in code gets no keywords, and without one the sky has no sun disc.
-            sky.EnableKeyword("_SUNDISK_SIMPLE");
-            sky.SetFloat("_SunDisk", 1f);
-            sky.SetFloat("_SunSize", 0.035f);
-            sky.SetFloat("_AtmosphereThickness", 0.95f);
-            sky.SetFloat("_Exposure", 1.25f);
-            sky.SetColor("_SkyTint", new Color(0.50f, 0.52f, 0.55f));
+            ConfigureSky(sky);
             AssetDatabase.CreateAsset(sky, dir + "/Sky.mat");
 
             // Without this material the game falls back to a plain glossy sea.

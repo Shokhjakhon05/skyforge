@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 namespace Skyforge
 {
@@ -18,8 +19,6 @@ namespace Skyforge
         }
 
         const float DeadZone = 0.10f;
-        /// <summary>Touches above this share of the screen height belong to the buttons.</summary>
-        const float TopBand = 0.76f;
 
         public Stick Left, Right;
 
@@ -38,7 +37,9 @@ namespace Skyforge
                 Touch touch = Input.GetTouch(i);
                 if (touch.phase == TouchPhase.Began)
                 {
-                    if (touch.position.y > Screen.height * TopBand) continue;
+                    // A touch that starts on a button belongs to the button.
+                    EventSystem events = EventSystem.current;
+                    if (events != null && events.IsPointerOverGameObject(touch.fingerId)) continue;
                     if (touch.position.x < Screen.width * 0.5f) Begin(ref Left, touch);
                     else Begin(ref Right, touch);
                 }

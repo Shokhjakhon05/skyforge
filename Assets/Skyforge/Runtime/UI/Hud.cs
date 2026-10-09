@@ -7,14 +7,16 @@ namespace Skyforge.UI
     /// <summary>Flight HUD: telemetry, gauges, the current goal, buttons, stick visuals and the target marker.</summary>
     public sealed class Hud
     {
-        public event Action CameraPressed, ModePressed, SticksPressed, MenuPressed;
+        public event Action CameraPressed, ModePressed, SticksPressed, MenuPressed, ZoomPressed, ActionPressed;
 
         readonly Canvas _canvas;
         readonly Text _speed, _altitude, _headline, _subline, _message, _hint, _markerText, _wind, _fps;
-        readonly Text _cameraLabel, _modeLabel;
+        readonly Text _cameraLabel, _modeLabel, _zoomLabel, _actionLabel;
+        readonly GameObject _action;
+        readonly Image _markerImage;
         readonly RectTransform _marker;
         readonly StickVisual _left, _right;
-        readonly Gauge _battery, _signal, _hull;
+        readonly Gauge _battery, _signal, _hull, _detection;
         readonly GameObject _gauges;
         int _shownSpeed = -1, _shownAltitude = -1, _shownDistance = -1;
 
@@ -31,6 +33,7 @@ namespace Skyforge.UI
             public RectTransform Fill;
             public Image FillImage;
             public string Name;
+            public GameObject Bar;
             int _shownPercent = -1;
             bool _shownLow;
 
@@ -61,9 +64,9 @@ namespace Skyforge.UI
             _marker = UiKit.Rect("Marker", screen);
             _marker.anchorMin = _marker.anchorMax = Vector2.zero;
             _marker.sizeDelta = new Vector2(34f, 34f);
-            Image diamond = UiKit.Box(_marker, "Diamond", UiKit.Accent);
-            UiKit.Stretch(diamond.rectTransform);
-            diamond.rectTransform.localRotation = Quaternion.Euler(0f, 0f, 45f);
+            _markerImage = UiKit.Box(_marker, "Diamond", UiKit.Accent);
+            UiKit.Stretch(_markerImage.rectTransform);
+            _markerImage.rectTransform.localRotation = Quaternion.Euler(0f, 0f, 45f);
             _markerText = UiKit.Label(_marker, 30, TextAnchor.UpperCenter);
             UiKit.Place(_markerText.rectTransform, new Vector2(0.5f, 0f), new Vector2(0f, -14f), new Vector2(240f, 40f));
 
@@ -79,14 +82,15 @@ namespace Skyforge.UI
             UiKit.Place(_altitude.rectTransform, topLeft, new Vector2(40f, -104f), new Vector2(420f, 50f));
 
             RectTransform gauges = UiKit.Rect("Gauges", safe);
-            UiKit.Place(gauges, topLeft, new Vector2(40f, -168f), new Vector2(330f, 150f));
+            UiKit.Place(gauges, topLeft, new Vector2(40f, -168f), new Vector2(330f, 198f));
             _gauges = gauges.gameObject;
             _battery = CreateGauge(gauges, 0, Loc.T("hud.battery"));
             _signal = CreateGauge(gauges, 1, Loc.T("hud.signal"));
             _hull = CreateGauge(gauges, 2, Loc.T("hud.hull"));
+            _detection = CreateGauge(gauges, 3, Loc.T("hud.detection"));
 
             _wind = UiKit.Label(safe, 26, TextAnchor.UpperLeft);
-            UiKit.Place(_wind.rectTransform, topLeft, new Vector2(40f, -320f), new Vector2(420f, 34f));
+            UiKit.Place(_wind.rectTransform, topLeft, new Vector2(40f, -368f), new Vector2(420f, 34f));
             _fps = UiKit.Label(safe, 24, TextAnchor.LowerLeft);
             _fps.color = new Color(1f, 1f, 1f, 0.7f);
             UiKit.Place(_fps.rectTransform, new Vector2(0f, 0f), new Vector2(40f, 16f), new Vector2(300f, 30f));
@@ -107,6 +111,15 @@ namespace Skyforge.UI
             _modeLabel = CreateButton(safe, 1, () => ModePressed?.Invoke());
             CreateButton(safe, 2, () => SticksPressed?.Invoke()).text = Loc.T("hud.sticks");
             CreateButton(safe, 3, () => MenuPressed?.Invoke()).text = Loc.T("hud.menu");
+            _zoomLabel = CreateButton(safe, 4, () => ZoomPressed?.Invoke());
+
+            // The action button sits above the right thumb; it only exists while there is something to do.
+            _actionLabel = UiKit.Button(safe, "Action", UiKit.Accent, 44, () => ActionPressed?.Invoke());
+            _actionLabel.color = new Color(0.08f, 0.06f, 0.02f);
+            var actionRect = (RectTransform)_actionLabel.transform.parent;
+            UiKit.Place(actionRect, new Vector2(1f, 0.5f), new Vector2(-36f, 70f), new Vector2(300f, 140f));
+            _action = actionRect.gameObject;
+            _action.SetActive(false);
         }
 
         public bool Visible
@@ -126,12 +139,34 @@ namespace Skyforge.UI
             if (alt != _shownAltitude) _altitude.text = Loc.T("hud.altitude", _shownAltitude = alt);
         }
 
-        public void SetGauges(float battery, bool batteryLow, float signal, bool signalLow, float hull)
+        public void SetGauges(float battery, bool batteryLow, float signal, bool signalLow, float hull,
+            float detection, bool seen)
         {
             _battery.Set(battery, batteryLow);
             _signal.Set(signal, signalLow);
             _hull.Set(hull, hull < 0.4f);
+            _detection.Set(detection, seen);
         }
+
+        /// <summary>The fourth gauge is only shown in missions where something can see the drone.</summary>
+        public bool DetectionVisible
+        {
+            set
+            {
+                _detection.Label.gameObject.SetActive(value);
+                _detection.Bar.SetActive(value);
+            }
+        }
+
+        /// <summary>Null or empty hides the action button.</summary>
+        public void SetAction(string label)
+        {
+            bool show = !string.IsNullOrEmpty(label);
+            if (_action.activeSelf != show) _action.SetActive(show);
+            if (show && _actionLabel.text != label) _actionLabel.text = label;
+        }
+
+        public void SetZoomLabel(string text) => _zoomLabel.text = text;
 
         public void SetWind(string text) => _wind.text = text;
         public void SetFps(string text) => _fps.text = text;
@@ -168,10 +203,12 @@ namespace Skyforge.UI
         }
 
         /// <summary>Points at a world position; sticks to the screen edge when the target is out of view.</summary>
-        public void UpdateMarker(Camera camera, Vector3 world, bool visible)
+        /// <param name="framed">The target is in the camera's frame: the marker turns green.</param>
+        public void UpdateMarker(Camera camera, Vector3 world, bool visible, bool framed = false)
         {
             if (_marker.gameObject.activeSelf != visible) _marker.gameObject.SetActive(visible);
             if (!visible) return;
+            _markerImage.color = framed ? UiKit.Good : UiKit.Accent;
 
             Vector3 point = camera.WorldToScreenPoint(world);
             float margin = Screen.height * 0.07f;
@@ -215,6 +252,7 @@ namespace Skyforge.UI
 
             Image back = UiKit.Box(parent, "Bar", UiKit.Faint);
             UiKit.Place(back.rectTransform, new Vector2(0f, 1f), new Vector2(0f, y - 32f), new Vector2(260f, 8f));
+            gauge.Bar = back.gameObject;
             gauge.FillImage = UiKit.Box(back.transform, "Fill", Color.white);
             gauge.Fill = gauge.FillImage.rectTransform;
             UiKit.Stretch(gauge.Fill);

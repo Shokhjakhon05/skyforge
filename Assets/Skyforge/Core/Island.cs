@@ -26,6 +26,11 @@ namespace Skyforge.Core
         public List<Vector3> Rings { get; private set; }
         /// <summary>Ground positions of the weather beacons, in the order a mission visits them.</summary>
         public List<Vector3> Beacons { get; private set; }
+        /// <summary>
+        /// Named places that mission files refer to: pad, beacon0..2, ring0..9, poi0..11 (level
+        /// spots inland), coast0..7 (on the shore), sea0..3 (open water) and summit.
+        /// </summary>
+        public Dictionary<string, Vector3> Anchors { get; private set; }
         public Vector3 Spawn { get; private set; }
         public float SpawnYawDeg { get; private set; }
 
@@ -38,6 +43,7 @@ namespace Skyforge.Core
                 Trees = new List<TreeSpec>(),
                 Rings = new List<Vector3>(),
                 Beacons = new List<Vector3>(),
+                Anchors = new Dictionary<string, Vector3>(),
             };
             var random = new System.Random(seed);
             float offsetX = (float)random.NextDouble() * 1000f;
@@ -46,8 +52,12 @@ namespace Skyforge.Core
             island.BuildHeights(offsetX, offsetZ);
             island.PlaceSpawn();
             island.PlaceBeacons();
+            island.PlaceAnchors();
             island.PlaceTrees(random, offsetX, offsetZ);
             island.PlaceRings();
+            island.Anchors["pad"] = island.Spawn;
+            for (int i = 0; i < island.Beacons.Count; i++) island.Anchors["beacon" + i] = island.Beacons[i];
+            for (int i = 0; i < island.Rings.Count; i++) island.Anchors["ring" + i] = island.Rings[i];
             return island;
         }
 
@@ -107,7 +117,7 @@ namespace Skyforge.Core
                 if (Mathf.PerlinNoise(x * 0.006f + offsetX + 200f, z * 0.006f + offsetZ + 200f) < 0.45f) continue;
                 float sx = x - Spawn.x, sz = z - Spawn.z;
                 if (sx * sx + sz * sz < 45f * 45f) continue;
-                if (NearBeacon(x, z, 18f)) continue;
+                if (NearBeacon(x, z, 18f) || NearAnchor(x, z, 16f)) continue;
 
                 float height = 8f * scale;
                 float radius = 1.9f * scale;
@@ -124,24 +134,93 @@ namespace Skyforge.Core
             foreach (float turn in turns)
             {
                 float angle = startAngle + turn * Mathf.Deg2Rad;
-                Vector3 best = Vector3.zero;
-                float bestScore = float.MaxValue;
-                // Look around the ideal spot and take the flattest dry point.
-                for (int ring = 0; ring <= 6; ring++)
-                for (int step = 0; step < 8; step++)
-                {
-                    float offset = ring * 12f, around = step * Mathf.PI / 4f;
-                    float x = Mathf.Cos(angle) * Map.HalfSize * 0.38f + Mathf.Cos(around) * offset;
-                    float z = Mathf.Sin(angle) * Map.HalfSize * 0.38f + Mathf.Sin(around) * offset;
-                    float ground = Map.Height(x, z);
-                    float score = Map.Steepness(x, z) * 100f + offset * 0.05f + (ground < 4f ? 1000f : 0f);
-                    if (score >= bestScore) continue;
-                    bestScore = score;
-                    best = new Vector3(x, ground, z);
-                }
+                Vector3 best = FlatSpot(Mathf.Cos(angle) * Map.HalfSize * 0.38f, Mathf.Sin(angle) * Map.HalfSize * 0.38f);
                 Beacons.Add(best);
                 Obstacles.Add(new Obstacle { X = best.x, Z = best.z, Radius = 0.9f, Top = best.y + BeaconHeight });
             }
+        }
+
+        /// <summary>The flattest dry point within about 70 m of a position.</summary>
+        Vector3 FlatSpot(float centerX, float centerZ)
+        {
+            Vector3 best = new Vector3(centerX, Map.Height(centerX, centerZ), centerZ);
+            float bestScore = float.MaxValue;
+            for (int ring = 0; ring <= 6; ring++)
+            for (int step = 0; step < 8; step++)
+            {
+                float offset = ring * 12f, around = step * Mathf.PI / 4f;
+                float x = centerX + Mathf.Cos(around) * offset;
+                float z = centerZ + Mathf.Sin(around) * offset;
+                float ground = Map.Height(x, z);
+                float score = Map.Steepness(x, z) * 100f + offset * 0.05f + (ground < 4f ? 1000f : 0f);
+                if (score >= bestScore) continue;
+                bestScore = score;
+                best = new Vector3(x, ground, z);
+            }
+            return best;
+        }
+
+        void PlaceAnchors()
+        {
+            float startAngle = Mathf.Atan2(Spawn.z, Spawn.x);
+            float half = Map.HalfSize;
+
+            float[] reach = { 0.20f, 0.32f, 0.44f };
+            for (int i = 0; i < 12; i++)
+            {
+                float angle = startAngle + (i * 30f + 15f) * Mathf.Deg2Rad;
+                float distance = half * reach[i % 3];
+                Anchors["poi" + i] = FlatSpot(Mathf.Cos(angle) * distance, Mathf.Sin(angle) * distance);
+            }
+
+            for (int i = 0; i < 8; i++)
+            {
+                float angle = startAngle + (i * 45f + 22.5f) * Mathf.Deg2Rad;
+                var direction = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
+                // Walk outwards until the ground dips to the beach, and stay one step short of it.
+                Vector2 shore = direction * half * 0.3f;
+                for (float distance = half * 0.3f; distance < half; distance += 6f)
+                {
+                    Vector2 point = direction * distance;
+                    if (Map.Height(point.x, point.y) < 3f) break;
+                    shore = point;
+                }
+                Anchors["coast" + i] = new Vector3(shore.x, Map.Height(shore.x, shore.y), shore.y);
+            }
+
+            for (int i = 0; i < 4; i++)
+            {
+                float angle = startAngle + (i * 90f + 45f) * Mathf.Deg2Rad;
+                var direction = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
+                Vector2 water = direction * half * 0.98f;
+                for (float distance = half * 0.3f; distance < half; distance += 6f)
+                {
+                    Vector2 point = direction * distance;
+                    if (Map.Height(point.x, point.y) > -6f) continue;
+                    water = point;
+                    break;
+                }
+                Anchors["sea" + i] = new Vector3(water.x, WaterLevel, water.y);
+            }
+
+            Vector3 summit = Vector3.zero;
+            for (int iz = 0; iz < Map.Resolution; iz++)
+            for (int ix = 0; ix < Map.Resolution; ix++)
+            {
+                if (Map[ix, iz] <= summit.y) continue;
+                summit = new Vector3(Map.NodeCoordinate(ix), Map[ix, iz], Map.NodeCoordinate(iz));
+            }
+            Anchors["summit"] = summit;
+        }
+
+        bool NearAnchor(float x, float z, float distance)
+        {
+            foreach (Vector3 anchor in Anchors.Values)
+            {
+                float dx = x - anchor.x, dz = z - anchor.z;
+                if (dx * dx + dz * dz < distance * distance) return true;
+            }
+            return false;
         }
 
         bool NearBeacon(float x, float z, float distance)

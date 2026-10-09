@@ -55,6 +55,22 @@ namespace Skyforge.Core
         public float SignalRange = 900f;
 
         public static DroneSpec Sparrow() => new DroneSpec();
+
+        public DroneSpec Clone() => (DroneSpec)MemberwiseClone();
+
+        /// <summary>The same drone carrying cargo: slower, lazier to respond and weaker in the climb.</summary>
+        /// <param name="payload">0 = empty, 1 = the heaviest load.</param>
+        public DroneSpec WithPayload(float payload)
+        {
+            payload = Mathf.Clamp01(payload);
+            DroneSpec loaded = Clone();
+            loaded.MaxSpeed *= 1f - 0.30f * payload;
+            loaded.TiltResponse *= 1f - 0.45f * payload;
+            loaded.AssistGain *= 1f - 0.30f * payload;
+            loaded.MaxClimb *= 1f - 0.35f * payload;
+            loaded.YawRateDeg *= 1f - 0.20f * payload;
+            return loaded;
+        }
     }
 
     /// <summary>

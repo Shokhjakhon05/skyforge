@@ -1,0 +1,48 @@
+{
+  "id": "shadow",
+  "order": 8,
+  "template": "tail",
+  "weather": "overcast",
+  "timeGoal": 150,
+  "baseReward": 320,
+  "starReward": 90,
+  "actors": [
+    {
+      "id": "courier",
+      "kind": "truck",
+      "path": [
+        {
+          "anchor": "coast7"
+        },
+        {
+          "anchor": "coast0"
+        },
+        {
+          "anchor": "coast1"
+        }
+      ],
+      "speed": 7,
+      "startObjective": 1,
+      "detectRange": 28
+    }
+  ],
+  "objectives": [
+    {
+      "type": "takeoff"
+    },
+    {
+      "type": "follow",
+      "target": "courier",
+      "min": 35,
+      "max": 110,
+      "hold": 45
+    },
+    {
+      "type": "land",
+      "at": {
+        "anchor": "pad"
+      },
+      "radius": 8
+    }
+  ]
+}

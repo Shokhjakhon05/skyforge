@@ -46,6 +46,8 @@ namespace Skyforge.Core
         public float SkyExposure = 1.25f;
         public float Atmosphere = 0.95f;
         public Color Sea = new Color(0.06f, 0.25f, 0.38f);
+        /// <summary>A solid cloud deck instead of the blue sky dome: the sky is the colour of the fog.</summary>
+        public bool Overcast;
         public Precipitation Precipitation;
         /// <summary>0..1 density of rain, snow or dust.</summary>
         public float PrecipitationAmount;
@@ -84,7 +86,7 @@ namespace Skyforge.Core
             },
             new Weather
             {
-                Id = "overcast", NameKey = "weather.overcast",
+                Id = "overcast", NameKey = "weather.overcast", Overcast = true,
                 WindSpeed = 3f, WindHeadingDeg = 80f, Gust = 2f,
                 SunColor = new Color(0.86f, 0.88f, 0.90f), SunIntensity = 0.7f,
                 AmbientSky = new Color(0.56f, 0.59f, 0.63f), AmbientEquator = new Color(0.48f, 0.50f, 0.52f),
@@ -95,7 +97,7 @@ namespace Skyforge.Core
             },
             new Weather
             {
-                Id = "rain", NameKey = "weather.rain",
+                Id = "rain", NameKey = "weather.rain", Overcast = true,
                 WindSpeed = 5f, WindHeadingDeg = 110f, Gust = 3f, BatteryDrain = 1.15f, SignalRange = 0.9f,
                 SunColor = new Color(0.72f, 0.76f, 0.80f), SunIntensity = 0.5f,
                 AmbientSky = new Color(0.46f, 0.50f, 0.55f), AmbientEquator = new Color(0.40f, 0.43f, 0.46f),
@@ -107,7 +109,7 @@ namespace Skyforge.Core
             },
             new Weather
             {
-                Id = "fog", NameKey = "weather.fog",
+                Id = "fog", NameKey = "weather.fog", Overcast = true,
                 SignalRange = 0.85f,
                 SunColor = new Color(0.90f, 0.90f, 0.88f), SunIntensity = 0.6f,
                 AmbientSky = new Color(0.62f, 0.64f, 0.66f), AmbientEquator = new Color(0.56f, 0.57f, 0.58f),
@@ -118,7 +120,7 @@ namespace Skyforge.Core
             },
             new Weather
             {
-                Id = "storm", NameKey = "weather.storm",
+                Id = "storm", NameKey = "weather.storm", Overcast = true,
                 WindSpeed = 9f, WindHeadingDeg = 140f, Gust = 5f, BatteryDrain = 1.3f, SignalRange = 0.75f,
                 SunColor = new Color(0.60f, 0.64f, 0.72f), SunIntensity = 0.35f,
                 AmbientSky = new Color(0.32f, 0.35f, 0.42f), AmbientEquator = new Color(0.28f, 0.30f, 0.34f),
@@ -130,7 +132,7 @@ namespace Skyforge.Core
             },
             new Weather
             {
-                Id = "dust", NameKey = "weather.dust",
+                Id = "dust", NameKey = "weather.dust", Overcast = true,
                 WindSpeed = 6f, WindHeadingDeg = 250f, Gust = 4f, SignalRange = 0.85f,
                 SunColor = new Color(1f, 0.82f, 0.58f), SunIntensity = 0.9f,
                 AmbientSky = new Color(0.66f, 0.56f, 0.42f), AmbientEquator = new Color(0.60f, 0.50f, 0.38f),
@@ -142,7 +144,7 @@ namespace Skyforge.Core
             },
             new Weather
             {
-                Id = "snow", NameKey = "weather.snow",
+                Id = "snow", NameKey = "weather.snow", Overcast = true,
                 WindSpeed = 4f, WindHeadingDeg = 20f, Gust = 2f, BatteryDrain = 1.35f,
                 SunColor = new Color(0.86f, 0.90f, 0.96f), SunIntensity = 0.65f,
                 AmbientSky = new Color(0.66f, 0.70f, 0.76f), AmbientEquator = new Color(0.60f, 0.63f, 0.68f),
@@ -156,8 +158,8 @@ namespace Skyforge.Core
             {
                 Id = "night", NameKey = "weather.night",
                 SunPitchDeg = 50f, SunYawDeg = 30f, SunColor = new Color(0.55f, 0.65f, 0.95f), SunIntensity = 0.28f,
-                AmbientSky = new Color(0.07f, 0.09f, 0.16f), AmbientEquator = new Color(0.06f, 0.07f, 0.11f),
-                AmbientGround = new Color(0.03f, 0.03f, 0.05f),
+                AmbientSky = new Color(0.10f, 0.13f, 0.22f), AmbientEquator = new Color(0.08f, 0.10f, 0.16f),
+                AmbientGround = new Color(0.04f, 0.05f, 0.08f),
                 Fog = new Color(0.03f, 0.04f, 0.08f), FogStart = 80f, FogEnd = 1400f,
                 SkyTint = new Color(0.10f, 0.12f, 0.22f), SkyExposure = 0.12f, Atmosphere = 0.6f,
                 Sea = new Color(0.02f, 0.05f, 0.09f),

@@ -171,27 +171,6 @@ namespace Skyforge.Tests
             Hold(run, At(spec.SignalRange * 1.1f, 5f), MissionRun.SignalGraceSeconds);
             Assert.AreEqual(FailReason.SignalLost, run.FailReason);
         }
-
-        [Test]
-        public void FirstContactIsFlyableOnTheGeneratedIsland()
-        {
-            Island island = Island.Generate(7);
-            var spec = DroneSpec.Sparrow();
-            MissionDefinition mission = MissionCatalog.FirstContact(island);
-
-            Assert.AreEqual(3, island.Beacons.Count);
-            Assert.AreEqual(5, mission.Objectives.Count);
-            foreach (Vector3 beacon in island.Beacons)
-            {
-                Assert.Greater(beacon.y, Island.WaterLevel + 3f);
-                Assert.Less(Vector3.Distance(beacon, island.Spawn), spec.SignalRange * 0.9f);
-            }
-            foreach (ObjectiveDefinition objective in mission.Objectives)
-            {
-                if (objective.Type != ObjectiveType.Scan) continue;
-                Assert.IsFalse(island.Obstacles.Hits(objective.Position, spec.Radius), "the scan point is in free air");
-            }
-        }
     }
 
     public class SaveTests

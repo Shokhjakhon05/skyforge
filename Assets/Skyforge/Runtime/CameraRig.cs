@@ -7,6 +7,8 @@ namespace Skyforge
     {
         Chase,
         Fpv,
+        /// <summary>Straight down from above the drone; the top of the screen is where the nose points.</summary>
+        Top,
     }
 
     /// <summary>Chase and first-person cameras. Both read the drone's interpolated pose.</summary>
@@ -14,6 +16,8 @@ namespace Skyforge
     {
         public readonly Camera Camera;
         public CameraView View = CameraView.Chase;
+        /// <summary>Optical magnification: 1, 2 or 4.</summary>
+        public float Zoom = 1f;
 
         readonly HeightMap _map;
         float _yaw;
@@ -64,6 +68,12 @@ namespace Skyforge
                 t.rotation = Quaternion.Euler(6f + tiltDeg.y * 0.2f, yawDeg, -tiltDeg.x * 0.3f);
                 targetFov = 62f + speedShare * 10f;
             }
+            else if (View == CameraView.Top)
+            {
+                t.position = position + Vector3.up * 55f;
+                t.rotation = Quaternion.LookRotation(Vector3.down, Quaternion.Euler(0f, yawDeg, 0f) * Vector3.forward);
+                targetFov = 56f;
+            }
             else
             {
                 Quaternion heading = Quaternion.Euler(0f, _yaw, 0f);
@@ -78,7 +88,10 @@ namespace Skyforge
                 targetFov = 50f + speedShare * 9f;
             }
 
-            _fieldOfView = Mathf.Lerp(_fieldOfView, targetFov, 1f - Mathf.Exp(-4f * deltaTime));
+            // Magnifying by N narrows the tangent of the half-angle N times.
+            if (Zoom > 1f)
+                targetFov = 2f * Mathf.Atan(Mathf.Tan(targetFov * 0.5f * Mathf.Deg2Rad) / Zoom) * Mathf.Rad2Deg;
+            _fieldOfView = Mathf.Lerp(_fieldOfView, targetFov, 1f - Mathf.Exp(-6f * deltaTime));
             Camera.fieldOfView = _fieldOfView;
         }
     }

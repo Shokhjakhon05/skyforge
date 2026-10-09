@@ -69,7 +69,7 @@ namespace Skyforge.World
             var sand = new Color(0.80f, 0.74f, 0.54f);
             var grass = new Color(0.36f, 0.52f, 0.24f);
             var grassDry = new Color(0.50f, 0.54f, 0.28f);
-            var rock = new Color(0.42f, 0.40f, 0.38f);
+            var rock = new Color(0.52f, 0.49f, 0.44f);
             var snow = new Color(0.93f, 0.95f, 0.97f);
             var seabed = new Color(0.10f, 0.26f, 0.32f);
 
@@ -94,7 +94,7 @@ namespace Skyforge.World
                     color = Color.Lerp(grass, grassDry, patch);
                     color = Color.Lerp(sand, color, Mathf.InverseLerp(1.5f, 4.5f, height));
                     color = Color.Lerp(sandWet, color, Mathf.InverseLerp(-0.5f, 0.8f, height));
-                    color = Color.Lerp(color, rock, Mathf.InverseLerp(0.16f, 0.30f, steep));
+                    color = Color.Lerp(color, rock, Mathf.InverseLerp(0.30f, 0.46f, steep) * 0.85f);
                     color = Color.Lerp(color, rock, Mathf.InverseLerp(80f, 105f, height + patch * 12f));
                     color = Color.Lerp(color, snow,
                         Mathf.InverseLerp(118f, 132f, height + patch * 10f) * Mathf.InverseLerp(0.45f, 0.25f, steep));

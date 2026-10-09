@@ -22,7 +22,7 @@ namespace Skyforge
         IEnumerator Start()
         {
             _game = GetComponent<Game>();
-            yield return Frames(8);
+            yield return Frames(40);
 
             Island island = _game.Island;
             Vector3 spawn = island.Spawn;
@@ -53,6 +53,7 @@ namespace Skyforge
             _game.AutomationShowResult();
             yield return Shot("07_result");
 
+            _game.AutomationSetCamera(CameraView.Chase);
             _game.AutomationFreeFlight(WeatherCatalog.Clear);
             _game.AutomationPlace(sea, 180f);
             yield return Shot("08_sea_outward");
@@ -68,8 +69,34 @@ namespace Skyforge
                 yield return Shot(index++ + "_weather_" + weather.Id);
             }
 
+            // One staged moment from each kind of mission that puts something new into the world.
+            yield return MissionShot("11a", "sprint", island.Rings[0] + new Vector3(-30f, 6f, -30f), 45f, CameraView.Chase);
+            yield return MissionShot("11b", "silent_path", island.Anchors["poi3"] + new Vector3(0f, 60f, -230f), 0f, CameraView.Chase);
+            yield return MissionShot("11c", "clean_strike", island.Anchors["poi2"] + new Vector3(6f, 60f, -4f), 0f, CameraView.Chase);
+            yield return MissionShot("11d", "clean_strike", island.Anchors["poi2"] + new Vector3(6f, 60f, -4f), 0f, CameraView.Top);
+            yield return MissionShot("11e", "safe_passage", island.Anchors["poi10"] + new Vector3(0f, 22f, -45f), 0f, CameraView.Chase);
+            yield return MissionShot("11f", "shadow", island.Anchors["coast7"] + new Vector3(0f, 25f, -50f), 0f, CameraView.Chase);
+            yield return MissionShot("11g", "evidence", island.Anchors["poi0"] + new Vector3(0f, 12f, -32f), 0f, CameraView.Fpv);
+            yield return MissionShot("11h", "coast_watch", island.Anchors["poi10"] + new Vector3(0f, 16f, -45f), 0f, CameraView.Chase);
+            yield return MissionShot("11i", "supply_run", island.Anchors["poi4"] + new Vector3(0f, 14f, -30f), 0f, CameraView.Chase);
+            _game.AutomationSetCamera(CameraView.Chase);
+
+            _game.AutomationSelectMission("clean_strike");
+            _game.AutomationShowMenu();
+            yield return Shot("12_menu_strike");
+
+            _game.AutomationSelectMission("first_contact");
             _game.AutomationShowMenu();
             Finished = true;
+        }
+
+        IEnumerator MissionShot(string prefix, string missionId, Vector3 position, float yawDeg, CameraView view)
+        {
+            _game.AutomationSelectMission(missionId);
+            _game.AutomationStartMission();
+            _game.AutomationSetCamera(view);
+            _game.AutomationPlace(position, yawDeg);
+            yield return Shot(prefix + "_" + missionId + "_" + view.ToString().ToLowerInvariant());
         }
 
         static IEnumerator Frames(int count)

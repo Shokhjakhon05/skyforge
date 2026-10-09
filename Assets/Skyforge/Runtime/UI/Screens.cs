@@ -9,10 +9,11 @@ namespace Skyforge.UI
     /// <summary>The screen between flights: who you are, what the next operation is, and how to start it.</summary>
     public sealed class MenuScreen
     {
-        public event Action StartPressed, FreeFlightPressed, SettingsPressed, WeatherPressed;
+        public event Action StartPressed, FreeFlightPressed, SettingsPressed, WeatherPressed, PreviousPressed, NextPressed;
 
         readonly GameObject _root;
-        readonly Text _credits, _title, _body, _best, _weather;
+        readonly Text _credits, _title, _body, _best, _weather, _heading, _start;
+        readonly Image _startButton;
         readonly Image[] _stars = new Image[3];
 
         public MenuScreen(Transform parent)
@@ -41,12 +42,19 @@ namespace Skyforge.UI
             _credits = UiKit.Label(p, 34, TextAnchor.UpperRight);
             UiKit.Place(_credits.rectTransform, new Vector2(1f, 1f), new Vector2(-50f, -60f), new Vector2(420f, 44f));
 
-            Text heading = UiKit.Label(p, 26, TextAnchor.UpperLeft);
-            heading.text = Loc.T("menu.operation");
-            heading.color = new Color(1f, 1f, 1f, 0.6f);
-            UiKit.Place(heading.rectTransform, topLeft, new Vector2(64f, -220f), new Vector2(600f, 34f));
+            _heading = UiKit.Label(p, 26, TextAnchor.UpperLeft);
+            _heading.color = new Color(1f, 1f, 1f, 0.6f);
+            UiKit.Place(_heading.rectTransform, topLeft, new Vector2(64f, -220f), new Vector2(700f, 34f));
             _title = UiKit.Label(p, 56, TextAnchor.UpperLeft);
-            UiKit.Place(_title.rectTransform, topLeft, new Vector2(60f, -254f), new Vector2(860f, 70f));
+            UiKit.Place(_title.rectTransform, topLeft, new Vector2(60f, -254f), new Vector2(700f, 70f));
+
+            // Browse the operations with the two arrows next to the title.
+            Text previous = UiKit.Button(p, "Previous", new Color(1f, 1f, 1f, 0.14f), 44, () => PreviousPressed?.Invoke());
+            previous.text = "<";
+            UiKit.Place((RectTransform)previous.transform.parent, new Vector2(1f, 1f), new Vector2(-170f, -226f), new Vector2(110f, 100f));
+            Text next = UiKit.Button(p, "Next", new Color(1f, 1f, 1f, 0.14f), 44, () => NextPressed?.Invoke());
+            next.text = ">";
+            UiKit.Place((RectTransform)next.transform.parent, new Vector2(1f, 1f), new Vector2(-50f, -226f), new Vector2(110f, 100f));
 
             for (int i = 0; i < 3; i++)
             {
@@ -74,10 +82,10 @@ namespace Skyforge.UI
             settings.text = Loc.T("menu.settings");
             UiKit.Place((RectTransform)settings.transform.parent, new Vector2(1f, 1f), new Vector2(-36f, -26f), new Vector2(320f, 84f));
 
-            Text start = UiKit.Button(p, "Start", UiKit.Accent, 40, () => StartPressed?.Invoke());
-            start.text = Loc.T("menu.start");
-            start.color = new Color(0.08f, 0.06f, 0.02f);
-            UiKit.Place((RectTransform)start.transform.parent, new Vector2(0f, 0f), new Vector2(60f, 50f), new Vector2(500f, 110f));
+            _start = UiKit.Button(p, "Start", UiKit.Accent, 40, () => StartPressed?.Invoke());
+            var startRect = (RectTransform)_start.transform.parent;
+            UiKit.Place(startRect, new Vector2(0f, 0f), new Vector2(60f, 50f), new Vector2(500f, 110f));
+            _startButton = startRect.GetComponent<Image>();
 
             Text free = UiKit.Button(p, "FreeFlight", new Color(1f, 1f, 1f, 0.14f), 32, () => FreeFlightPressed?.Invoke());
             free.text = Loc.T("menu.free");
@@ -89,10 +97,17 @@ namespace Skyforge.UI
             set => _root.SetActive(value);
         }
 
-        public void Show(MissionDefinition mission, SaveData save)
+        /// <param name="number">Position of the mission in the campaign, from 1.</param>
+        /// <param name="locked">The previous mission has not been completed yet.</param>
+        public void Show(MissionDefinition mission, SaveData save, int number, int total, bool locked)
         {
             _credits.text = Loc.T("menu.credits", save.Credits);
             _title.text = Loc.T(mission.TitleKey);
+            _heading.text = Loc.T("menu.mission_number", number, total) + "  ·  " + Loc.T("template." + mission.Template);
+
+            _start.text = Loc.T(locked ? "menu.locked_short" : "menu.start");
+            _start.color = locked ? Color.white : new Color(0.08f, 0.06f, 0.02f);
+            _startButton.color = locked ? UiKit.Faint : UiKit.Accent;
 
             MissionRecord record = save.Find(mission.Id);
             int stars = record != null ? record.Stars : 0;
@@ -104,12 +119,21 @@ namespace Skyforge.UI
             Weather weather = WeatherCatalog.Get(mission.WeatherId);
             var body = new StringBuilder();
             body.Append(Loc.T(mission.BriefKey)).Append("\n\n");
-            body.Append(Loc.T("menu.weather", Loc.T(weather.NameKey), Format.Wind(weather))).Append("\n\n");
-            body.Append("<color=").Append(UiKit.AccentHex).Append(">").Append(Loc.T("menu.stars")).Append("</color>\n");
-            body.Append("1  ").Append(Loc.T("star.complete")).Append('\n');
-            body.Append("2  ").Append(Loc.T("star.time", Format.Time(mission.TimeGoalSeconds))).Append('\n');
-            body.Append("3  ").Append(Loc.T("star.no_damage")).Append("\n\n");
+
+            // Everything that changes the flight is said up front.
+            body.Append(Loc.T("menu.weather", Loc.T(weather.NameKey), Format.Wind(weather)));
+            if (mission.Payload > 0f) body.Append(' ').Append(Loc.T("menu.cargo"));
+            if (mission.BatteryStart < 1f)
+                body.Append(' ').Append(Loc.T("menu.low_battery", Mathf.RoundToInt(mission.BatteryStart * 100f)));
+            if (mission.Zones.Count > 0) body.Append(' ').Append(Loc.T("menu.radars"));
+            body.Append('\n');
+
+            body.Append("<color=").Append(UiKit.AccentHex).Append(">").Append(Loc.T("menu.stars")).Append("</color>  ");
+            body.Append(Loc.T("star.complete")).Append("; ");
+            body.Append(Loc.T("star.time", Format.Time(mission.TimeGoalSeconds))).Append("; ");
+            body.Append(Loc.T("star.no_damage")).Append(".\n");
             body.Append(Loc.T("menu.reward", mission.BaseReward, mission.StarReward));
+            if (locked) body.Append("\n<color=#F24D40>").Append(Loc.T("menu.locked")).Append("</color>");
             _body.text = body.ToString();
 
             Weather free = WeatherCatalog.Get(save.FreeFlightWeather);
@@ -276,9 +300,9 @@ namespace Skyforge.UI
                 _reason.text = Loc.T(mission.TitleKey);
                 string time = Format.Time(outcome.Time), goal = Format.Time(mission.TimeGoalSeconds);
                 _lines.text =
-                    Mark(true) + Loc.T("star.complete") + "\n" +
+                    Mark(true) + Loc.T("result.completed") + "\n" +
                     Mark(outcome.TimeGoalMet) + Loc.T("result.time", time, goal) + "\n" +
-                    Mark(outcome.NoDamage) + Loc.T(outcome.NoDamage ? "star.no_damage" : "result.damaged");
+                    Mark(outcome.NoDamage) + Loc.T(outcome.NoDamage ? "result.undamaged" : "result.damaged");
                 _reward.text = Loc.T("result.reward", outcome.CreditsGranted) + "\n" +
                                "<size=32><color=#FFFFFFBF>" + Loc.T("menu.credits", save.Credits) + "</color></size>";
             }
