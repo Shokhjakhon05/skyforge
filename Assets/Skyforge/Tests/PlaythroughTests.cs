@@ -71,6 +71,36 @@ namespace Skyforge.Tests
                 return false;
             }
 
+            /// <summary>
+            /// Where to head for: the goal itself, or, if a radar's circle lies across the straight
+            /// line to it, the next point on a ring that passes outside every radar. This is the
+            /// route a player takes when the ground is too rough to fly under the radar.
+            /// </summary>
+            Vector3 Around(Vector3 position, Vector3 goal)
+            {
+                if (_mission.Zones.Count == 0 || UnderRadar(goal, 30f) || UnderRadar(position, 20f)) return goal;
+
+                bool blocked = false;
+                float ring = 0f;
+                foreach (ZoneDefinition zone in _mission.Zones)
+                {
+                    var centre = new Vector2(zone.Position.x, zone.Position.z);
+                    ring = Mathf.Max(ring, centre.magnitude + zone.Radius + 45f);
+                    var a = new Vector2(position.x, position.z);
+                    var b = new Vector2(goal.x, goal.z);
+                    Vector2 along = b - a;
+                    float t = along.sqrMagnitude > 0.01f ? Mathf.Clamp01(Vector2.Dot(centre - a, along) / along.sqrMagnitude) : 0f;
+                    if ((a + along * t - centre).magnitude < zone.Radius + 30f) blocked = true;
+                }
+                if (!blocked) return goal;
+
+                float here = Mathf.Atan2(position.z, position.x) * Mathf.Rad2Deg;
+                float there = Mathf.Atan2(goal.z, goal.x) * Mathf.Rad2Deg;
+                float turn = Mathf.Clamp(Mathf.DeltaAngle(here, there), -25f, 25f);
+                float next = (here + turn) * Mathf.Deg2Rad;
+                return new Vector3(Mathf.Cos(next) * ring, goal.y, Mathf.Sin(next) * ring);
+            }
+
             FlightInput Decide(out bool action)
             {
                 action = false;
@@ -79,9 +109,12 @@ namespace Skyforge.Tests
                 if (objective == null) return default;
                 Vector3 position = state.Position;
                 Vector3 target = _run.TargetPosition(objective);
+                Vector3 via = Around(position, target);
+                bool around = via != target;
                 // Start descending well before the circle, because the drone sinks slowly. A strike
-                // needs height, so there the pilot climbs as soon as it is clear of the circle itself.
-                bool low = UnderRadar(position, objective.Type == ObjectiveType.Strike ? 12f : 130f);
+                // needs height, so there the pilot climbs as soon as it is clear of the circle itself;
+                // and a pilot going around the radars has no reason to come down at all.
+                bool low = UnderRadar(position, objective.Type == ObjectiveType.Strike || around ? 12f : 130f);
                 // Under a radar: just above the tallest trees, well under the radar's floor.
                 float cruise = low ? 11f : 30f;
 
@@ -93,6 +126,7 @@ namespace Skyforge.Tests
                     case ObjectiveType.Land:
                     {
                         float away = Flat(position, target);
+                        if (around) return Steer(via, via.y + 30f, via, false, cruise);
                         if (away > 2.5f) return Steer(target, Ground(target.x, target.z) + (low ? 11f : 20f), target, false, cruise);
                         // Over the spot: hold it and sink gently.
                         FlightInput hold = Steer(target, position.y, target, true, cruise);
@@ -103,6 +137,7 @@ namespace Skyforge.Tests
                     case ObjectiveType.Reach:
                     case ObjectiveType.Find:
                     case ObjectiveType.Scan:
+                        if (around) return Steer(via, via.y, via, false, cruise);
                         return Steer(target, target.y, target, Flat(position, target) < 60f, cruise);
 
                     case ObjectiveType.Observe:

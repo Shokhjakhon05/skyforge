@@ -64,7 +64,7 @@ REGIONS = {
         relay="poi5", radars=["poi3", "poi6"], tail=["coast7", "coast0", "coast1"],
         van="poi9", convoy=["coast6", "poi10", "poi11"], storm=["poi10", "poi0"],
         night=["poi0", "poi2"], mover=["coast1", "coast0"], haul="poi4",
-        special=dict(radars=["poi3", "poi6"], papers="poi4", van="poi2"),
+        special=dict(radars=["poi3", "poi6"], papers="poi4", van="poi11"),
         weather=dict(scan="snow", recon="overcast", photo="snow", race="overcast", delivery="snow",
                      search="fog", stealth="night", tail="snow", strike="overcast", escort="snow",
                      storm="storm", night="night", mover="overcast", haul="snow", special="night"),

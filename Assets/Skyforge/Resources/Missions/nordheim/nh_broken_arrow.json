@@ -19,7 +19,7 @@
       "id": "command_van",
       "kind": "vehicle",
       "at": {
-        "anchor": "poi2"
+        "anchor": "poi11"
       }
     }
   ],
