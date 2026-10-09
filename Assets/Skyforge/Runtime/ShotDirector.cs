@@ -104,6 +104,36 @@ namespace Skyforge
             }
             _game.AutomationUseDrone("sparrow");
 
+            _game.AutomationSelectMission("broken_arrow");
+            _game.AutomationShowMenu();
+            _game.AutomationShowTalk();
+            yield return Shot("14z_negotiation");
+            _game.AutomationHideTalk();
+
+            // The world map, then a look at the other two regions.
+            for (int region = 0; region < RegionCatalog.All.Count; region++)
+            {
+                _game.AutomationShowGlobe(region, 24);
+                yield return Frames(20);
+                yield return Shot("15" + (char)('a' + region) + "_globe_" + RegionCatalog.All[region].Id);
+            }
+            int shot = 0;
+            foreach (string regionId in new[] { "kharad", "nordheim" })
+            {
+                _game.AutomationLoadRegion(regionId);
+                yield return Shot("16" + (char)('a' + shot++) + "_" + regionId + "_menu");
+                Island other = _game.Island;
+                _game.AutomationSelectMission(_game.AutomationFirstMissionId);
+                _game.AutomationStartMission();
+                _game.AutomationPlace(other.Spawn + new Vector3(0f, 34f, -20f), 0f);
+                yield return Shot("16" + (char)('a' + shot++) + "_" + regionId + "_overview");
+                _game.AutomationPlace(other.Anchors["summit"] + new Vector3(0f, 40f, -160f), 0f);
+                yield return Shot("16" + (char)('a' + shot++) + "_" + regionId + "_summit");
+                _game.AutomationPlace(new Vector3(0f, 7f, -other.Map.HalfSize * 0.86f), 0f);
+                yield return Shot("16" + (char)('a' + shot++) + "_" + regionId + "_from_sea");
+            }
+            _game.AutomationLoadRegion("arvelia");
+
             _game.AutomationSelectMission("first_contact");
             _game.AutomationShowMenu();
             Finished = true;

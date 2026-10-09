@@ -21,6 +21,7 @@ namespace Skyforge
             FreeFlight,
             Result,
             Hangar,
+            Globe,
         }
 
         /// <summary>The simulation always advances in these steps, whatever the frame rate.</summary>
@@ -39,6 +40,14 @@ namespace Skyforge
         SettingsScreen _settings;
         HangarScreen _hangar;
         DroneDefinition _shownDrone;
+        GlobeView _globe;
+        GlobeScreen _globeScreen;
+        TalkScreen _talk;
+        int _globeIndex;
+        Transform _regionRoot;
+        RegionDefinition _region;
+        Vector2 _touchStart;
+        bool _touchMoved;
         DroneAudio _audio;
         Sfx _sfx;
         SceneLook _look;
@@ -80,26 +89,17 @@ namespace Skyforge
             Debug.Log("[Skyforge] Save: " + loadResult);
             if (_save.RingBest <= 0f) _save.RingBest = PlayerPrefs.GetFloat("rings.best", 0f);
 
-            _island = Island.Generate(7);
-            Material sea = IslandView.Build(_island, transform);
-            _missions = MissionCatalog.Load(_island);
-            _missionIndex = FirstUnfinishedMission();
-            _mission = _missions[_missionIndex];
-
-            _sim = CreateSim(0f);
-            _previous = _sim.State;
-            ShowDroneModel(Garage.Selected(_save));
-            _course = new RingCourse(_island, transform);
-            BeaconsView.Build(_island, transform);
-            _world = new MissionWorld(transform, _island.Map);
-            _camera = new CameraRig(transform, _island.Map);
+            _camera = new CameraRig(transform, null);
             _camera.View = (CameraView)Mathf.Clamp(_save.CameraViewIndex, 0, 2);
             _sticks = new TouchSticks();
             _audio = new DroneAudio(transform);
             _sfx = new Sfx(transform);
-            _look = new SceneLook(transform, _camera.Camera, sea);
+            _look = new SceneLook(transform, _camera.Camera, null);
             ApplyQuality();
             AudioListener.volume = _save.Muted ? 0f : 1f;
+
+            LoadRegion(RegionCatalog.Get(_save.Region));
+            ShowDroneModel(Garage.Selected(_save));
 
             _hud = new Hud(transform);
             _hud.CameraPressed += ToggleCamera;
@@ -125,6 +125,21 @@ namespace Skyforge
             _hangar.BackPressed += () => { Click(); ShowMenu(); };
             _hangar.Visible = false;
 
+            _globe = new GlobeView(transform);
+            _globeScreen = new GlobeScreen(transform);
+            _globeScreen.PreviousPressed += () => SelectRegion(_globeIndex - 1);
+            _globeScreen.NextPressed += () => SelectRegion(_globeIndex + 1);
+            _globeScreen.DeployPressed += Deploy;
+            _globeScreen.BackPressed += () => { Click(); ShowMenu(); };
+            _globeScreen.Visible = false;
+            _menu.GlobePressed += () => { Click(); ShowGlobe(); };
+
+            _talk = new TalkScreen(transform);
+            _talk.Chosen += Negotiate;
+            _talk.ContinuePressed += () => { Click(); _talk.Visible = false; StartMission(); };
+            _talk.BackPressed += () => { Click(); _talk.Visible = false; };
+            _talk.Visible = false;
+
             _result = new ResultScreen(transform);
             _result.RetryPressed += () => { Click(); StartMission(); };
             _result.ContinuePressed += () =>
@@ -134,7 +149,7 @@ namespace Skyforge
                 if (_advanceOnContinue && _missionIndex + 1 < _missions.Count)
                 {
                     _missionIndex++;
-                    _mission = _missions[_missionIndex];
+                    _mission = AppliedMission();
                 }
                 _advanceOnContinue = false;
                 ShowMenu();
@@ -162,6 +177,7 @@ namespace Skyforge
         {
             _phase = Phase.Menu;
             _hangar.Visible = false;
+            _globeScreen.Visible = false;
             ShowDroneModel(Garage.Selected(_save));
             ResetFlight();
             _world.Hide();
@@ -188,9 +204,147 @@ namespace Skyforge
             _shownDrone = drone;
         }
 
+        /// <summary>The selected mission as the player's negotiation choice, if any, has left it.</summary>
+        MissionDefinition AppliedMission() => Negotiations.Apply(_missions[_missionIndex], _save);
+
+        /// <summary>Records the player's answer in a negotiation and shows the reply.</summary>
+        void Negotiate(int index)
+        {
+            Negotiation negotiation = Negotiations.For(_mission.Id);
+            if (negotiation == null || !Negotiations.Choose(_save, negotiation, index))
+            {
+                _sfx.Play(Sound.Warning);
+                return;
+            }
+            Click();
+            _store.Save(_save);
+            _mission = AppliedMission();
+            ApplyWeather(WeatherCatalog.Get(_mission.WeatherId));
+            ShowMenuScreen();
+            _talk.Reply(negotiation, index);
+        }
+
         void ShowMenuScreen()
         {
-            _menu.Show(_mission, _save, _missionIndex + 1, _missions.Count, IsLocked(_missionIndex));
+            _menu.Show(_mission, _save, _missionIndex + 1, _missions.Count, IsLocked(_missionIndex), Loc.T(_region.NameKey));
+        }
+
+        // ---------------------------------------------------------------- regions
+
+        /// <summary>
+        /// Replaces the island in the world with another region's: terrain, sea, trees, beacons,
+        /// the ring course and the missions. Everything region-specific hangs under one root object.
+        /// </summary>
+        void LoadRegion(RegionDefinition region)
+        {
+            if (_regionRoot != null)
+            {
+                _world.Hide();
+                Destroy(_regionRoot.gameObject);
+            }
+            _region = region;
+            _save.Region = region.Id;
+            _regionRoot = new GameObject("Region_" + region.Id).transform;
+            _regionRoot.SetParent(transform, false);
+
+            _island = Island.Generate(region.Seed, region.Biome);
+            Material sea = IslandView.Build(_island, _regionRoot);
+            BeaconsView.Build(_island, _regionRoot);
+            _course = new RingCourse(_island, _regionRoot);
+            _world = new MissionWorld(_regionRoot, _island.Map);
+            _camera.SetMap(_island.Map);
+            _look.SetSea(sea);
+
+            _missions = MissionCatalog.Load(region, _island);
+            _missionIndex = FirstUnfinishedMission();
+            _mission = AppliedMission();
+            _sim = CreateSim(0f);
+            _previous = _sim.State;
+            // The previous island's meshes and textures are no longer referenced by anything.
+            Resources.UnloadUnusedAssets();
+        }
+
+        bool IsRegionLocked(RegionDefinition region) => Garage.TotalStars(_save) < region.StarsRequired;
+
+        void ShowGlobe()
+        {
+            _phase = Phase.Globe;
+            _menu.Visible = false;
+            _look.ShowSpace();
+            _globeIndex = RegionCatalog.IndexOf(_region.Id);
+            _globe.Focus(_globeIndex, true);
+            RefreshGlobe();
+        }
+
+        void SelectRegion(int index)
+        {
+            Click();
+            int count = RegionCatalog.All.Count;
+            _globeIndex = (index + count) % count;
+            _globe.Focus(_globeIndex, false);
+            RefreshGlobe();
+        }
+
+        void RefreshGlobe()
+        {
+            RegionDefinition region = RegionCatalog.All[_globeIndex];
+            int completed = 0, stars = 0;
+            List<string> ids = MissionCatalog.Ids(region);
+            foreach (string id in ids)
+            {
+                MissionRecord record = _save.Find(id);
+                if (record == null) continue;
+                if (record.Completions > 0) completed++;
+                stars += record.Stars;
+            }
+            _globe.Refresh(_globeIndex, IsRegionLocked);
+            _globeScreen.Show(region, completed, ids.Count, stars, Garage.TotalStars(_save));
+        }
+
+        void Deploy()
+        {
+            RegionDefinition region = RegionCatalog.All[_globeIndex];
+            if (IsRegionLocked(region))
+            {
+                _sfx.Play(Sound.Warning);
+                return;
+            }
+            Click();
+            if (region != _region)
+            {
+                LoadRegion(region);
+                _store.Save(_save);
+            }
+            ShowMenu();
+        }
+
+        /// <summary>One finger turns the globe; a tap on a marker selects its region.</summary>
+        void UpdateGlobe(float deltaTime)
+        {
+            _globe.Update(deltaTime);
+            if (Input.touchCount != 1) return;
+            Touch touch = Input.GetTouch(0);
+            if (touch.phase == TouchPhase.Began)
+            {
+                _touchStart = touch.position;
+                UnityEngine.EventSystems.EventSystem events = UnityEngine.EventSystems.EventSystem.current;
+                // A touch that starts on the panel is the panel's business.
+                _touchMoved = events != null && events.IsPointerOverGameObject(touch.fingerId);
+                if (_touchMoved) _touchStart = new Vector2(-1f, -1f);
+                return;
+            }
+            if (_touchStart.x < 0f) return;
+
+            if (touch.phase == TouchPhase.Moved)
+            {
+                if ((touch.position - _touchStart).magnitude > Screen.height * 0.02f) _touchMoved = true;
+                if (_touchMoved) _globe.Drag(touch.deltaPosition * (160f / Screen.height));
+            }
+            else if (touch.phase == TouchPhase.Ended && !_touchMoved)
+            {
+                int picked = _globe.Pick(_camera.Camera.ScreenPointToRay(touch.position));
+                if (picked >= 0) SelectRegion(picked);
+            }
         }
 
         /// <summary>A mission opens when the one before it has been completed.</summary>
@@ -215,7 +369,7 @@ namespace Skyforge
         {
             Click();
             _missionIndex = (index + _missions.Count) % _missions.Count;
-            _mission = _missions[_missionIndex];
+            _mission = AppliedMission();
             ApplyWeather(WeatherCatalog.Get(_mission.WeatherId));
             ShowMenuScreen();
         }
@@ -230,6 +384,15 @@ namespace Skyforge
         void StartMission()
         {
             if (IsLocked(_missionIndex)) return;
+
+            // The last mission of a region's major operation opens with a negotiation, once.
+            Negotiation negotiation = Negotiations.For(_mission.Id);
+            if (negotiation != null && Negotiations.Chosen(_save, _mission.Id) < 0)
+            {
+                _talk.Ask(negotiation, _save);
+                return;
+            }
+            _mission = AppliedMission();
             _phase = Phase.Mission;
             _sim = CreateSim(_mission.Payload);
             ResetFlight();
@@ -258,6 +421,9 @@ namespace Skyforge
         {
             _menu.Visible = false;
             _result.Visible = false;
+            _hangar.Visible = false;
+            _globeScreen.Visible = false;
+            _talk.Visible = false;
             _hud.Visible = true;
             _hud.GaugesVisible = gauges;
             _hud.SetMessage("");
@@ -305,6 +471,8 @@ namespace Skyforge
         {
             float deltaTime = Mathf.Min(Time.deltaTime, 0.1f);
             bool flying = _phase == Phase.Mission || _phase == Phase.FreeFlight;
+
+            if (_phase == Phase.Globe) UpdateGlobe(deltaTime);
 
             if (flying)
             {
@@ -429,6 +597,11 @@ namespace Skyforge
             _drone.Apply(position, yaw, tilt, motorsOn ? _load : 0f, motorsOn ? deltaTime : 0f);
             _audio.Update(_load, speedShare, motorsOn, deltaTime);
 
+            if (_phase == Phase.Globe)
+            {
+                _camera.LookAt(GlobeView.Center, 34f, 6.5f);
+                return;
+            }
             if (!flying)
             {
                 // The drone sits beside whichever panel is open: menu on the left, hangar on the right.
@@ -790,6 +963,32 @@ namespace Skyforge
         public void AutomationShowMenu() => ShowMenu();
         public void AutomationShowSettings() => ShowSettings();
 
+        public void AutomationShowGlobe(int region, int stars)
+        {
+            // Give the build machine's empty save enough stars to show open and locked regions.
+            for (int i = 0; i < stars / 3; i++) _save.GetOrAdd(_missions[i % _missions.Count].Id).Stars = 3;
+            ShowGlobe();
+            _globeIndex = region;
+            _globe.Focus(region, true);
+            RefreshGlobe();
+        }
+
+        public void AutomationLoadRegion(string regionId)
+        {
+            LoadRegion(RegionCatalog.Get(regionId));
+            ShowMenu();
+        }
+
+        public string AutomationFirstMissionId => _missions[0].Id;
+
+        public void AutomationShowTalk()
+        {
+            Negotiation negotiation = Negotiations.For(_mission.Id);
+            if (negotiation != null) _talk.Ask(negotiation, _save);
+        }
+
+        public void AutomationHideTalk() => _talk.Visible = false;
+
         public void AutomationShowHangar(string droneId, int tab, int credits)
         {
             _save.Credits = credits;
@@ -816,7 +1015,7 @@ namespace Skyforge
         {
             for (int i = 0; i < _missions.Count; i++)
                 if (_missions[i].Id == id) _missionIndex = i;
-            _mission = _missions[_missionIndex];
+            _mission = AppliedMission();
             // Shots are staged on any mission, whatever the campaign progress of the build machine.
             _save.GetOrAdd(_missions[Mathf.Max(0, _missionIndex - 1)].Id).Completions = 1;
         }

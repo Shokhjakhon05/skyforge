@@ -1,0 +1,49 @@
+{
+  "id": "nh_night_watch",
+  "region": "nordheim",
+  "order": 12,
+  "template": "recon",
+  "weather": "night",
+  "timeGoal": 200,
+  "baseReward": 970,
+  "starReward": 240,
+  "props": [
+    {
+      "id": "camp",
+      "kind": "camp",
+      "at": {
+        "anchor": "poi0"
+      }
+    },
+    {
+      "id": "cache",
+      "kind": "crates",
+      "at": {
+        "anchor": "poi2"
+      }
+    }
+  ],
+  "objectives": [
+    {
+      "type": "takeoff"
+    },
+    {
+      "type": "observe",
+      "target": "camp",
+      "range": 110,
+      "hold": 4
+    },
+    {
+      "type": "photo",
+      "target": "cache",
+      "range": 70
+    },
+    {
+      "type": "land",
+      "at": {
+        "anchor": "pad"
+      },
+      "radius": 8
+    }
+  ]
+}

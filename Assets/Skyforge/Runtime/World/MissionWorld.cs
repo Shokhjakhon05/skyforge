@@ -8,11 +8,33 @@ namespace Skyforge.World
     /// <summary>Loads the mission files that ship with the game and keeps the ones that are valid.</summary>
     public static class MissionCatalog
     {
-        public static List<MissionDefinition> Load(Island island)
+        [System.Serializable]
+        sealed class IdOnly
+        {
+            public string id;
+        }
+
+        static readonly Dictionary<string, List<string>> IdCache = new Dictionary<string, List<string>>();
+
+        /// <summary>The ids of a region's missions, without building its island.</summary>
+        public static List<string> Ids(RegionDefinition region)
+        {
+            if (IdCache.TryGetValue(region.Id, out List<string> ids)) return ids;
+            ids = new List<string>();
+            foreach (TextAsset file in Resources.LoadAll<TextAsset>("Missions/" + region.Id))
+            {
+                var parsed = JsonUtility.FromJson<IdOnly>(file.text);
+                if (parsed != null && !string.IsNullOrEmpty(parsed.id)) ids.Add(parsed.id);
+            }
+            IdCache[region.Id] = ids;
+            return ids;
+        }
+
+        public static List<MissionDefinition> Load(RegionDefinition region, Island island)
         {
             var missions = new List<MissionDefinition>();
             var errors = new List<string>();
-            foreach (TextAsset file in Resources.LoadAll<TextAsset>("Missions"))
+            foreach (TextAsset file in Resources.LoadAll<TextAsset>("Missions/" + region.Id))
             {
                 MissionDefinition mission = MissionBuilder.Parse(file.text, island, errors);
                 if (mission != null) missions.Add(mission);

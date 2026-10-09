@@ -1,0 +1,66 @@
+{
+  "id": "kh_broken_arrow",
+  "region": "kharad",
+  "order": 15,
+  "template": "special",
+  "weather": "night",
+  "timeGoal": 360,
+  "baseReward": 980,
+  "starReward": 220,
+  "props": [
+    {
+      "id": "papers",
+      "kind": "crates",
+      "at": {
+        "anchor": "poi10"
+      }
+    },
+    {
+      "id": "command_van",
+      "kind": "vehicle",
+      "at": {
+        "anchor": "poi3"
+      }
+    }
+  ],
+  "zones": [
+    {
+      "at": {
+        "anchor": "poi0"
+      },
+      "radius": 170,
+      "floor": 22
+    },
+    {
+      "at": {
+        "anchor": "poi9"
+      },
+      "radius": 170,
+      "floor": 22
+    }
+  ],
+  "objectives": [
+    {
+      "type": "takeoff"
+    },
+    {
+      "type": "photo",
+      "target": "papers",
+      "range": 45
+    },
+    {
+      "type": "strike",
+      "target": "command_van",
+      "radius": 7,
+      "minAltitude": 40,
+      "shots": 1
+    },
+    {
+      "type": "land",
+      "at": {
+        "anchor": "pad"
+      },
+      "radius": 8
+    }
+  ]
+}

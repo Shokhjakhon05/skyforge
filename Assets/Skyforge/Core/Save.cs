@@ -36,7 +36,7 @@ namespace Skyforge.Core
     [Serializable]
     public sealed class SaveData
     {
-        public const int CurrentVersion = 3;
+        public const int CurrentVersion = 4;
 
         public int Version = CurrentVersion;
         public int Credits;
@@ -60,6 +60,12 @@ namespace Skyforge.Core
         public List<DroneRecord> Drones = new List<DroneRecord> { DroneRecord.New(DroneCatalog.Starter) };
         public string SelectedDrone = DroneCatalog.Starter;
         public List<string> OwnedModules = new List<string>();
+
+        // Added in version 4.
+        /// <summary>The region the player is deployed to.</summary>
+        public string Region = "arvelia";
+        /// <summary>Negotiation outcomes, as "missionId=choiceIndex".</summary>
+        public List<string> Choices = new List<string>();
 
         public DroneRecord FindDrone(string id)
         {
@@ -233,6 +239,13 @@ namespace Skyforge.Core
                 foreach (MissionRecord record in data.Missions) data.Parts += Mathf.Max(0, record.Stars) * Progress.PartsPerStar;
                 data.Version = 3;
             }
+            if (data.Version == 3)
+            {
+                // Version 4 added regions; everything played so far happened in the first one.
+                data.Region = RegionCatalog.All[0].Id;
+                data.Choices = new List<string>();
+                data.Version = 4;
+            }
             Repair(data);
         }
 
@@ -240,6 +253,8 @@ namespace Skyforge.Core
         static void Repair(SaveData data)
         {
             if (data.OwnedModules == null) data.OwnedModules = new List<string>();
+            if (data.Choices == null) data.Choices = new List<string>();
+            if (RegionCatalog.Get(data.Region).Id != data.Region) data.Region = RegionCatalog.All[0].Id;
             if (data.Drones == null) data.Drones = new List<DroneRecord>();
             data.Drones.RemoveAll(drone => drone == null || string.IsNullOrEmpty(drone.Id));
             foreach (DroneRecord drone in data.Drones)

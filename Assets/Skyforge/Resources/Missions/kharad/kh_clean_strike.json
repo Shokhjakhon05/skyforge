@@ -1,0 +1,38 @@
+{
+  "id": "kh_clean_strike",
+  "region": "kharad",
+  "order": 9,
+  "template": "strike",
+  "weather": "clear",
+  "timeGoal": 200,
+  "baseReward": 520,
+  "starReward": 150,
+  "props": [
+    {
+      "id": "command_van",
+      "kind": "vehicle",
+      "at": {
+        "anchor": "poi3"
+      }
+    }
+  ],
+  "objectives": [
+    {
+      "type": "takeoff"
+    },
+    {
+      "type": "strike",
+      "target": "command_van",
+      "radius": 7,
+      "minAltitude": 40,
+      "shots": 1
+    },
+    {
+      "type": "land",
+      "at": {
+        "anchor": "pad"
+      },
+      "radius": 8
+    }
+  ]
+}

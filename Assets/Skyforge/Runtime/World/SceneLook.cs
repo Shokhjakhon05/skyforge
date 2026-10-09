@@ -20,7 +20,8 @@ namespace Skyforge.World
     public sealed class SceneLook
     {
         readonly Light _sun;
-        readonly Material _sky, _sea;
+        readonly Material _sky;
+        Material _sea;
         readonly Camera _camera;
         readonly ParticleSystem _particles;
         readonly ParticleSystemRenderer _particleRenderer;
@@ -91,6 +92,22 @@ namespace Skyforge.World
             _volume.sharedProfile = profile;
         }
 
+        /// <summary>The sea of the region now loaded; the weather recolours it.</summary>
+        public void SetSea(Material sea)
+        {
+            _sea = sea;
+            if (_weather != null) Apply(_weather);
+        }
+
+        /// <summary>The world map is seen against empty dark space: no fog, no sky, no rain.</summary>
+        public void ShowSpace()
+        {
+            RenderSettings.fog = false;
+            _camera.clearFlags = CameraClearFlags.SolidColor;
+            _camera.backgroundColor = new Color(0.01f, 0.015f, 0.03f);
+            _particles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+        }
+
         /// <summary>Call every frame: keeps the precipitation around wherever the camera is looking.</summary>
         public void Update()
         {
@@ -135,6 +152,7 @@ namespace Skyforge.World
         public void Apply(Weather weather)
         {
             _weather = weather;
+            RenderSettings.fog = true;
             _sun.transform.rotation = Quaternion.Euler(weather.SunPitchDeg, weather.SunYawDeg, 0f);
             _sun.color = weather.SunColor;
             _sun.intensity = weather.SunIntensity;

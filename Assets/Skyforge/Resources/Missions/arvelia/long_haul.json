@@ -1,0 +1,42 @@
+{
+  "id": "long_haul",
+  "region": "arvelia",
+  "order": 14,
+  "template": "delivery",
+  "weather": "rain",
+  "timeGoal": 300,
+  "baseReward": 500,
+  "starReward": 120,
+  "payload": 1.0,
+  "props": [
+    {
+      "id": "outpost",
+      "kind": "pad",
+      "at": {
+        "anchor": "poi8"
+      }
+    }
+  ],
+  "objectives": [
+    {
+      "type": "takeoff"
+    },
+    {
+      "type": "land",
+      "text": "objective.deliver",
+      "target": "outpost",
+      "radius": 6
+    },
+    {
+      "type": "takeoff",
+      "text": "objective.takeoff_again"
+    },
+    {
+      "type": "land",
+      "at": {
+        "anchor": "pad"
+      },
+      "radius": 8
+    }
+  ]
+}

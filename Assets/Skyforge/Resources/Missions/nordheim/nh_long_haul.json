@@ -1,0 +1,42 @@
+{
+  "id": "nh_long_haul",
+  "region": "nordheim",
+  "order": 14,
+  "template": "delivery",
+  "weather": "snow",
+  "timeGoal": 300,
+  "baseReward": 1100,
+  "starReward": 260,
+  "payload": 1.0,
+  "props": [
+    {
+      "id": "outpost",
+      "kind": "pad",
+      "at": {
+        "anchor": "poi4"
+      }
+    }
+  ],
+  "objectives": [
+    {
+      "type": "takeoff"
+    },
+    {
+      "type": "land",
+      "text": "objective.deliver",
+      "target": "outpost",
+      "radius": 6
+    },
+    {
+      "type": "takeoff",
+      "text": "objective.takeoff_again"
+    },
+    {
+      "type": "land",
+      "at": {
+        "anchor": "pad"
+      },
+      "radius": 8
+    }
+  ]
+}

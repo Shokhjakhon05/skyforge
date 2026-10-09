@@ -9,7 +9,7 @@ namespace Skyforge.UI
     /// <summary>The screen between flights: who you are, what the next operation is, and how to start it.</summary>
     public sealed class MenuScreen
     {
-        public event Action StartPressed, FreeFlightPressed, SettingsPressed, WeatherPressed, PreviousPressed, NextPressed, HangarPressed;
+        public event Action StartPressed, FreeFlightPressed, SettingsPressed, WeatherPressed, PreviousPressed, NextPressed, HangarPressed, GlobePressed;
 
         readonly GameObject _root;
         readonly Text _credits, _title, _body, _best, _weather, _heading, _start;
@@ -86,7 +86,11 @@ namespace Skyforge.UI
             Text hangar = UiKit.Button(safe, "Hangar", UiKit.Accent, 30, () => HangarPressed?.Invoke());
             hangar.text = Loc.T("menu.hangar");
             hangar.color = new Color(0.08f, 0.06f, 0.02f);
-            UiKit.Place((RectTransform)hangar.transform.parent, new Vector2(1f, 1f), new Vector2(-370f, -26f), new Vector2(320f, 84f));
+            UiKit.Place((RectTransform)hangar.transform.parent, new Vector2(1f, 1f), new Vector2(-36f, -124f), new Vector2(320f, 84f));
+
+            Text globe = UiKit.Button(safe, "Globe", UiKit.SolidPanelColor, 30, () => GlobePressed?.Invoke());
+            globe.text = Loc.T("menu.globe");
+            UiKit.Place((RectTransform)globe.transform.parent, new Vector2(1f, 1f), new Vector2(-36f, -222f), new Vector2(320f, 84f));
 
             _start = UiKit.Button(p, "Start", UiKit.Accent, 40, () => StartPressed?.Invoke());
             var startRect = (RectTransform)_start.transform.parent;
@@ -105,12 +109,16 @@ namespace Skyforge.UI
 
         /// <param name="number">Position of the mission in the campaign, from 1.</param>
         /// <param name="locked">The previous mission has not been completed yet.</param>
-        public void Show(MissionDefinition mission, SaveData save, int number, int total, bool locked)
+        public void Show(MissionDefinition mission, SaveData save, int number, int total, bool locked, string regionName)
         {
             _credits.text = Loc.T("menu.credits", save.Credits) + "\n" + Loc.T("menu.parts", save.Parts) + "\n" +
                             Loc.T("menu.drone", Loc.T(Garage.Selected(save).NameKey));
             _title.text = Loc.T(mission.TitleKey);
-            _heading.text = Loc.T("menu.mission_number", number, total) + "  ·  " + Loc.T("template." + mission.Template);
+            // The last three missions of a region are the stages of its major operation.
+            string kind = number > total - 3 && total >= 3
+                ? Loc.T("menu.major", number - (total - 3))
+                : Loc.T("template." + mission.Template);
+            _heading.text = regionName.ToUpperInvariant() + "  ·  " + Loc.T("menu.mission_number", number, total) + "  ·  " + kind;
 
             _start.text = Loc.T(locked ? "menu.locked_short" : "menu.start");
             _start.color = locked ? Color.white : new Color(0.08f, 0.06f, 0.02f);

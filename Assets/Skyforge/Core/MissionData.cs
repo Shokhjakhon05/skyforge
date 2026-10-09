@@ -67,6 +67,7 @@ namespace Skyforge.Core
     public sealed class MissionData
     {
         public string id;
+        public string region;
         public int order;
         public string template;
         public string weather;
@@ -90,6 +91,7 @@ namespace Skyforge.Core
         public static readonly string[] Templates =
         {
             "scan", "recon", "photo", "tail", "race", "delivery", "search", "stealth", "strike", "escort", "storm",
+            "special",
         };
 
         public static readonly string[] PropKinds =
@@ -139,8 +141,10 @@ namespace Skyforge.Core
                 Id = data.id,
                 Order = data.order,
                 Template = data.template,
+                Region = data.region,
                 TitleKey = "mission." + data.id + ".title",
-                BriefKey = "mission." + data.id + ".brief",
+                // A mission without a briefing of its own uses the one written for its kind.
+                BriefKey = Loc.Has("mission." + data.id + ".brief") ? "mission." + data.id + ".brief" : "brief." + data.template,
                 WeatherId = string.IsNullOrEmpty(data.weather) ? WeatherCatalog.Clear : data.weather,
                 TimeGoalSeconds = data.timeGoal,
                 BaseReward = data.baseReward,

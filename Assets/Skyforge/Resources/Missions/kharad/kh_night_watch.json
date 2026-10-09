@@ -1,0 +1,49 @@
+{
+  "id": "kh_night_watch",
+  "region": "kharad",
+  "order": 12,
+  "template": "recon",
+  "weather": "night",
+  "timeGoal": 200,
+  "baseReward": 660,
+  "starReward": 160,
+  "props": [
+    {
+      "id": "camp",
+      "kind": "camp",
+      "at": {
+        "anchor": "poi10"
+      }
+    },
+    {
+      "id": "cache",
+      "kind": "crates",
+      "at": {
+        "anchor": "poi2"
+      }
+    }
+  ],
+  "objectives": [
+    {
+      "type": "takeoff"
+    },
+    {
+      "type": "observe",
+      "target": "camp",
+      "range": 110,
+      "hold": 4
+    },
+    {
+      "type": "photo",
+      "target": "cache",
+      "range": 70
+    },
+    {
+      "type": "land",
+      "at": {
+        "anchor": "pad"
+      },
+      "radius": 8
+    }
+  ]
+}

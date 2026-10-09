@@ -34,10 +34,16 @@ namespace Skyforge.Core
         public Vector3 Spawn { get; private set; }
         public float SpawnYawDeg { get; private set; }
 
-        public static Island Generate(int seed, int resolution = 257, float size = 1536f)
+        public Biome Biome { get; private set; }
+
+        public static Island Generate(int seed, int resolution = 257, float size = 1536f) =>
+            Generate(seed, Biome.Temperate, resolution, size);
+
+        public static Island Generate(int seed, Biome biome, int resolution = 257, float size = 1536f)
         {
             var island = new Island
             {
+                Biome = biome,
                 Map = new HeightMap(resolution, size),
                 Obstacles = new ObstacleField(),
                 Trees = new List<TreeSpec>(),
@@ -75,7 +81,7 @@ namespace Skyforge.Core
                 float ridge = 1f - Mathf.Abs(2f * Fbm(x * 0.0035f + offsetX + 50f, z * 0.0035f + offsetZ + 50f, 3) - 1f);
                 ridge *= ridge;
 
-                map[ix, iz] = land * (8f + hills * 60f + ridge * hills * 110f) - (1f - land) * 14f;
+                map[ix, iz] = land * (8f + hills * Biome.Hills + ridge * hills * Biome.Ridges) - (1f - land) * 14f;
             }
         }
 
@@ -105,16 +111,16 @@ namespace Skyforge.Core
         {
             HeightMap map = Map;
             float span = map.HalfSize * 0.92f;
-            for (int attempt = 0; attempt < 9000 && Trees.Count < 2200; attempt++)
+            for (int attempt = 0; attempt < 9000 && Trees.Count < Biome.MaxTrees; attempt++)
             {
                 float x = ((float)random.NextDouble() * 2f - 1f) * span;
                 float z = ((float)random.NextDouble() * 2f - 1f) * span;
-                float scale = 0.75f + (float)random.NextDouble() * 0.6f;
+                float scale = (0.75f + (float)random.NextDouble() * 0.6f) * Biome.TreeScale;
 
                 float ground = map.Height(x, z);
-                if (ground < 2.5f || ground > 95f) continue;
+                if (ground < 2.5f || ground > Biome.TreeLine) continue;
                 if (map.Steepness(x, z) > 0.22f) continue;
-                if (Mathf.PerlinNoise(x * 0.006f + offsetX + 200f, z * 0.006f + offsetZ + 200f) < 0.45f) continue;
+                if (Mathf.PerlinNoise(x * 0.006f + offsetX + 200f, z * 0.006f + offsetZ + 200f) < 1f - Biome.TreeCover) continue;
                 float sx = x - Spawn.x, sz = z - Spawn.z;
                 if (sx * sx + sz * sz < 45f * 45f) continue;
                 if (NearBeacon(x, z, 18f) || NearAnchor(x, z, 16f)) continue;

@@ -1,0 +1,66 @@
+{
+  "id": "nh_broken_arrow",
+  "region": "nordheim",
+  "order": 15,
+  "template": "special",
+  "weather": "night",
+  "timeGoal": 360,
+  "baseReward": 1430,
+  "starReward": 330,
+  "props": [
+    {
+      "id": "papers",
+      "kind": "crates",
+      "at": {
+        "anchor": "poi4"
+      }
+    },
+    {
+      "id": "command_van",
+      "kind": "vehicle",
+      "at": {
+        "anchor": "poi2"
+      }
+    }
+  ],
+  "zones": [
+    {
+      "at": {
+        "anchor": "poi3"
+      },
+      "radius": 170,
+      "floor": 22
+    },
+    {
+      "at": {
+        "anchor": "poi6"
+      },
+      "radius": 170,
+      "floor": 22
+    }
+  ],
+  "objectives": [
+    {
+      "type": "takeoff"
+    },
+    {
+      "type": "photo",
+      "target": "papers",
+      "range": 45
+    },
+    {
+      "type": "strike",
+      "target": "command_van",
+      "radius": 7,
+      "minAltitude": 40,
+      "shots": 1
+    },
+    {
+      "type": "land",
+      "at": {
+        "anchor": "pad"
+      },
+      "radius": 8
+    }
+  ]
+}

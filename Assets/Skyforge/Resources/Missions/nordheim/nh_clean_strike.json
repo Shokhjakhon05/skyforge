@@ -1,0 +1,38 @@
+{
+  "id": "nh_clean_strike",
+  "region": "nordheim",
+  "order": 9,
+  "template": "strike",
+  "weather": "overcast",
+  "timeGoal": 200,
+  "baseReward": 770,
+  "starReward": 220,
+  "props": [
+    {
+      "id": "command_van",
+      "kind": "vehicle",
+      "at": {
+        "anchor": "poi9"
+      }
+    }
+  ],
+  "objectives": [
+    {
+      "type": "takeoff"
+    },
+    {
+      "type": "strike",
+      "target": "command_van",
+      "radius": 7,
+      "minAltitude": 40,
+      "shots": 1
+    },
+    {
+      "type": "land",
+      "at": {
+        "anchor": "pad"
+      },
+      "radius": 8
+    }
+  ]
+}

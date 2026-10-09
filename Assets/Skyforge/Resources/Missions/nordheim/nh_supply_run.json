@@ -1,0 +1,42 @@
+{
+  "id": "nh_supply_run",
+  "region": "nordheim",
+  "order": 5,
+  "template": "delivery",
+  "weather": "snow",
+  "timeGoal": 240,
+  "baseReward": 530,
+  "starReward": 150,
+  "payload": 0.7,
+  "props": [
+    {
+      "id": "dropzone",
+      "kind": "pad",
+      "at": {
+        "anchor": "poi6"
+      }
+    }
+  ],
+  "objectives": [
+    {
+      "type": "takeoff"
+    },
+    {
+      "type": "land",
+      "text": "objective.deliver",
+      "target": "dropzone",
+      "radius": 6
+    },
+    {
+      "type": "takeoff",
+      "text": "objective.takeoff_again"
+    },
+    {
+      "type": "land",
+      "at": {
+        "anchor": "pad"
+      },
+      "radius": 8
+    }
+  ]
+}

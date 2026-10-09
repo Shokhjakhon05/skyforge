@@ -1,0 +1,50 @@
+{
+  "id": "kh_coast_watch",
+  "region": "kharad",
+  "order": 2,
+  "template": "recon",
+  "weather": "clear",
+  "timeGoal": 150,
+  "baseReward": 270,
+  "starReward": 90,
+  "props": [
+    {
+      "id": "camp",
+      "kind": "camp",
+      "at": {
+        "anchor": "poi1"
+      }
+    },
+    {
+      "id": "boat",
+      "kind": "boat",
+      "at": {
+        "anchor": "sea0"
+      }
+    }
+  ],
+  "objectives": [
+    {
+      "type": "takeoff"
+    },
+    {
+      "type": "observe",
+      "target": "camp",
+      "range": 90,
+      "hold": 4
+    },
+    {
+      "type": "observe",
+      "target": "boat",
+      "range": 110,
+      "hold": 4
+    },
+    {
+      "type": "land",
+      "at": {
+        "anchor": "pad"
+      },
+      "radius": 8
+    }
+  ]
+}

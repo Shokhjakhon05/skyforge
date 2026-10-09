@@ -26,6 +26,16 @@ namespace Skyforge
             }
         }
 
+        /// <summary>The world map's surface; a plain textured material stands in if its shader is missing.</summary>
+        public static Material Globe(Texture surface)
+        {
+            var globe = Resources.Load<Material>("Materials/Globe");
+            if (globe == null) return LitTextured(surface);
+            var material = new Material(globe);
+            material.SetTexture("_BaseMap", surface);
+            return material;
+        }
+
         public static Material Lit(Color color, float smoothness = 0.1f)
         {
             var material = new Material(LitSource);

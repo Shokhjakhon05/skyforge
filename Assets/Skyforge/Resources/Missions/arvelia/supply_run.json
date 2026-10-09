@@ -1,0 +1,42 @@
+{
+  "id": "supply_run",
+  "region": "arvelia",
+  "order": 5,
+  "template": "delivery",
+  "weather": "overcast",
+  "timeGoal": 240,
+  "baseReward": 240,
+  "starReward": 70,
+  "payload": 0.7,
+  "props": [
+    {
+      "id": "dropzone",
+      "kind": "pad",
+      "at": {
+        "anchor": "poi4"
+      }
+    }
+  ],
+  "objectives": [
+    {
+      "type": "takeoff"
+    },
+    {
+      "type": "land",
+      "text": "objective.deliver",
+      "target": "dropzone",
+      "radius": 6
+    },
+    {
+      "type": "takeoff",
+      "text": "objective.takeoff_again"
+    },
+    {
+      "type": "land",
+      "at": {
+        "anchor": "pad"
+      },
+      "radius": 8
+    }
+  ]
+}

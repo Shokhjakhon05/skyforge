@@ -1,0 +1,52 @@
+{
+  "id": "nh_first_contact",
+  "region": "nordheim",
+  "order": 1,
+  "template": "scan",
+  "weather": "snow",
+  "timeGoal": 180,
+  "baseReward": 330,
+  "starReward": 110,
+  "objectives": [
+    {
+      "type": "takeoff"
+    },
+    {
+      "type": "scan",
+      "at": {
+        "anchor": "beacon1",
+        "dy": 18
+      },
+      "radius": 12,
+      "height": 14,
+      "hold": 3
+    },
+    {
+      "type": "scan",
+      "at": {
+        "anchor": "beacon0",
+        "dy": 18
+      },
+      "radius": 12,
+      "height": 14,
+      "hold": 3
+    },
+    {
+      "type": "scan",
+      "at": {
+        "anchor": "beacon2",
+        "dy": 18
+      },
+      "radius": 12,
+      "height": 14,
+      "hold": 3
+    },
+    {
+      "type": "land",
+      "at": {
+        "anchor": "pad"
+      },
+      "radius": 8
+    }
+  ]
+}

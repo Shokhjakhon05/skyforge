@@ -4,6 +4,40 @@ using UnityEngine.Rendering;
 
 namespace Skyforge.World
 {
+    /// <summary>The colours a biome's ground is painted with.</summary>
+    public sealed class TerrainPaint
+    {
+        public Color SandWet = new Color(0.55f, 0.50f, 0.36f);
+        public Color Sand = new Color(0.80f, 0.74f, 0.54f);
+        public Color Ground = new Color(0.36f, 0.52f, 0.24f);
+        public Color GroundDry = new Color(0.50f, 0.54f, 0.28f);
+        public Color Rock = new Color(0.52f, 0.49f, 0.44f);
+        public Color Snow = new Color(0.93f, 0.95f, 0.97f);
+        /// <summary>Heights from which bare rock and snow take over.</summary>
+        public float RockFrom = 80f, SnowFrom = 118f;
+
+        static readonly TerrainPaint Temperate = new TerrainPaint();
+        static readonly TerrainPaint Desert = new TerrainPaint
+        {
+            SandWet = new Color(0.62f, 0.52f, 0.36f), Sand = new Color(0.88f, 0.78f, 0.56f),
+            Ground = new Color(0.82f, 0.68f, 0.44f), GroundDry = new Color(0.72f, 0.55f, 0.36f),
+            Rock = new Color(0.62f, 0.40f, 0.28f), RockFrom = 55f, SnowFrom = 9999f,
+        };
+        static readonly TerrainPaint Snowy = new TerrainPaint
+        {
+            SandWet = new Color(0.46f, 0.48f, 0.50f), Sand = new Color(0.66f, 0.69f, 0.72f),
+            Ground = new Color(0.86f, 0.89f, 0.93f), GroundDry = new Color(0.76f, 0.80f, 0.86f),
+            Rock = new Color(0.40f, 0.41f, 0.45f), RockFrom = 140f, SnowFrom = 40f,
+        };
+
+        public static TerrainPaint For(Biome biome)
+        {
+            if (biome == Biome.Desert) return Desert;
+            if (biome == Biome.Snow) return Snowy;
+            return Temperate;
+        }
+    }
+
     /// <summary>Turns an <see cref="Island"/> into things to look at: terrain, sea, trees, pad, sky.</summary>
     public static class IslandView
     {
@@ -12,7 +46,7 @@ namespace Skyforge.World
         {
             Material sea = GameMaterials.Water;
             CreateObject("Terrain", parent, BuildTerrainMesh(island.Map),
-                GameMaterials.LitTextured(BuildTerrainTexture(island.Map)), true);
+                GameMaterials.LitTextured(BuildTerrainTexture(island.Map, TerrainPaint.For(island.Biome))), true);
             CreateObject("Sea", parent, BuildSeaMesh(), sea, false);
             CreateObject("Trees", parent, BuildTreesMesh(island), GameMaterials.PaletteLit, true);
             CreateObject("Pad", parent, BuildPadMesh(island), GameMaterials.PaletteLit, false);
@@ -62,15 +96,11 @@ namespace Skyforge.World
         }
 
         /// <summary>Paints sand, grass, rock and snow from height and steepness.</summary>
-        static Texture2D BuildTerrainTexture(HeightMap map)
+        static Texture2D BuildTerrainTexture(HeightMap map, TerrainPaint paint)
         {
             const int size = 1024;
-            var sandWet = new Color(0.55f, 0.50f, 0.36f);
-            var sand = new Color(0.80f, 0.74f, 0.54f);
-            var grass = new Color(0.36f, 0.52f, 0.24f);
-            var grassDry = new Color(0.50f, 0.54f, 0.28f);
-            var rock = new Color(0.52f, 0.49f, 0.44f);
-            var snow = new Color(0.93f, 0.95f, 0.97f);
+            Color sandWet = paint.SandWet, sand = paint.Sand, grass = paint.Ground, grassDry = paint.GroundDry;
+            Color rock = paint.Rock, snow = paint.Snow;
             var seabed = new Color(0.10f, 0.26f, 0.32f);
 
             var pixels = new Color32[size * size];
@@ -95,9 +125,9 @@ namespace Skyforge.World
                     color = Color.Lerp(sand, color, Mathf.InverseLerp(1.5f, 4.5f, height));
                     color = Color.Lerp(sandWet, color, Mathf.InverseLerp(-0.5f, 0.8f, height));
                     color = Color.Lerp(color, rock, Mathf.InverseLerp(0.30f, 0.46f, steep) * 0.85f);
-                    color = Color.Lerp(color, rock, Mathf.InverseLerp(80f, 105f, height + patch * 12f));
+                    color = Color.Lerp(color, rock, Mathf.InverseLerp(paint.RockFrom, paint.RockFrom + 25f, height + patch * 12f));
                     color = Color.Lerp(color, snow,
-                        Mathf.InverseLerp(118f, 132f, height + patch * 10f) * Mathf.InverseLerp(0.45f, 0.25f, steep));
+                        Mathf.InverseLerp(paint.SnowFrom, paint.SnowFrom + 14f, height + patch * 10f) * Mathf.InverseLerp(0.45f, 0.25f, steep));
                 }
                 color *= 0.90f + grain * 0.20f;
                 color.a = 1f;
@@ -137,7 +167,7 @@ namespace Skyforge.World
             for (int i = 0; i < island.Trees.Count; i++)
             {
                 TreeSpec tree = island.Trees[i];
-                int leaf = i % 3 == 0 ? Palette.LeafDark : Palette.Leaf;
+                int leaf = i % 3 == 0 || island.Biome != Biome.Temperate ? Palette.LeafDark : Palette.Leaf;
                 float trunk = tree.Height * 0.25f;
                 builder.Cylinder(tree.Base - Vector3.up * 0.5f, tree.Radius * 0.16f, tree.Radius * 0.14f,
                     trunk + 0.5f, 5, Palette.Trunk);

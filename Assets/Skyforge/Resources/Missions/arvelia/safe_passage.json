@@ -1,0 +1,77 @@
+{
+  "id": "safe_passage",
+  "region": "arvelia",
+  "order": 10,
+  "template": "escort",
+  "weather": "rain",
+  "timeGoal": 170,
+  "baseReward": 380,
+  "starReward": 100,
+  "props": [
+    {
+      "id": "ambush1",
+      "kind": "threat",
+      "at": {
+        "anchor": "poi10",
+        "dz": 6
+      }
+    },
+    {
+      "id": "ambush2",
+      "kind": "threat",
+      "at": {
+        "anchor": "poi11",
+        "dz": 6
+      }
+    }
+  ],
+  "actors": [
+    {
+      "id": "convoy",
+      "kind": "truck",
+      "path": [
+        {
+          "anchor": "coast6"
+        },
+        {
+          "anchor": "poi10"
+        },
+        {
+          "anchor": "poi11"
+        },
+        {
+          "anchor": "pad",
+          "dx": 45
+        }
+      ],
+      "speed": 5,
+      "startObjective": 1
+    }
+  ],
+  "objectives": [
+    {
+      "type": "takeoff"
+    },
+    {
+      "type": "mark",
+      "targets": [
+        "ambush1",
+        "ambush2"
+      ],
+      "actor": "convoy",
+      "range": 80,
+      "hold": 3
+    },
+    {
+      "type": "arrive",
+      "actor": "convoy"
+    },
+    {
+      "type": "land",
+      "at": {
+        "anchor": "pad"
+      },
+      "radius": 8
+    }
+  ]
+}

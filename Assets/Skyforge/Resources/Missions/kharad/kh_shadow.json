@@ -1,0 +1,49 @@
+{
+  "id": "kh_shadow",
+  "region": "kharad",
+  "order": 8,
+  "template": "tail",
+  "weather": "sunset",
+  "timeGoal": 150,
+  "baseReward": 480,
+  "starReward": 140,
+  "actors": [
+    {
+      "id": "courier",
+      "kind": "truck",
+      "path": [
+        {
+          "anchor": "coast0"
+        },
+        {
+          "anchor": "coast7"
+        },
+        {
+          "anchor": "coast6"
+        }
+      ],
+      "speed": 7,
+      "startObjective": 1,
+      "detectRange": 28
+    }
+  ],
+  "objectives": [
+    {
+      "type": "takeoff"
+    },
+    {
+      "type": "follow",
+      "target": "courier",
+      "min": 35,
+      "max": 110,
+      "hold": 45
+    },
+    {
+      "type": "land",
+      "at": {
+        "anchor": "pad"
+      },
+      "radius": 8
+    }
+  ]
+}

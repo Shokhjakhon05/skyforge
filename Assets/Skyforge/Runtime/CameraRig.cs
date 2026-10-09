@@ -19,7 +19,7 @@ namespace Skyforge
         /// <summary>Optical magnification: 1, 2 or 4.</summary>
         public float Zoom = 1f;
 
-        readonly HeightMap _map;
+        HeightMap _map;
         float _yaw;
         float _fieldOfView = 52f;
         bool _snap = true;
@@ -37,6 +37,20 @@ namespace Skyforge
         }
 
         /// <summary>Slow circle around a point, used behind the menu and result screens.</summary>
+        /// <summary>The terrain the chase camera must stay above; changes when the region does.</summary>
+        public void SetMap(HeightMap map) => _map = map;
+
+        /// <summary>Looks at a point from straight in front of it, for the world map.</summary>
+        public void LookAt(Vector3 center, float distance, float side)
+        {
+            Transform t = Camera.transform;
+            t.position = center + new Vector3(side, 0f, -distance);
+            t.rotation = Quaternion.identity;
+            _fieldOfView = 42f;
+            Camera.fieldOfView = _fieldOfView;
+            _snap = true;
+        }
+
         /// <param name="side">Metres to slide the view sideways, so the subject sits beside a panel instead of under it.</param>
         public void Orbit(Vector3 center, float time, float side = 0f, float distance = 11f)
         {

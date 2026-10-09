@@ -373,3 +373,98 @@ namespace Skyforge.Tests
         }
     }
 }
+
+namespace Skyforge.Tests
+{
+    public class NegotiationTests
+    {
+        static MissionDefinition Finale()
+        {
+            var mission = new MissionDefinition { Id = "broken_arrow", BaseReward = 600, StarReward = 100, WeatherId = "sunset" };
+            mission.Zones.Add(new ZoneDefinition { Radius = 100f, Floor = 20f });
+            mission.Zones.Add(new ZoneDefinition { Radius = 100f, Floor = 20f });
+            return mission;
+        }
+
+        [Test]
+        public void EveryRegionEndsWithANegotiationThatHasItsTexts()
+        {
+            Assert.AreEqual(RegionCatalog.All.Count, Negotiations.All.Count);
+            foreach (Negotiation negotiation in Negotiations.All)
+            {
+                Assert.IsTrue(Loc.Has(negotiation.SpeakerKey), negotiation.SpeakerKey);
+                Assert.IsTrue(Loc.Has(negotiation.TextKey), negotiation.TextKey);
+                Assert.AreEqual(3, negotiation.Choices.Count);
+                foreach (NegotiationChoice choice in negotiation.Choices)
+                {
+                    Assert.IsTrue(Loc.Has(choice.TextKey), choice.TextKey);
+                    Assert.IsTrue(Loc.Has(choice.ReplyKey), choice.ReplyKey);
+                    Assert.IsTrue(string.IsNullOrEmpty(choice.Weather) || WeatherCatalog.Get(choice.Weather).Id == choice.Weather);
+                }
+            }
+        }
+
+        [Test]
+        public void NoChoiceLeavesTheMissionAlone()
+        {
+            MissionDefinition mission = Finale();
+            Assert.AreSame(mission, Negotiations.Apply(mission, new SaveData()));
+            var ordinary = new MissionDefinition { Id = "sprint" };
+            Assert.AreSame(ordinary, Negotiations.Apply(ordinary, new SaveData()), "a mission without a negotiation");
+        }
+
+        [Test]
+        public void PayingRemovesARadarAndCostsCreditsOnce()
+        {
+            var save = new SaveData { Credits = 500 };
+            Negotiation negotiation = Negotiations.For("broken_arrow");
+            Assert.IsTrue(Negotiations.Choose(save, negotiation, 0));
+            Assert.AreEqual(200, save.Credits);
+            Assert.IsFalse(Negotiations.Choose(save, negotiation, 2), "the choice is final");
+            Assert.AreEqual(200, save.Credits);
+            Assert.AreEqual(0, Negotiations.Chosen(save, "broken_arrow"));
+
+            MissionDefinition original = Finale();
+            MissionDefinition changed = Negotiations.Apply(original, save);
+            Assert.AreEqual(1, changed.Zones.Count);
+            Assert.AreEqual(2, original.Zones.Count, "the catalog definition is untouched");
+            Assert.AreEqual(600, changed.BaseReward);
+            Assert.IsTrue(save.IsValid());
+        }
+
+        [Test]
+        public void ChoiceThatCannotBePaidIsRefused()
+        {
+            var save = new SaveData { Credits = 100 };
+            Assert.IsFalse(Negotiations.Choose(save, Negotiations.For("broken_arrow"), 0));
+            Assert.AreEqual(100, save.Credits);
+            Assert.AreEqual(-1, Negotiations.Chosen(save, "broken_arrow"));
+        }
+
+        [Test]
+        public void TakingTheRiskRaisesThePayAndChangesTheWeather()
+        {
+            var save = new SaveData();
+            Negotiations.Choose(save, Negotiations.For("broken_arrow"), 2);
+            MissionDefinition changed = Negotiations.Apply(Finale(), save);
+            Assert.AreEqual(900, changed.BaseReward);
+            Assert.AreEqual(150, changed.StarReward);
+            Assert.AreEqual("storm", changed.WeatherId);
+            Assert.AreEqual(2, changed.Zones.Count);
+        }
+
+        [Test]
+        public void StormChoiceKeepsEveryFinaleWithinSignalRange()
+        {
+            // The risky answer swaps the weather for a storm, which shortens the link.
+            var spec = DroneSpec.Sparrow();
+            float range = spec.SignalRange * WeatherCatalog.Get("storm").SignalRange;
+            foreach (RegionDefinition region in RegionCatalog.All)
+            {
+                Island island = Island.Generate(region.Seed, region.Biome);
+                foreach (string anchor in new[] { "poi2", "poi3", "poi4", "poi10" })
+                    Assert.Less(Vector3.Distance(island.Anchors[anchor], island.Spawn), range, region.Id + " " + anchor);
+            }
+        }
+    }
+}

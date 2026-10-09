@@ -1,0 +1,52 @@
+{
+  "id": "first_contact",
+  "region": "arvelia",
+  "order": 1,
+  "template": "scan",
+  "weather": "clear",
+  "timeGoal": 180,
+  "baseReward": 150,
+  "starReward": 50,
+  "objectives": [
+    {
+      "type": "takeoff"
+    },
+    {
+      "type": "scan",
+      "at": {
+        "anchor": "beacon0",
+        "dy": 18
+      },
+      "radius": 12,
+      "height": 14,
+      "hold": 3
+    },
+    {
+      "type": "scan",
+      "at": {
+        "anchor": "beacon1",
+        "dy": 18
+      },
+      "radius": 12,
+      "height": 14,
+      "hold": 3
+    },
+    {
+      "type": "scan",
+      "at": {
+        "anchor": "beacon2",
+        "dy": 18
+      },
+      "radius": 12,
+      "height": 14,
+      "hold": 3
+    },
+    {
+      "type": "land",
+      "at": {
+        "anchor": "pad"
+      },
+      "radius": 8
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "id": "coast_watch",
+  "region": "arvelia",
+  "order": 2,
+  "template": "recon",
+  "weather": "sunset",
+  "timeGoal": 150,
+  "baseReward": 180,
+  "starReward": 60,
+  "props": [
+    {
+      "id": "camp",
+      "kind": "camp",
+      "at": {
+        "anchor": "poi10"
+      }
+    },
+    {
+      "id": "boat",
+      "kind": "boat",
+      "at": {
+        "anchor": "sea3"
+      }
+    }
+  ],
+  "objectives": [
+    {
+      "type": "takeoff"
+    },
+    {
+      "type": "observe",
+      "target": "camp",
+      "range": 90,
+      "hold": 4
+    },
+    {
+      "type": "observe",
+      "target": "boat",
+      "range": 110,
+      "hold": 4
+    },
+    {
+      "type": "land",
+      "at": {
+        "anchor": "pad"
+      },
+      "radius": 8
+    }
+  ]
+}

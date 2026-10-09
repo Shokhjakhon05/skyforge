@@ -1,0 +1,48 @@
+{
+  "id": "lost_signal",
+  "region": "arvelia",
+  "order": 6,
+  "template": "search",
+  "weather": "fog",
+  "timeGoal": 260,
+  "baseReward": 260,
+  "starReward": 80,
+  "props": [
+    {
+      "id": "source",
+      "kind": "transmitter",
+      "at": {
+        "anchor": "poi7"
+      }
+    }
+  ],
+  "objectives": [
+    {
+      "type": "takeoff"
+    },
+    {
+      "type": "find",
+      "target": "source",
+      "radius": 16,
+      "range": 700
+    },
+    {
+      "type": "scan",
+      "at": {
+        "anchor": "poi7",
+        "dy": 10
+      },
+      "radius": 10,
+      "height": 10,
+      "hold": 3,
+      "text": "objective.scan_source"
+    },
+    {
+      "type": "land",
+      "at": {
+        "anchor": "pad"
+      },
+      "radius": 8
+    }
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "id": "kh_silent_path",
+  "region": "kharad",
+  "order": 7,
+  "template": "stealth",
+  "weather": "night",
+  "timeGoal": 300,
+  "baseReward": 450,
+  "starReward": 140,
+  "props": [
+    {
+      "id": "relay",
+      "kind": "antenna",
+      "at": {
+        "anchor": "poi6"
+      }
+    }
+  ],
+  "zones": [
+    {
+      "at": {
+        "anchor": "poi0"
+      },
+      "radius": 170,
+      "floor": 22
+    },
+    {
+      "at": {
+        "anchor": "poi9"
+      },
+      "radius": 170,
+      "floor": 22
+    }
+  ],
+  "objectives": [
+    {
+      "type": "takeoff"
+    },
+    {
+      "type": "scan",
+      "at": {
+        "anchor": "poi6",
+        "dy": 18
+      },
+      "radius": 12,
+      "height": 14,
+      "hold": 4,
+      "text": "objective.scan_relay"
+    },
+    {
+      "type": "land",
+      "at": {
+        "anchor": "pad"
+      },
+      "radius": 8
+    }
+  ]
+}

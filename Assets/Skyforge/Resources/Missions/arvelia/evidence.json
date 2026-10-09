@@ -1,0 +1,72 @@
+{
+  "id": "evidence",
+  "region": "arvelia",
+  "order": 3,
+  "template": "photo",
+  "weather": "clear",
+  "timeGoal": 200,
+  "baseReward": 200,
+  "starReward": 60,
+  "props": [
+    {
+      "id": "item0",
+      "kind": "crates",
+      "at": {
+        "anchor": "poi0"
+      }
+    },
+    {
+      "id": "item1",
+      "kind": "vehicle",
+      "at": {
+        "anchor": "poi1"
+      }
+    },
+    {
+      "id": "item2",
+      "kind": "antenna",
+      "at": {
+        "anchor": "poi9"
+      }
+    },
+    {
+      "id": "item3",
+      "kind": "transmitter",
+      "at": {
+        "anchor": "coast7"
+      }
+    }
+  ],
+  "objectives": [
+    {
+      "type": "takeoff"
+    },
+    {
+      "type": "photo",
+      "target": "item0",
+      "range": 45
+    },
+    {
+      "type": "photo",
+      "target": "item1",
+      "range": 45
+    },
+    {
+      "type": "photo",
+      "target": "item2",
+      "range": 45
+    },
+    {
+      "type": "photo",
+      "target": "item3",
+      "range": 45
+    },
+    {
+      "type": "land",
+      "at": {
+        "anchor": "pad"
+      },
+      "radius": 8
+    }
+  ]
+}

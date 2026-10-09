@@ -1,0 +1,46 @@
+{
+  "id": "nh_moving_target",
+  "region": "nordheim",
+  "order": 13,
+  "template": "strike",
+  "weather": "overcast",
+  "timeGoal": 220,
+  "baseReward": 1030,
+  "starReward": 260,
+  "actors": [
+    {
+      "id": "runner",
+      "kind": "car",
+      "path": [
+        {
+          "anchor": "coast1"
+        },
+        {
+          "anchor": "coast0"
+        }
+      ],
+      "speed": 3,
+      "startObjective": 1
+    }
+  ],
+  "objectives": [
+    {
+      "type": "takeoff"
+    },
+    {
+      "type": "strike",
+      "text": "objective.strike_moving",
+      "target": "runner",
+      "radius": 9,
+      "minAltitude": 35,
+      "shots": 2
+    },
+    {
+      "type": "land",
+      "at": {
+        "anchor": "pad"
+      },
+      "radius": 8
+    }
+  ]
+}

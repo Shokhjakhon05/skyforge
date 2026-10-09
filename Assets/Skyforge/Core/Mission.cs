@@ -88,6 +88,7 @@ namespace Skyforge.Core
     public sealed class MissionDefinition
     {
         public string Id;
+        public string Region;
         public int Order;
         public string Template;
         public string TitleKey;
@@ -107,6 +108,17 @@ namespace Skyforge.Core
         public float Payload;
         /// <summary>Where the operator is; signal strength is measured from here.</summary>
         public Vector3 BasePosition;
+
+        /// <summary>A copy whose lists can be changed without touching this definition.</summary>
+        public MissionDefinition Copy()
+        {
+            var copy = (MissionDefinition)MemberwiseClone();
+            copy.Objectives = new List<ObjectiveDefinition>(Objectives);
+            copy.Actors = new List<ActorDefinition>(Actors);
+            copy.Zones = new List<ZoneDefinition>(Zones);
+            copy.Props = new List<PropDefinition>(Props);
+            return copy;
+        }
 
         public bool HasDetectors
         {

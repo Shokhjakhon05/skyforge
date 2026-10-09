@@ -1,0 +1,41 @@
+{
+  "id": "storm_front",
+  "region": "arvelia",
+  "order": 11,
+  "template": "storm",
+  "weather": "storm",
+  "timeGoal": 170,
+  "baseReward": 420,
+  "starReward": 110,
+  "batteryStart": 0.6,
+  "objectives": [
+    {
+      "type": "takeoff"
+    },
+    {
+      "type": "reach",
+      "at": {
+        "anchor": "poi0",
+        "dy": 20
+      },
+      "radius": 14,
+      "gate": true
+    },
+    {
+      "type": "reach",
+      "at": {
+        "anchor": "poi10",
+        "dy": 20
+      },
+      "radius": 14,
+      "gate": true
+    },
+    {
+      "type": "land",
+      "at": {
+        "anchor": "pad"
+      },
+      "radius": 8
+    }
+  ]
+}

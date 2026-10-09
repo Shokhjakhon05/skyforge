@@ -1,0 +1,41 @@
+{
+  "id": "kh_storm_front",
+  "region": "kharad",
+  "order": 11,
+  "template": "storm",
+  "weather": "dust",
+  "timeGoal": 170,
+  "baseReward": 630,
+  "starReward": 160,
+  "batteryStart": 0.6,
+  "objectives": [
+    {
+      "type": "takeoff"
+    },
+    {
+      "type": "reach",
+      "at": {
+        "anchor": "poi11",
+        "dy": 20
+      },
+      "radius": 14,
+      "gate": true
+    },
+    {
+      "type": "reach",
+      "at": {
+        "anchor": "poi1",
+        "dy": 20
+      },
+      "radius": 14,
+      "gate": true
+    },
+    {
+      "type": "land",
+      "at": {
+        "anchor": "pad"
+      },
+      "radius": 8
+    }
+  ]
+}

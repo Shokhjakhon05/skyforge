@@ -6,19 +6,30 @@ using UnityEngine;
 
 namespace Skyforge.Tests
 {
-    /// <summary>Checks every mission file that ships with the game.</summary>
+    /// <summary>Checks every mission file that ships with the game, region by region.</summary>
     public class MissionFilesTests
     {
-        static string Folder => Path.Combine(Application.dataPath, "Skyforge/Resources/Missions");
+        static string Folder(RegionDefinition region) =>
+            Path.Combine(Application.dataPath, "Skyforge/Resources/Missions", region.Id);
 
-        static List<MissionDefinition> LoadAll(Island island, List<string> errors)
+        static readonly Dictionary<string, Island> Islands = new Dictionary<string, Island>();
+
+        static Island IslandOf(RegionDefinition region)
+        {
+            if (!Islands.TryGetValue(region.Id, out Island island))
+                Islands[region.Id] = island = Island.Generate(region.Seed, region.Biome);
+            return island;
+        }
+
+        static List<MissionDefinition> LoadAll(RegionDefinition region, List<string> errors)
         {
             var missions = new List<MissionDefinition>();
-            foreach (string file in Directory.GetFiles(Folder, "*.json"))
+            foreach (string file in Directory.GetFiles(Folder(region), "*.json"))
             {
-                MissionDefinition mission = MissionBuilder.Parse(File.ReadAllText(file), island, errors);
+                MissionDefinition mission = MissionBuilder.Parse(File.ReadAllText(file), IslandOf(region), errors);
                 if (mission == null) continue;
                 Assert.AreEqual(mission.Id, Path.GetFileNameWithoutExtension(file), "file name must match the mission id");
+                Assert.AreEqual(region.Id, mission.Region, mission.Id + " is in the wrong folder");
                 missions.Add(mission);
             }
             return missions;
@@ -27,67 +38,113 @@ namespace Skyforge.Tests
         [Test]
         public void EveryMissionFileIsValid()
         {
-            var errors = new List<string>();
-            List<MissionDefinition> missions = LoadAll(Island.Generate(7), errors);
-            Assert.IsEmpty(errors, string.Join("\n", errors));
-            Assert.GreaterOrEqual(missions.Count, 11);
+            var ids = new HashSet<string>();
+            foreach (RegionDefinition region in RegionCatalog.All)
+            {
+                var errors = new List<string>();
+                List<MissionDefinition> missions = LoadAll(region, errors);
+                Assert.IsEmpty(errors, string.Join("\n", errors));
+                Assert.AreEqual(15, missions.Count, region.Id);
+                foreach (MissionDefinition mission in missions)
+                    Assert.IsTrue(ids.Add(mission.Id), "mission id used twice: " + mission.Id);
+            }
+            Assert.AreEqual(45, ids.Count);
         }
 
         [Test]
         public void EveryTemplateHasAMissionAndOrdersAreUnique()
         {
-            List<MissionDefinition> missions = LoadAll(Island.Generate(7), new List<string>());
-            var templates = new HashSet<string>();
-            var orders = new HashSet<int>();
-            foreach (MissionDefinition mission in missions)
+            foreach (RegionDefinition region in RegionCatalog.All)
             {
-                templates.Add(mission.Template);
-                Assert.IsTrue(orders.Add(mission.Order), "order " + mission.Order + " is used twice");
+                var templates = new HashSet<string>();
+                var orders = new HashSet<int>();
+                foreach (MissionDefinition mission in LoadAll(region, new List<string>()))
+                {
+                    templates.Add(mission.Template);
+                    Assert.IsTrue(orders.Add(mission.Order), region.Id + ": order " + mission.Order + " is used twice");
+                }
+                foreach (string template in MissionBuilder.Templates)
+                    Assert.IsTrue(templates.Contains(template), region.Id + ": no mission uses template " + template);
             }
-            foreach (string template in MissionBuilder.Templates)
-                Assert.IsTrue(templates.Contains(template), "no mission uses template " + template);
         }
 
         [Test]
         public void EveryMissionHasItsTextsInEveryLanguage()
         {
-            foreach (MissionDefinition mission in LoadAll(Island.Generate(7), new List<string>()))
+            foreach (RegionDefinition region in RegionCatalog.All)
             {
-                Assert.IsTrue(Loc.Has(mission.TitleKey), mission.TitleKey);
-                Assert.IsTrue(Loc.Has(mission.BriefKey), mission.BriefKey);
-                Assert.IsTrue(Loc.Has("template." + mission.Template), mission.Template);
-                foreach (ObjectiveDefinition objective in mission.Objectives)
-                    Assert.IsTrue(Loc.Has(objective.TextKey), mission.Id + ": " + objective.TextKey);
+                Assert.IsTrue(Loc.Has(region.NameKey), region.NameKey);
+                Assert.IsTrue(Loc.Has(region.NoteKey), region.NoteKey);
+                foreach (MissionDefinition mission in LoadAll(region, new List<string>()))
+                {
+                    Assert.IsTrue(Loc.Has(mission.TitleKey), mission.TitleKey);
+                    Assert.IsTrue(Loc.Has(mission.BriefKey), mission.BriefKey);
+                    Assert.IsTrue(Loc.Has("template." + mission.Template), mission.Template);
+                    foreach (ObjectiveDefinition objective in mission.Objectives)
+                        Assert.IsTrue(Loc.Has(objective.TextKey), mission.Id + ": " + objective.TextKey);
+                }
             }
         }
 
         [Test]
         public void EveryMissionStaysWithinSignalRangeAndOutOfObstacles()
         {
-            Island island = Island.Generate(7);
             var spec = DroneSpec.Sparrow();
-            foreach (MissionDefinition mission in LoadAll(island, new List<string>()))
+            foreach (RegionDefinition region in RegionCatalog.All)
             {
-                float range = spec.SignalRange * WeatherCatalog.Get(mission.WeatherId).SignalRange;
-                foreach (ObjectiveDefinition objective in mission.Objectives)
+                Island island = IslandOf(region);
+                foreach (MissionDefinition mission in LoadAll(region, new List<string>()))
                 {
-                    if (objective.Type == ObjectiveType.TakeOff || objective.Type == ObjectiveType.Arrive) continue;
-                    if (!string.IsNullOrEmpty(objective.ActorId)) continue;
-                    var places = new List<Vector3>(objective.Targets);
-                    if (objective.Type != ObjectiveType.Mark) places.Add(objective.Position);
-                    foreach (Vector3 place in places)
+                    float range = spec.SignalRange * WeatherCatalog.Get(mission.WeatherId).SignalRange;
+                    foreach (ObjectiveDefinition objective in mission.Objectives)
                     {
-                        float distance = Vector3.Distance(place, island.Spawn);
-                        Assert.Less(distance, range * 0.95f, mission.Id + ": an objective is beyond the signal");
-                    }
-                    bool flown = objective.Type == ObjectiveType.Reach || objective.Type == ObjectiveType.Scan;
-                    if (flown)
-                    {
+                        if (objective.Type == ObjectiveType.TakeOff || objective.Type == ObjectiveType.Arrive) continue;
+                        if (!string.IsNullOrEmpty(objective.ActorId)) continue;
+                        var places = new List<Vector3>(objective.Targets);
+                        if (objective.Type != ObjectiveType.Mark) places.Add(objective.Position);
+                        foreach (Vector3 place in places)
+                        {
+                            float distance = Vector3.Distance(place, island.Spawn);
+                            Assert.Less(distance, range * 0.95f, mission.Id + ": an objective is beyond the signal");
+                        }
+                        bool flown = objective.Type == ObjectiveType.Reach || objective.Type == ObjectiveType.Scan;
+                        if (!flown) continue;
                         Assert.IsFalse(island.Obstacles.Hits(objective.Position, spec.Radius), mission.Id + ": a waypoint is inside an obstacle");
                         float ground = Mathf.Max(island.Map.Height(objective.Position.x, objective.Position.z), Island.WaterLevel);
                         Assert.Greater(objective.Position.y - ground, 3f, mission.Id + ": a waypoint is in the ground");
+                        Assert.Less(objective.Position.y, FlightSim.Ceiling - 20f, mission.Id + ": a waypoint is above the ceiling");
                     }
                 }
+            }
+        }
+
+        [Test]
+        public void EveryRegionHasAUsableIsland()
+        {
+            foreach (RegionDefinition region in RegionCatalog.All)
+            {
+                Island island = IslandOf(region);
+                Assert.Greater(island.Spawn.y, Island.WaterLevel + 1f, region.Id);
+                Assert.AreEqual(3, island.Beacons.Count, region.Id);
+                Assert.AreEqual(10, island.Rings.Count, region.Id);
+                for (int i = 0; i < 12; i++) Assert.Greater(island.Anchors["poi" + i].y, Island.WaterLevel + 3f, region.Id + " poi" + i);
+                for (int i = 0; i < 8; i++) Assert.Greater(island.Anchors["coast" + i].y, Island.WaterLevel, region.Id + " coast" + i);
+                Assert.Less(island.Anchors["summit"].y, FlightSim.Ceiling - 40f, region.Id + ": the summit must be flyable");
+                foreach (Vector3 ring in island.Rings)
+                    Assert.Less(ring.y, FlightSim.Ceiling - 20f, region.Id + ": a ring is above the ceiling");
+                Assert.IsFalse(island.Obstacles.Hits(island.Spawn + Vector3.up, 5f), region.Id + ": the pad is clear");
+            }
+        }
+
+        [Test]
+        public void RegionsOpenInOrderAndTheFirstIsFree()
+        {
+            Assert.AreEqual(0, RegionCatalog.All[0].StarsRequired);
+            for (int i = 1; i < RegionCatalog.All.Count; i++)
+            {
+                Assert.Greater(RegionCatalog.All[i].StarsRequired, RegionCatalog.All[i - 1].StarsRequired);
+                // A region must be reachable with the stars the earlier regions can give.
+                Assert.LessOrEqual(RegionCatalog.All[i].StarsRequired, i * 15 * 3);
             }
         }
 

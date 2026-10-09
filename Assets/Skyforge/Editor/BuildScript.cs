@@ -363,6 +363,12 @@ namespace Skyforge.EditorTools
                 Debug.LogWarning("[Skyforge] WATER SHADER BROKEN: using the fallback sea.");
             else
                 AssetDatabase.CreateAsset(new Material(water), dir + "/Water.mat");
+
+            Shader globe = Shader.Find("Skyforge/Globe");
+            if (globe == null || ShaderUtil.ShaderHasError(globe))
+                Debug.LogWarning("[Skyforge] GLOBE SHADER BROKEN: using a plain material.");
+            else
+                AssetDatabase.CreateAsset(new Material(globe), dir + "/Globe.mat");
         }
 
         static Shader FindShader(string name)
