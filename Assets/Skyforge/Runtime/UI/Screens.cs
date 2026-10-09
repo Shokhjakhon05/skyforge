@@ -109,6 +109,7 @@ namespace Skyforge.UI
 
             Text free = UiKit.Button(p, "FreeFlight", new Color(1f, 1f, 1f, 0.14f), 32, () => FreeFlightPressed?.Invoke());
             free.text = Loc.T("menu.free");
+            UiKit.FitWidth(free, 20);
             UiKit.Place((RectTransform)free.transform.parent, new Vector2(0f, 0f), new Vector2(580f, 50f), new Vector2(340f, 110f));
         }
 

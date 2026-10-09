@@ -335,7 +335,7 @@ T = {
 "result.continue": "DAVOM ETISH",
 "menu.settings": "SOZLAMALAR",
 "menu.change": "O'ZGARTIRISH",
-"menu.weather": "Ob-havo: {0}. {1}",
+"menu.weather": "Ob-havo: {0}. {1}.",
 "menu.free_weather": "Erkin parvoz ob-havosi: {0}",
 "weather.clear": "Ochiq",
 "weather.sunset": "Shom",

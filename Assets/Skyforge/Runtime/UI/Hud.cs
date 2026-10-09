@@ -97,11 +97,11 @@ namespace Skyforge.UI
 
             _headline = UiKit.Label(safe, 40, TextAnchor.UpperCenter);
             // The space between the gauges and the buttons is narrow on a 16:9 screen; long objectives shrink to fit.
-            UiKit.Place(_headline.rectTransform, topCenter, new Vector2(0f, -28f), new Vector2(760f, 50f));
-            UiKit.FitWidth(_headline, 22);
+            UiKit.Place(_headline.rectTransform, topCenter, new Vector2(0f, -24f), new Vector2(760f, 88f));
+            UiKit.FitWidth(_headline, 26);
             _subline = UiKit.Label(safe, 30, TextAnchor.UpperCenter);
             _subline.color = new Color(1f, 1f, 1f, 0.75f);
-            UiKit.Place(_subline.rectTransform, topCenter, new Vector2(0f, -78f), new Vector2(900f, 40f));
+            UiKit.Place(_subline.rectTransform, topCenter, new Vector2(0f, -114f), new Vector2(900f, 40f));
 
             _message = UiKit.Label(safe, 84, TextAnchor.MiddleCenter);
             _message.color = UiKit.Accent;
@@ -266,6 +266,7 @@ namespace Skyforge.UI
         {
             const float width = 300f, height = 84f, gap = 14f;
             Text label = UiKit.Button(parent, "Button" + index, UiKit.PanelColor, 30, onClick);
+            UiKit.FitWidth(label, 20);
             var rect = (RectTransform)label.transform.parent;
             int column = index % 2, row = index / 2;
             UiKit.Place(rect, new Vector2(1f, 1f),
