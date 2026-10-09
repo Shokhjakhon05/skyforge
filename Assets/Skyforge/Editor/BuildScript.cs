@@ -204,6 +204,30 @@ namespace Skyforge.EditorTools
 
             EditorUserBuildSettings.buildAppBundle = false;
             UseLegacyInput();
+            ApplyIcon();
+        }
+
+        /// <summary>The icon is drawn by tools/gen_icon.py; one large picture serves every size.</summary>
+        static void ApplyIcon()
+        {
+            var icon = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Skyforge/Branding/icon.png");
+            if (icon == null)
+            {
+                Debug.LogWarning("[Skyforge] ICON MISSING: the build will carry Unity's default icon.");
+                return;
+            }
+            try
+            {
+                PlayerSettings.SetIcons(NamedBuildTarget.Unknown, new[] { icon }, IconKind.Any);
+                int[] sizes = PlayerSettings.GetIconSizes(NamedBuildTarget.Android, IconKind.Any);
+                var icons = new Texture2D[sizes.Length];
+                for (int i = 0; i < icons.Length; i++) icons[i] = icon;
+                PlayerSettings.SetIcons(NamedBuildTarget.Android, icons, IconKind.Any);
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("[Skyforge] ICON NOT SET: " + e.Message);
+            }
         }
 
         /// <summary>
