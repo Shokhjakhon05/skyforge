@@ -283,6 +283,24 @@ namespace Skyforge.Tests
         }
 
         [Test]
+        public void VersionOneSaveIsMigrated()
+        {
+            File.WriteAllText(_path,
+                "{\"Version\":1,\"Credits\":250,\"Missions\":[{\"Id\":\"first_contact\",\"Stars\":3," +
+                "\"BestTime\":140.5,\"Completions\":2}],\"SticksSwapped\":true,\"FlightModeIndex\":1," +
+                "\"CameraViewIndex\":0,\"RingBest\":189.0}");
+
+            SaveData data = new SaveStore(_path).Load(out LoadResult result);
+            Assert.AreEqual(LoadResult.Loaded, result);
+            Assert.AreEqual(SaveData.CurrentVersion, data.Version);
+            Assert.AreEqual(250, data.Credits);
+            Assert.AreEqual(3, data.Find("first_contact").Stars);
+            Assert.IsTrue(data.SticksSwapped);
+            Assert.AreEqual(0, data.Quality);
+            Assert.AreEqual(WeatherCatalog.Clear, data.FreeFlightWeather);
+        }
+
+        [Test]
         public void SaveFromANewerVersionIsNotAccepted()
         {
             SaveData future = Sample(100);
@@ -290,6 +308,78 @@ namespace Skyforge.Tests
             File.WriteAllText(_path, JsonUtility.ToJson(future));
             new SaveStore(_path).Load(out LoadResult result);
             Assert.AreEqual(LoadResult.ResetAfterCorruption, result);
+        }
+    }
+
+    public class WeatherTests
+    {
+        [Test]
+        public void EveryWeatherHasAnIdAndSaneNumbers()
+        {
+            var seen = new System.Collections.Generic.HashSet<string>();
+            foreach (Weather weather in WeatherCatalog.All)
+            {
+                Assert.IsTrue(seen.Add(weather.Id), "duplicate id " + weather.Id);
+                Assert.IsFalse(string.IsNullOrEmpty(weather.NameKey));
+                Assert.Greater(weather.FogEnd, weather.FogStart);
+                Assert.GreaterOrEqual(weather.BatteryDrain, 1f);
+                Assert.LessOrEqual(weather.SignalRange, 1f);
+                Assert.Greater(weather.SignalRange, 0.5f);
+            }
+            Assert.AreEqual(9, seen.Count);
+        }
+
+        [Test]
+        public void UnknownWeatherFallsBackToClear()
+        {
+            Assert.AreEqual(WeatherCatalog.Clear, WeatherCatalog.Get("no-such-weather").Id);
+            Assert.AreEqual(WeatherCatalog.Clear, WeatherCatalog.Get(null).Id);
+        }
+
+        [Test]
+        public void NextCyclesThroughAllWeather()
+        {
+            string id = WeatherCatalog.Clear;
+            for (int i = 0; i < WeatherCatalog.All.Count; i++) id = WeatherCatalog.Next(id);
+            Assert.AreEqual(WeatherCatalog.Clear, id);
+        }
+
+        [Test]
+        public void WindStaysWithinSteadyPlusGust()
+        {
+            Weather storm = WeatherCatalog.Get("storm");
+            for (float t = 0f; t < 120f; t += 0.37f)
+            {
+                float speed = storm.WindAt(t).magnitude;
+                Assert.LessOrEqual(speed, storm.WindSpeed + storm.Gust + 0.01f);
+                Assert.GreaterOrEqual(speed, storm.WindSpeed - storm.Gust - 0.01f);
+            }
+            Assert.AreEqual(Vector3.zero, WeatherCatalog.Get(WeatherCatalog.Clear).WindAt(5f));
+        }
+
+        [Test]
+        public void EveryDroneCanMakeHeadwayInEveryWeather()
+        {
+            var spec = DroneSpec.Sparrow();
+            foreach (Weather weather in WeatherCatalog.All)
+                Assert.Less(weather.WindSpeed + weather.Gust, spec.MaxSpeed,
+                    weather.Id + " would pin the starter drone in place");
+        }
+
+        [Test]
+        public void BadWeatherDrainsTheBatteryFasterAndShortensTheSignal()
+        {
+            var spec = DroneSpec.Sparrow();
+            var clear = new MissionRun(new MissionDefinition { Id = "a" }, spec);
+            var storm = new MissionRun(new MissionDefinition { Id = "b", WeatherId = "storm" }, spec);
+            var far = new FlightState { Position = new Vector3(spec.SignalRange * 0.7f, 5f, 0f) };
+            for (int i = 0; i < 300; i++)
+            {
+                clear.Step(far, SimEvent.None, 0.5f, 0f, 0.1f);
+                storm.Step(far, SimEvent.None, 0.5f, 0f, 0.1f);
+            }
+            Assert.Less(storm.Battery, clear.Battery);
+            Assert.Less(storm.Signal, clear.Signal);
         }
     }
 

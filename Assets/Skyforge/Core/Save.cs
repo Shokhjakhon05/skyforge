@@ -18,7 +18,7 @@ namespace Skyforge.Core
     [Serializable]
     public sealed class SaveData
     {
-        public const int CurrentVersion = 1;
+        public const int CurrentVersion = 2;
 
         public int Version = CurrentVersion;
         public int Credits;
@@ -27,6 +27,14 @@ namespace Skyforge.Core
         public int FlightModeIndex;
         public int CameraViewIndex;
         public float RingBest;
+
+        // Added in version 2.
+        /// <summary>0 = pick automatically, 1..4 = Low..Ultra.</summary>
+        public int Quality;
+        public bool ShowFps;
+        public bool Muted;
+        /// <summary>Weather chosen for free flight.</summary>
+        public string FreeFlightWeather = WeatherCatalog.Clear;
 
         public MissionRecord Find(string id)
         {
@@ -48,6 +56,7 @@ namespace Skyforge.Core
         {
             if (Version < 1 || Version > CurrentVersion) return false;
             if (Credits < 0 || Missions == null) return false;
+            if (Quality < 0 || Quality > 4) return false;
             foreach (MissionRecord record in Missions)
             {
                 if (record == null || string.IsNullOrEmpty(record.Id)) return false;
@@ -157,10 +166,20 @@ namespace Skyforge.Core
             }
         }
 
-        /// <summary>Upgrades a save from an older schema, one version at a time. Version 1 is the first.</summary>
+        /// <summary>Upgrades a save from an older schema, one version at a time.</summary>
         static void Migrate(SaveData data)
         {
             if (data.Missions == null) data.Missions = new List<MissionRecord>();
+            if (data.Version == 1)
+            {
+                // Version 2 added the settings below; a version 1 file has none of them.
+                data.Quality = 0;
+                data.ShowFps = false;
+                data.Muted = false;
+                data.FreeFlightWeather = WeatherCatalog.Clear;
+                data.Version = 2;
+            }
+            if (string.IsNullOrEmpty(data.FreeFlightWeather)) data.FreeFlightWeather = WeatherCatalog.Clear;
         }
 
         static void TryCopy(string from, string to)

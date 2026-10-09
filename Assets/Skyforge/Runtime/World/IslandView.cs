@@ -7,16 +7,16 @@ namespace Skyforge.World
     /// <summary>Turns an <see cref="Island"/> into things to look at: terrain, sea, trees, pad, sky.</summary>
     public static class IslandView
     {
-        public static readonly Color HorizonColor = new Color(0.70f, 0.80f, 0.90f);
-
-        public static void Build(Island island, Transform parent)
+        /// <summary>Builds the scenery and returns the sea material, which the weather recolours.</summary>
+        public static Material Build(Island island, Transform parent)
         {
+            Material sea = GameMaterials.Water;
             CreateObject("Terrain", parent, BuildTerrainMesh(island.Map),
                 GameMaterials.LitTextured(BuildTerrainTexture(island.Map)), true);
-            CreateObject("Sea", parent, BuildSeaMesh(), GameMaterials.Lit(new Color(0.06f, 0.25f, 0.38f), 0.82f), false);
+            CreateObject("Sea", parent, BuildSeaMesh(), sea, false);
             CreateObject("Trees", parent, BuildTreesMesh(island), GameMaterials.PaletteLit, true);
             CreateObject("Pad", parent, BuildPadMesh(island), GameMaterials.PaletteLit, false);
-            SetUpSkyAndLight(parent);
+            return sea;
         }
 
         static void CreateObject(string name, Transform parent, Mesh mesh, Material material, bool castShadows)
@@ -161,38 +161,6 @@ namespace Skyforge.World
             builder.Box(center + new Vector3(1.3f, 0.06f, 0f), new Vector3(0.6f, 0.02f, 4.2f), Palette.White);
             builder.Box(center + new Vector3(0f, 0.06f, 0f), new Vector3(2.6f, 0.02f, 0.6f), Palette.White);
             return builder.Build("Pad");
-        }
-
-        static void SetUpSkyAndLight(Transform parent)
-        {
-            var sunObject = new GameObject("Sun");
-            sunObject.transform.SetParent(parent, false);
-            sunObject.transform.rotation = Quaternion.Euler(38f, -40f, 0f);
-            var sun = sunObject.AddComponent<Light>();
-            sun.type = LightType.Directional;
-            sun.color = new Color(1f, 0.95f, 0.85f);
-            sun.intensity = 1.35f;
-            sun.shadows = LightShadows.Soft;
-            sun.shadowStrength = 0.8f;
-            RenderSettings.sun = sun;
-
-            Material sky = GameMaterials.Sky;
-            if (sky != null)
-            {
-                sky.SetColor("_GroundColor", HorizonColor);
-                RenderSettings.skybox = sky;
-            }
-
-            RenderSettings.ambientMode = AmbientMode.Trilight;
-            RenderSettings.ambientSkyColor = new Color(0.52f, 0.62f, 0.78f);
-            RenderSettings.ambientEquatorColor = new Color(0.46f, 0.50f, 0.52f);
-            RenderSettings.ambientGroundColor = new Color(0.26f, 0.25f, 0.22f);
-
-            RenderSettings.fog = true;
-            RenderSettings.fogMode = FogMode.Linear;
-            RenderSettings.fogColor = HorizonColor;
-            RenderSettings.fogStartDistance = 250f;
-            RenderSettings.fogEndDistance = 2600f;
         }
     }
 }

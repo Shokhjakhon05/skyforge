@@ -8,6 +8,10 @@ on:
       version:
         description: Version name shown in the game
         default: "0.0.1"
+      screenshots:
+        description: Run the game in the editor and attach screenshots to the release
+        type: boolean
+        default: true
   push:
     tags: ["v*"]
 
@@ -24,7 +28,7 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 60
     steps:
       - name: Free runner disk
         uses: jlumbroso/free-disk-space@v1.3.1
@@ -82,7 +86,13 @@ jobs:
           buildMethod: Skyforge.EditorTools.BuildScript.BuildAndroid
           versioning: None
           allowDirtyBuild: true
-          customParameters: -sfVersion ${{ env.VERSION }} -sfVersionCode ${{ github.run_number }}
+          # The build method plays the game for screenshots, so the editor needs graphics
+          # (software rendering under xvfb) and must not be told to quit on its own.
+          enableGpu: true
+          manualExit: true
+          customParameters: >-
+            -sfVersion ${{ env.VERSION }} -sfVersionCode ${{ github.run_number }}
+            ${{ github.event.inputs.screenshots != 'false' && '-sfScreenshots' || '' }}
 
       - name: Check that the APK exists
         run: |
@@ -100,7 +110,12 @@ jobs:
           APK="skyforge-${VERSION}-${{ github.run_number }}.apk"
           sudo cp build/Android/Skyforge.apk "$APK"
           ls -lh "$APK"
-          gh release create "dev-${{ github.run_number }}" "$APK" \
+          FILES=("$APK")
+          if ls build/Screenshots/*.png >/dev/null 2>&1; then
+            (cd build/Screenshots && sudo zip -q -r ../../screenshots.zip .)
+            FILES+=(screenshots.zip)
+          fi
+          gh release create "dev-${{ github.run_number }}" "${FILES[@]}" \
             --prerelease --target "$GITHUB_SHA" \
             --title "Skyforge ${VERSION} (build ${{ github.run_number }})" \
             --notes "Development build from ${GITHUB_SHA::7}."

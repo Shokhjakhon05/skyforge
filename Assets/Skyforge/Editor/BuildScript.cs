@@ -22,6 +22,15 @@ namespace Skyforge.EditorTools
         const string OutputPath = "build/Android/Skyforge.apk";
         const string SigningDir = "ci/signing";
 
+        const string ScreenshotDir = "build/Screenshots";
+        /// <summary>Longest the screenshot run may take before the build carries on without it.</summary>
+        const double ScreenshotTimeoutSeconds = 300;
+
+        static string _scene;
+        static bool _screenshotsRan;
+        static bool _leavingPlayMode;
+        static double _screenshotDeadline;
+
         public static void BuildAndroid()
         {
             try
@@ -33,16 +42,39 @@ namespace Skyforge.EditorTools
                 }
                 ApplyPlayerSettings();
                 ApplySigning();
-                Directory.CreateDirectory(GeneratedDir);
-                CreateRenderPipeline();
-                CreateMaterials();
-                string scene = CreateBootScene();
-                AssetDatabase.SaveAssets();
+                PrepareAssets();
+
+                // Returning from this method lets the editor loop run, which play mode needs.
+                if (HasArgument("-sfScreenshots")) StartScreenshots();
+                else BuildPlayer();
+            }
+            catch (Exception e)
+            {
+                Debug.LogError("[Skyforge] Build failed: " + e);
+                EditorApplication.Exit(1);
+            }
+        }
+
+        static void PrepareAssets()
+        {
+            Directory.CreateDirectory(GeneratedDir);
+            CreateRenderPipeline();
+            CreateMaterials();
+            _scene = CreateBootScene();
+            AssetDatabase.SaveAssets();
+        }
+
+        static void BuildPlayer()
+        {
+            try
+            {
+                // Play mode changes the generated pipeline and sky assets, so they are made afresh.
+                if (_screenshotsRan) PrepareAssets();
 
                 Directory.CreateDirectory(Path.GetDirectoryName(OutputPath));
                 var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
                 {
-                    scenes = new[] { scene },
+                    scenes = new[] { _scene },
                     locationPathName = OutputPath,
                     target = BuildTarget.Android,
                     options = BuildOptions.None,
@@ -58,6 +90,73 @@ namespace Skyforge.EditorTools
                 Debug.LogError("[Skyforge] Build failed: " + e);
                 EditorApplication.Exit(1);
             }
+        }
+
+        /// <summary>
+        /// Plays the game inside the editor so <see cref="ShotDirector"/> can save pictures of it.
+        /// Whatever happens here, the APK build follows: screenshots are a view, not a gate.
+        /// </summary>
+        static void StartScreenshots()
+        {
+            _screenshotsRan = true;
+            _leavingPlayMode = false;
+            _screenshotDeadline = EditorApplication.timeSinceStartup + ScreenshotTimeoutSeconds;
+            try
+            {
+                Directory.CreateDirectory(ScreenshotDir);
+                ShotDirector.OutputDir = Path.GetFullPath(ScreenshotDir);
+                ShotDirector.Finished = false;
+
+                // Without a domain reload the statics above and the update hook survive entering play mode.
+                EditorSettings.enterPlayModeOptionsEnabled = true;
+                EditorSettings.enterPlayModeOptions =
+                    EnterPlayModeOptions.DisableDomainReload | EnterPlayModeOptions.DisableSceneReload;
+                EditorApplication.update += ScreenshotUpdate;
+                EditorApplication.EnterPlaymode();
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("[Skyforge] SCREENSHOTS SKIPPED: " + e.Message);
+                EditorApplication.update -= ScreenshotUpdate;
+                ShotDirector.OutputDir = null;
+                BuildPlayer();
+            }
+        }
+
+        static void ScreenshotUpdate()
+        {
+            try
+            {
+                if (!_leavingPlayMode)
+                {
+                    bool timedOut = EditorApplication.timeSinceStartup > _screenshotDeadline;
+                    if (!ShotDirector.Finished && !timedOut) return;
+                    if (timedOut) Debug.LogWarning("[Skyforge] SCREENSHOTS TIMED OUT");
+                    _leavingPlayMode = true;
+                    if (EditorApplication.isPlaying) EditorApplication.ExitPlaymode();
+                    return;
+                }
+                if (EditorApplication.isPlaying || EditorApplication.isPlayingOrWillChangePlaymode) return;
+
+                int count = Directory.Exists(ScreenshotDir) ? Directory.GetFiles(ScreenshotDir, "*.png").Length : 0;
+                Debug.Log("[Skyforge] Screenshots done: " + count);
+            }
+            catch (Exception e)
+            {
+                // An exception left in an update hook would repeat forever and hang the job.
+                Debug.LogWarning("[Skyforge] SCREENSHOTS FAILED: " + e.Message);
+                if (EditorApplication.isPlaying)
+                {
+                    // The player cannot be built from play mode; leave it and come back here.
+                    _leavingPlayMode = true;
+                    EditorApplication.ExitPlaymode();
+                    return;
+                }
+            }
+
+            EditorApplication.update -= ScreenshotUpdate;
+            ShotDirector.OutputDir = null;
+            BuildPlayer();
         }
 
         static void ApplyPlayerSettings()
@@ -184,6 +283,11 @@ namespace Skyforge.EditorTools
         static void CreateRenderPipeline()
         {
             var rendererData = ScriptableObject.CreateInstance<UniversalRendererData>();
+            // Screen effects need the shaders this asset points to.
+            rendererData.postProcessData = AssetDatabase.LoadAssetAtPath<PostProcessData>(
+                "Packages/com.unity.render-pipelines.universal/Runtime/Data/PostProcessData.asset");
+            if (rendererData.postProcessData == null)
+                Debug.LogWarning("[Skyforge] PostProcessData not found; screen effects will be off.");
             AssetDatabase.CreateAsset(rendererData, GeneratedDir + "/UrpRenderer.asset");
 
             var pipeline = UniversalRenderPipelineAsset.Create(rendererData);
@@ -217,6 +321,13 @@ namespace Skyforge.EditorTools
             sky.SetFloat("_Exposure", 1.25f);
             sky.SetColor("_SkyTint", new Color(0.50f, 0.52f, 0.55f));
             AssetDatabase.CreateAsset(sky, dir + "/Sky.mat");
+
+            // Without this material the game falls back to a plain glossy sea.
+            Shader water = Shader.Find("Skyforge/Water");
+            if (water == null || ShaderUtil.ShaderHasError(water))
+                Debug.LogWarning("[Skyforge] WATER SHADER BROKEN: using the fallback sea.");
+            else
+                AssetDatabase.CreateAsset(new Material(water), dir + "/Water.mat");
         }
 
         static Shader FindShader(string name)
@@ -237,6 +348,11 @@ namespace Skyforge.EditorTools
             if (!EditorSceneManager.SaveScene(scene, path))
                 throw new InvalidOperationException("Could not save " + path);
             return path;
+        }
+
+        static bool HasArgument(string name)
+        {
+            return Array.IndexOf(Environment.GetCommandLineArgs(), name) >= 0;
         }
 
         static string GetArgument(string name)

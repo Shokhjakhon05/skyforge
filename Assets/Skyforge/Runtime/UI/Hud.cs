@@ -10,7 +10,7 @@ namespace Skyforge.UI
         public event Action CameraPressed, ModePressed, SticksPressed, MenuPressed;
 
         readonly Canvas _canvas;
-        readonly Text _speed, _altitude, _headline, _subline, _message, _hint, _markerText;
+        readonly Text _speed, _altitude, _headline, _subline, _message, _hint, _markerText, _wind, _fps;
         readonly Text _cameraLabel, _modeLabel;
         readonly RectTransform _marker;
         readonly StickVisual _left, _right;
@@ -85,6 +85,12 @@ namespace Skyforge.UI
             _signal = CreateGauge(gauges, 1, Loc.T("hud.signal"));
             _hull = CreateGauge(gauges, 2, Loc.T("hud.hull"));
 
+            _wind = UiKit.Label(safe, 26, TextAnchor.UpperLeft);
+            UiKit.Place(_wind.rectTransform, topLeft, new Vector2(40f, -320f), new Vector2(420f, 34f));
+            _fps = UiKit.Label(safe, 24, TextAnchor.LowerLeft);
+            _fps.color = new Color(1f, 1f, 1f, 0.7f);
+            UiKit.Place(_fps.rectTransform, new Vector2(0f, 0f), new Vector2(40f, 16f), new Vector2(300f, 30f));
+
             _headline = UiKit.Label(safe, 40, TextAnchor.UpperCenter);
             UiKit.Place(_headline.rectTransform, topCenter, new Vector2(0f, -28f), new Vector2(900f, 50f));
             _subline = UiKit.Label(safe, 30, TextAnchor.UpperCenter);
@@ -127,6 +133,8 @@ namespace Skyforge.UI
             _hull.Set(hull, hull < 0.4f);
         }
 
+        public void SetWind(string text) => _wind.text = text;
+        public void SetFps(string text) => _fps.text = text;
         public void SetHeadline(string text) => _headline.text = text;
         public void SetSubline(string text) => _subline.text = text;
         public void SetMessage(string text) => _message.text = text;

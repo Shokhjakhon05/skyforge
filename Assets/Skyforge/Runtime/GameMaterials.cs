@@ -16,6 +16,16 @@ namespace Skyforge
 
         public static Material Sky => Load("Materials/Sky");
 
+        /// <summary>The sea. Falls back to a plain glossy material if the water shader did not make it into the build.</summary>
+        public static Material Water
+        {
+            get
+            {
+                var water = Resources.Load<Material>("Materials/Water");
+                return water != null ? new Material(water) : Lit(new Color(0.06f, 0.25f, 0.38f), 0.82f);
+            }
+        }
+
         public static Material Lit(Color color, float smoothness = 0.1f)
         {
             var material = new Material(LitSource);

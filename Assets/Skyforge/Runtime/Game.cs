@@ -34,7 +34,11 @@ namespace Skyforge
         Hud _hud;
         MenuScreen _menu;
         ResultScreen _result;
+        SettingsScreen _settings;
         DroneAudio _audio;
+        Sfx _sfx;
+        SceneLook _look;
+        Weather _weather;
 
         SaveStore _store;
         SaveData _save;
@@ -53,6 +57,12 @@ namespace Skyforge
         float _lapTime;
         int _shownHeadlineStamp = -1;
         int _shownSublineStamp = -1;
+        float _simTime;
+        bool _warned;
+        float _fpsTimer;
+        int _fpsFrames;
+
+        public Island Island => _island;
 
         void Start()
         {
@@ -62,7 +72,7 @@ namespace Skyforge
             if (_save.RingBest <= 0f) _save.RingBest = PlayerPrefs.GetFloat("rings.best", 0f);
 
             _island = Island.Generate(7);
-            IslandView.Build(_island, transform);
+            Material sea = IslandView.Build(_island, transform);
             _mission = MissionCatalog.FirstContact(_island);
 
             _sim = new FlightSim(_island, DroneSpec.Sparrow());
@@ -75,20 +85,33 @@ namespace Skyforge
             _camera.View = (CameraView)Mathf.Clamp(_save.CameraViewIndex, 0, 1);
             _sticks = new TouchSticks();
             _audio = new DroneAudio(transform);
+            _sfx = new Sfx(transform);
+            _look = new SceneLook(transform, _camera.Camera, sea);
+            ApplyQuality();
+            AudioListener.volume = _save.Muted ? 0f : 1f;
 
             _hud = new Hud(transform);
             _hud.CameraPressed += ToggleCamera;
             _hud.ModePressed += ToggleMode;
             _hud.SticksPressed += ToggleSticks;
-            _hud.MenuPressed += ShowMenu;
+            _hud.MenuPressed += () => { Click(); ShowMenu(); };
 
             _menu = new MenuScreen(transform);
-            _menu.StartPressed += StartMission;
-            _menu.FreeFlightPressed += StartFreeFlight;
+            _menu.StartPressed += () => { Click(); StartMission(); };
+            _menu.FreeFlightPressed += () => { Click(); StartFreeFlight(); };
+            _menu.SettingsPressed += () => { Click(); ShowSettings(); };
+            _menu.WeatherPressed += NextFreeFlightWeather;
 
             _result = new ResultScreen(transform);
-            _result.RetryPressed += StartMission;
-            _result.ContinuePressed += ShowMenu;
+            _result.RetryPressed += () => { Click(); StartMission(); };
+            _result.ContinuePressed += () => { Click(); ShowMenu(); };
+
+            _settings = new SettingsScreen(transform);
+            _settings.QualityPressed += SetQuality;
+            _settings.FpsPressed += ToggleFps;
+            _settings.SoundPressed += ToggleSound;
+            _settings.ClosePressed += () => { Click(); _settings.Visible = false; };
+            _settings.Visible = false;
 
             RefreshLabels();
             ShowMenu();
@@ -109,6 +132,7 @@ namespace Skyforge
             _course.Visible = false;
             _hud.Visible = false;
             _result.Visible = false;
+            ApplyWeather(WeatherCatalog.Get(_mission.WeatherId));
             _menu.Show(_mission, _save);
         }
 
@@ -117,6 +141,7 @@ namespace Skyforge
             _phase = Phase.Mission;
             ResetFlight();
             _run = new MissionRun(_mission, _sim.Spec);
+            ApplyWeather(WeatherCatalog.Get(_mission.WeatherId));
             _beacons.Show(_mission);
             _beacons.Refresh(0);
             _course.Visible = false;
@@ -128,6 +153,7 @@ namespace Skyforge
             _phase = Phase.FreeFlight;
             ResetFlight();
             _run = null;
+            ApplyWeather(WeatherCatalog.Get(_save.FreeFlightWeather));
             _beacons.Hide();
             _course.Visible = true;
             RestartCourse();
@@ -163,6 +189,9 @@ namespace Skyforge
             _messageTimer = 0f;
             _accumulator = 0f;
             _load = 0f;
+            _simTime = 0f;
+            _warned = false;
+            _sim.Wind = Vector3.zero;
             _sim.Reset();
             _previous = _sim.State;
             _camera.Snap();
@@ -193,6 +222,17 @@ namespace Skyforge
             // AfterFreeze may have left the flight.
             flying = _phase == Phase.Mission || _phase == Phase.FreeFlight;
             Present(deltaTime, flying);
+            CountFrames();
+        }
+
+        void CountFrames()
+        {
+            _fpsFrames++;
+            _fpsTimer += Time.unscaledDeltaTime;
+            if (_fpsTimer < 0.5f) return;
+            _hud.SetFps(_save.ShowFps ? Loc.T("hud.fps", Mathf.RoundToInt(_fpsFrames / _fpsTimer)) : "");
+            _fpsFrames = 0;
+            _fpsTimer = 0f;
         }
 
         void Simulate(FlightInput input, float deltaTime)
@@ -201,6 +241,8 @@ namespace Skyforge
             while (_accumulator >= StepSeconds)
             {
                 _accumulator -= StepSeconds;
+                _simTime += StepSeconds;
+                _sim.Wind = _weather.WindAt(_simTime);
                 _previous = _sim.State;
                 SimEvent simEvent = _sim.Step(input, StepSeconds);
                 if (simEvent == SimEvent.TookOff) _hasFlown = true;
@@ -221,6 +263,7 @@ namespace Skyforge
                 {
                     if (simEvent == SimEvent.Crashed)
                     {
+                        _sfx.Play(Sound.Crash);
                         Freeze(Loc.T("msg.crash"), 1.6f);
                         return;
                     }
@@ -345,6 +388,11 @@ namespace Skyforge
             bool hasTarget = objective != null && objective.Type != ObjectiveType.TakeOff && _freezeTimer <= 0f;
             _hud.UpdateMarker(_camera.Camera, hasTarget ? objective.Position : Vector3.zero, hasTarget);
 
+            // One beep when a gauge first drops into the red, not a siren for the rest of the flight.
+            bool warning = lowBattery || lowSignal;
+            if (warning && !_warned) _sfx.Play(Sound.Warning);
+            _warned = warning;
+
             if (_run.Signal <= 0f)
                 _hud.SetHint(Loc.T("warn.signal_lost", Mathf.CeilToInt(_run.SignalCountdown)));
             else if (lowSignal) _hud.SetHint(Loc.T("warn.signal"));
@@ -375,6 +423,7 @@ namespace Skyforge
         {
             if (_mission.Objectives[index].Type != ObjectiveType.Scan) return;
             _beacons.Refresh(ScansDone());
+            _sfx.Play(Sound.Scan);
             ShowMessage(Loc.T("msg.scanned"), 1.5f);
         }
 
@@ -388,6 +437,7 @@ namespace Skyforge
                 case FailReason.SignalLost: message = Loc.T("msg.signal"); break;
                 default: message = Loc.T("msg.complete"); break;
             }
+            _sfx.Play(_run.Status == MissionStatus.Succeeded ? Sound.Success : Sound.Crash);
             Freeze(message, 1.8f);
         }
 
@@ -431,6 +481,7 @@ namespace Skyforge
                 _store.Save(_save);
                 _shownSublineStamp = -1;
             }
+            _sfx.Play(Sound.Success);
             ShowMessage(Loc.T(record ? "msg.record" : "msg.finished", Format.Time(_lapTime)), 5f);
         }
 
@@ -447,6 +498,57 @@ namespace Skyforge
         {
             _hud.SetMessage(text);
             _messageTimer = seconds;
+        }
+
+        void Click() => _sfx.Play(Sound.Click);
+
+        void ApplyWeather(Weather weather)
+        {
+            _weather = weather;
+            _look.Apply(weather);
+            _hud.SetWind(weather.HasWind ? Loc.T("hud.wind", Mathf.RoundToInt(weather.WindSpeed)) : "");
+        }
+
+        void ApplyQuality()
+        {
+            QualityLevel level = _save.Quality == 0 ? SceneLook.Recommend() : (QualityLevel)_save.Quality;
+            _look.SetQuality(level);
+        }
+
+        void ShowSettings() => _settings.Show(_save, SettingsScreen.QualityKey((int)_look.Quality));
+
+        void SetQuality(int level)
+        {
+            Click();
+            _save.Quality = Mathf.Clamp(level, 0, 4);
+            ApplyQuality();
+            _store.Save(_save);
+            ShowSettings();
+        }
+
+        void ToggleFps()
+        {
+            Click();
+            _save.ShowFps = !_save.ShowFps;
+            _store.Save(_save);
+            ShowSettings();
+        }
+
+        void ToggleSound()
+        {
+            _save.Muted = !_save.Muted;
+            AudioListener.volume = _save.Muted ? 0f : 1f;
+            Click();
+            _store.Save(_save);
+            ShowSettings();
+        }
+
+        void NextFreeFlightWeather()
+        {
+            Click();
+            _save.FreeFlightWeather = WeatherCatalog.Next(_save.FreeFlightWeather);
+            _store.Save(_save);
+            _menu.Show(_mission, _save);
         }
 
         void ToggleCamera()
@@ -472,9 +574,53 @@ namespace Skyforge
 
         void SaveSettings()
         {
+            Click();
             _store.Save(_save);
             RefreshLabels();
         }
+
+        // ---------------------------------------------------------------- automation
+        // Used by ShotDirector to stage screenshots during the CI build; the game itself never calls these.
+
+        public void AutomationStartMission() => StartMission();
+        public void AutomationShowMenu() => ShowMenu();
+        public void AutomationShowSettings() => ShowSettings();
+        public void AutomationHideSettings() => _settings.Visible = false;
+
+        public void AutomationFreeFlight(string weatherId)
+        {
+            _save.FreeFlightWeather = weatherId;
+            StartFreeFlight();
+        }
+
+        public void AutomationSetCamera(CameraView view)
+        {
+            _camera.View = view;
+            _drone.Visible = view == CameraView.Chase;
+            _camera.Snap();
+        }
+
+        /// <summary>Puts the drone in the air at a position, hovering.</summary>
+        public void AutomationPlace(Vector3 position, float yawDeg)
+        {
+            _sim.State = new FlightState { Position = position, YawDeg = yawDeg };
+            _previous = _sim.State;
+            _hasFlown = true;
+            _camera.Snap();
+        }
+
+        public void AutomationShowResult()
+        {
+            var outcome = new MissionOutcome
+            {
+                Succeeded = true, Stars = 2, Time = 164f, TimeGoalMet = true, NoDamage = false, CreditsGranted = 200,
+            };
+            _hud.Visible = false;
+            _phase = Phase.Result;
+            _result.Show(_mission, outcome, _save);
+        }
+
+        public Camera AutomationCamera => _camera.Camera;
 
         void RefreshLabels()
         {

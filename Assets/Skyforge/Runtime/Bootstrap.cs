@@ -17,6 +17,7 @@ namespace Skyforge
             var root = new GameObject("Skyforge");
             Object.DontDestroyOnLoad(root);
             root.AddComponent<Game>();
+            if (ShotDirector.OutputDir != null) root.AddComponent<ShotDirector>();
         }
     }
 }

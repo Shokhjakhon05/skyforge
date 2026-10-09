@@ -9,10 +9,10 @@ namespace Skyforge.UI
     /// <summary>The screen between flights: who you are, what the next operation is, and how to start it.</summary>
     public sealed class MenuScreen
     {
-        public event Action StartPressed, FreeFlightPressed;
+        public event Action StartPressed, FreeFlightPressed, SettingsPressed, WeatherPressed;
 
         readonly GameObject _root;
-        readonly Text _credits, _title, _body, _best;
+        readonly Text _credits, _title, _body, _best, _weather;
         readonly Image[] _stars = new Image[3];
 
         public MenuScreen(Transform parent)
@@ -57,10 +57,22 @@ namespace Skyforge.UI
             _best.color = new Color(1f, 1f, 1f, 0.75f);
             UiKit.Place(_best.rectTransform, topLeft, new Vector2(260f, -340f), new Vector2(660f, 44f));
 
-            _body = UiKit.Label(p, 30, TextAnchor.UpperLeft, true);
+            _body = UiKit.Label(p, 28, TextAnchor.UpperLeft, true);
             _body.fontStyle = FontStyle.Normal;
-            _body.lineSpacing = 1.15f;
-            UiKit.Place(_body.rectTransform, topLeft, new Vector2(62f, -412f), new Vector2(860f, 480f));
+            _body.lineSpacing = 1.12f;
+            UiKit.Place(_body.rectTransform, topLeft, new Vector2(62f, -408f), new Vector2(860f, 420f));
+
+            // Free flight has no mission to set the weather, so the player picks it here.
+            _weather = UiKit.Label(p, 28, TextAnchor.MiddleLeft);
+            _weather.color = new Color(1f, 1f, 1f, 0.8f);
+            UiKit.Place(_weather.rectTransform, new Vector2(0f, 0f), new Vector2(62f, 180f), new Vector2(560f, 64f));
+            Text change = UiKit.Button(p, "Weather", new Color(1f, 1f, 1f, 0.14f), 26, () => WeatherPressed?.Invoke());
+            change.text = Loc.T("menu.change");
+            UiKit.Place((RectTransform)change.transform.parent, new Vector2(0f, 0f), new Vector2(640f, 180f), new Vector2(280f, 64f));
+
+            Text settings = UiKit.Button(safe, "Settings", UiKit.SolidPanelColor, 30, () => SettingsPressed?.Invoke());
+            settings.text = Loc.T("menu.settings");
+            UiKit.Place((RectTransform)settings.transform.parent, new Vector2(1f, 1f), new Vector2(-36f, -26f), new Vector2(320f, 84f));
 
             Text start = UiKit.Button(p, "Start", UiKit.Accent, 40, () => StartPressed?.Invoke());
             start.text = Loc.T("menu.start");
@@ -89,16 +101,107 @@ namespace Skyforge.UI
                 ? Loc.T("menu.best", Format.Time(record.BestTime))
                 : Loc.T("menu.not_flown");
 
+            Weather weather = WeatherCatalog.Get(mission.WeatherId);
             var body = new StringBuilder();
             body.Append(Loc.T(mission.BriefKey)).Append("\n\n");
+            body.Append(Loc.T("menu.weather", Loc.T(weather.NameKey), Format.Wind(weather))).Append("\n\n");
             body.Append("<color=").Append(UiKit.AccentHex).Append(">").Append(Loc.T("menu.stars")).Append("</color>\n");
             body.Append("1  ").Append(Loc.T("star.complete")).Append('\n');
             body.Append("2  ").Append(Loc.T("star.time", Format.Time(mission.TimeGoalSeconds))).Append('\n');
             body.Append("3  ").Append(Loc.T("star.no_damage")).Append("\n\n");
             body.Append(Loc.T("menu.reward", mission.BaseReward, mission.StarReward));
             _body.text = body.ToString();
+
+            Weather free = WeatherCatalog.Get(save.FreeFlightWeather);
+            _weather.text = Loc.T("menu.free_weather", Loc.T(free.NameKey));
             Visible = true;
         }
+    }
+
+    /// <summary>Graphics quality, the frame-rate counter and sound.</summary>
+    public sealed class SettingsScreen
+    {
+        /// <summary>0 = automatic, 1..4 = Low..Ultra.</summary>
+        public event Action<int> QualityPressed;
+        public event Action FpsPressed, SoundPressed, ClosePressed;
+
+        static readonly string[] QualityKeys =
+            { "quality.auto", "quality.low", "quality.medium", "quality.high", "quality.ultra" };
+
+        readonly GameObject _root;
+        readonly Image[] _qualityButtons = new Image[5];
+        readonly Text[] _qualityLabels = new Text[5];
+        readonly Text _applied, _fps, _sound;
+
+        public SettingsScreen(Transform parent)
+        {
+            Canvas canvas = UiKit.CreateCanvas(parent, "Settings", 30);
+            _root = canvas.gameObject;
+
+            Image shade = UiKit.Box(canvas.transform, "Shade", new Color(0f, 0f, 0f, 0.55f));
+            UiKit.Stretch(shade.rectTransform);
+            shade.raycastTarget = true;
+
+            RectTransform safe = UiKit.SafeArea(canvas.transform);
+            Image panel = UiKit.Box(safe, "Panel", UiKit.SolidPanelColor);
+            UiKit.Place(panel.rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1500f, 780f));
+            Transform p = panel.transform;
+            var topLeft = new Vector2(0f, 1f);
+
+            Text title = UiKit.Label(p, 56, TextAnchor.UpperLeft);
+            title.text = Loc.T("menu.settings");
+            UiKit.Place(title.rectTransform, topLeft, new Vector2(60f, -40f), new Vector2(900f, 70f));
+
+            Text graphics = UiKit.Label(p, 32, TextAnchor.UpperLeft);
+            graphics.text = Loc.T("settings.graphics");
+            graphics.color = new Color(1f, 1f, 1f, 0.7f);
+            UiKit.Place(graphics.rectTransform, topLeft, new Vector2(60f, -150f), new Vector2(900f, 44f));
+
+            for (int i = 0; i < 5; i++)
+            {
+                int level = i;
+                _qualityLabels[i] = UiKit.Button(p, "Quality" + i, UiKit.Faint, 30, () => QualityPressed?.Invoke(level));
+                _qualityLabels[i].text = Loc.T(QualityKeys[i]);
+                var rect = (RectTransform)_qualityLabels[i].transform.parent;
+                UiKit.Place(rect, topLeft, new Vector2(60f + i * 278f, -204f), new Vector2(264f, 96f));
+                _qualityButtons[i] = rect.GetComponent<Image>();
+            }
+            _applied = UiKit.Label(p, 28, TextAnchor.UpperLeft);
+            _applied.color = new Color(1f, 1f, 1f, 0.7f);
+            UiKit.Place(_applied.rectTransform, topLeft, new Vector2(60f, -316f), new Vector2(1300f, 40f));
+
+            _fps = UiKit.Button(p, "Fps", UiKit.Faint, 30, () => FpsPressed?.Invoke());
+            UiKit.Place((RectTransform)_fps.transform.parent, topLeft, new Vector2(60f, -400f), new Vector2(680f, 96f));
+            _sound = UiKit.Button(p, "Sound", UiKit.Faint, 30, () => SoundPressed?.Invoke());
+            UiKit.Place((RectTransform)_sound.transform.parent, topLeft, new Vector2(760f, -400f), new Vector2(680f, 96f));
+
+            Text close = UiKit.Button(p, "Close", UiKit.Accent, 36, () => ClosePressed?.Invoke());
+            close.text = Loc.T("settings.close");
+            close.color = new Color(0.08f, 0.06f, 0.02f);
+            UiKit.Place((RectTransform)close.transform.parent, new Vector2(0.5f, 0f), new Vector2(0f, 50f), new Vector2(460f, 110f));
+        }
+
+        public bool Visible
+        {
+            set => _root.SetActive(value);
+        }
+
+        /// <param name="appliedKey">Name of the tier actually in use, shown when the choice is automatic.</param>
+        public void Show(SaveData save, string appliedKey)
+        {
+            for (int i = 0; i < 5; i++)
+            {
+                bool selected = i == save.Quality;
+                _qualityButtons[i].color = selected ? UiKit.Accent : UiKit.Faint;
+                _qualityLabels[i].color = selected ? new Color(0.08f, 0.06f, 0.02f) : Color.white;
+            }
+            _applied.text = save.Quality == 0 ? Loc.T("settings.auto_picked", Loc.T(appliedKey)) : "";
+            _fps.text = Loc.T(save.ShowFps ? "settings.fps_on" : "settings.fps_off");
+            _sound.text = Loc.T(save.Muted ? "settings.sound_off" : "settings.sound_on");
+            Visible = true;
+        }
+
+        public static string QualityKey(int level) => QualityKeys[Mathf.Clamp(level, 0, 4)];
     }
 
     /// <summary>What happened in the mission and why each star was or was not earned.</summary>
@@ -199,6 +302,14 @@ namespace Skyforge.UI
 
     public static class Format
     {
+        public static string Wind(Weather weather)
+        {
+            if (!weather.HasWind) return Loc.T("weather.calm");
+            return weather.Gust > 0.5f
+                ? Loc.T("weather.wind_gusts", Mathf.RoundToInt(weather.WindSpeed), Mathf.RoundToInt(weather.WindSpeed + weather.Gust))
+                : Loc.T("weather.wind", Mathf.RoundToInt(weather.WindSpeed));
+        }
+
         public static string Time(float seconds)
         {
             int whole = Mathf.FloorToInt(Mathf.Max(0f, seconds));

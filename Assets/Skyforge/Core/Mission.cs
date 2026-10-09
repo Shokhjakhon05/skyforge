@@ -33,6 +33,7 @@ namespace Skyforge.Core
         public string Id;
         public string TitleKey;
         public string BriefKey;
+        public string WeatherId = WeatherCatalog.Clear;
         public List<ObjectiveDefinition> Objectives = new List<ObjectiveDefinition>();
         /// <summary>Finishing faster than this earns the second star.</summary>
         public float TimeGoalSeconds;
@@ -72,6 +73,7 @@ namespace Skyforge.Core
 
         public readonly MissionDefinition Definition;
         readonly DroneSpec _spec;
+        readonly Weather _weather;
         float _signalLostFor;
 
         public MissionStatus Status { get; private set; }
@@ -94,6 +96,7 @@ namespace Skyforge.Core
         {
             Definition = definition;
             _spec = spec;
+            _weather = WeatherCatalog.Get(definition.WeatherId);
         }
 
         /// <param name="load">Motor effort 0..1, as shown by the drone.</param>
@@ -120,7 +123,8 @@ namespace Skyforge.Core
 
             if (!state.Grounded)
             {
-                Battery = Mathf.Max(0f, Battery - dt / _spec.BatterySeconds * (0.6f + 0.8f * Mathf.Clamp01(load)));
+                float drain = (0.6f + 0.8f * Mathf.Clamp01(load)) * _weather.BatteryDrain;
+                Battery = Mathf.Max(0f, Battery - dt / _spec.BatterySeconds * drain);
                 if (Battery <= 0f)
                 {
                     Fail(FailReason.BatteryEmpty);
@@ -129,7 +133,8 @@ namespace Skyforge.Core
             }
 
             float distance = Vector3.Distance(state.Position, Definition.BasePosition);
-            Signal = Mathf.Clamp01((_spec.SignalRange - distance) / (_spec.SignalRange * 0.4f));
+            float range = _spec.SignalRange * _weather.SignalRange;
+            Signal = Mathf.Clamp01((range - distance) / (range * 0.4f));
             _signalLostFor = Signal <= 0f ? _signalLostFor + dt : 0f;
             if (_signalLostFor >= SignalGraceSeconds)
             {
