@@ -63,6 +63,7 @@ namespace UnityEngine
         public static float Dot(Vector3 a, Vector3 b) => a.x * b.x + a.y * b.y + a.z * b.z;
         public static Vector3 Cross(Vector3 a, Vector3 b) => new Vector3(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x);
         public static float Distance(Vector3 a, Vector3 b) => (a - b).magnitude;
+        public static Vector3 ClampMagnitude(Vector3 v, float max) => v.magnitude > max ? v.normalized * max : v;
         public static Vector3 Lerp(Vector3 a, Vector3 b, float t) { t = Mathf.Clamp01(t); return a + (b - a) * t; }
         public static Vector3 ProjectOnPlane(Vector3 v, Vector3 n) => v - n * (Dot(v, n) / Mathf.Max(1e-8f, n.sqrMagnitude));
         public override string ToString() => $"({x:0.00}, {y:0.00}, {z:0.00})";
@@ -83,6 +84,7 @@ namespace UnityEngine
         public static float Cos(float f) => MathF.Cos(f);
         public static float Tan(float f) => MathF.Tan(f);
         public static float Atan(float f) => MathF.Atan(f);
+        public static float Asin(float f) => (float)System.Math.Asin(f);
         public static float Atan2(float y, float x) => MathF.Atan2(y, x);
         public static float Acos(float f) => MathF.Acos(f);
         public static float Sqrt(float f) => MathF.Sqrt(f);

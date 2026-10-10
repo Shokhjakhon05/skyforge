@@ -22,6 +22,19 @@ namespace Skyforge.Core
         /// <summary>Concrete and steel plate: rockets do little, bombs are the answer.</summary>
         public bool Structure;
 
+        /// <summary>Flies after the drone instead of following a road: an enemy drone or fighter.</summary>
+        public bool Pursues;
+        public float PursuitSpeed;
+        /// <summary>A soft vehicle that drives off when shells start landing near it.</summary>
+        public bool Scatters;
+        /// <summary>An emplacement that moves to a new position once it has been hit.</summary>
+        public bool Relocates;
+        /// <summary>Infantry: under fire it goes to ground and is hard to hurt for a while.</summary>
+        public bool TakesCover;
+        /// <summary>On the player's side and armed: damage per second it does to the nearest hostile in range.</summary>
+        public float AllyGun;
+        public float AllyRange = 90f;
+
         public string NameKey => "target." + Id;
         public bool Armed => GunRange > 0f;
     }
@@ -39,9 +52,9 @@ namespace Skyforge.Core
             var list = new[]
             {
                 // Soft vehicles.
-                new TargetKind { Id = "truck", Health = 60f, Radius = 4f },
-                new TargetKind { Id = "truck_cargo", Health = 60f, Radius = 4.5f },
-                new TargetKind { Id = "truck_army", Health = 70f, Radius = 4.5f },
+                new TargetKind { Id = "truck", Health = 60f, Radius = 4f, Scatters = true },
+                new TargetKind { Id = "truck_cargo", Health = 60f, Radius = 4.5f, Scatters = true },
+                new TargetKind { Id = "truck_army", Health = 70f, Radius = 4.5f, Scatters = true },
                 new TargetKind { Id = "truck_fuel", Health = 40f, Radius = 4.5f, Blast = 18f },
                 new TargetKind { Id = "staff_car", Health = 60f, Radius = 3f },
                 new TargetKind { Id = "jeep", Health = 40f, Radius = 3f, GunRange = 70f, GunDamage = 0.035f },
@@ -52,7 +65,7 @@ namespace Skyforge.Core
                 new TargetKind { Id = "tank", Health = 170f, Radius = 4.5f, GunRange = 75f, GunDamage = 0.05f },
                 new TargetKind { Id = "tank_heavy", Health = 240f, Radius = 5f, GunRange = 80f, GunDamage = 0.06f },
                 // Air defence.
-                new TargetKind { Id = "aagun", Health = 90f, Radius = 3.5f, GunRange = 125f, GunDamage = 0.10f },
+                new TargetKind { Id = "aagun", Health = 90f, Radius = 3.5f, GunRange = 125f, GunDamage = 0.10f, Relocates = true },
                 new TargetKind { Id = "gatling", Health = 80f, Radius = 3.2f, GunRange = 105f, GunDamage = 0.13f },
                 new TargetKind { Id = "sam", Health = 90f, Radius = 3.5f, GunRange = 240f, GunDamage = 0.16f, MinAltitude = 40f },
                 new TargetKind { Id = "radar", Health = 70f, Radius = 3f, Height = 8f },
@@ -63,7 +76,7 @@ namespace Skyforge.Core
                 new TargetKind { Id = "boat", Health = 70f, Radius = 4.5f, GunRange = 75f, GunDamage = 0.045f },
                 new TargetKind { Id = "warship", Health = 420f, Radius = 14f, Height = 10f, GunRange = 110f, GunDamage = 0.045f, Structure = true },
                 // People and positions.
-                new TargetKind { Id = "squad", Health = 30f, Radius = 5f, Height = 2f, GunRange = 55f, GunDamage = 0.03f },
+                new TargetKind { Id = "squad", Health = 30f, Radius = 5f, Height = 2f, GunRange = 55f, GunDamage = 0.03f, TakesCover = true },
                 new TargetKind { Id = "artillery", Health = 100f, Radius = 4f },
                 new TargetKind { Id = "bunker", Health = 220f, Radius = 5f, GunRange = 80f, GunDamage = 0.055f, Structure = true },
                 new TargetKind { Id = "hq", Health = 320f, Radius = 9f, Height = 8f, Structure = true },
@@ -73,6 +86,22 @@ namespace Skyforge.Core
                 // What the player protects.
                 new TargetKind { Id = "outpost", Health = 300f, Radius = 8f, Height = 6f, Structure = true },
                 new TargetKind { Id = "ally_truck", Health = 120f, Radius = 4f },
+                new TargetKind { Id = "ally_tank", Health = 280f, Radius = 4.5f, AllyGun = 14f, AllyRange = 85f },
+                new TargetKind { Id = "ally_squad", Health = 110f, Radius = 5f, Height = 2f, AllyGun = 6f, AllyRange = 60f },
+                new TargetKind { Id = "turret", Health = 220f, Radius = 3.5f, AllyGun = 18f, AllyRange = 110f },
+                new TargetKind { Id = "pilot", Health = 70f, Radius = 2.5f, Height = 2f },
+                // In the air against the player.
+                new TargetKind { Id = "hunter", Health = 30f, Radius = 2.2f, Height = 2f, GunRange = 48f, GunDamage = 0.05f, Pursues = true, PursuitSpeed = 13f },
+                new TargetKind { Id = "fighter", Health = 70f, Radius = 4f, Height = 3f, GunRange = 85f, GunDamage = 0.07f, Pursues = true, PursuitSpeed = 21f },
+                // Big things that come apart.
+                new TargetKind { Id = "train_engine", Health = 300f, Radius = 6f, Height = 4f, Structure = true },
+                new TargetKind { Id = "train_car", Health = 140f, Radius = 6f, Height = 4f, Blast = 14f },
+                new TargetKind { Id = "train_gun", Health = 170f, Radius = 6f, Height = 5f, GunRange = 110f, GunDamage = 0.085f },
+                new TargetKind { Id = "launcher", Health = 210f, Radius = 6f, Height = 5f, Blast = 20f },
+                new TargetKind { Id = "ship_turret", Health = 90f, Radius = 3f, Height = 3f, GunRange = 120f, GunDamage = 0.07f },
+                new TargetKind { Id = "bridge", Health = 380f, Radius = 10f, Height = 6f, Structure = true },
+                new TargetKind { Id = "platform", Health = 520f, Radius = 13f, Height = 16f, Blast = 26f, Structure = true },
+                new TargetKind { Id = "dummy", Health = 80f, Radius = 3.5f },
             };
             var map = new Dictionary<string, TargetKind>();
             foreach (TargetKind kind in list) map[kind.Id] = kind;
@@ -101,6 +130,9 @@ namespace Skyforge.Core
         public bool Friendly;
         /// <summary>Index of the friendly target this one shoots at when it gets near, or -1.</summary>
         public int Attacks = -1;
+        /// <summary>Index of the target this one is mounted on (a turret on a ship), or -1. It rides along at <see cref="Offset"/>.</summary>
+        public int Parent = -1;
+        public Vector3 Offset;
     }
 
     public struct TargetState
@@ -115,12 +147,35 @@ namespace Skyforge.Core
         public float Aim;
         /// <summary>True on the steps this target is firing, at the drone or at an ally.</summary>
         public bool Firing;
+        /// <summary>Seconds it has been in the mission: movers and pursuers set off after their delay.</summary>
+        public float Clock;
+        /// <summary>Driving off after a near miss: which way, and for how many more seconds.</summary>
+        public Vector3 Flee;
+        public float FleeLeft;
+        /// <summary>Seconds of cover left to infantry that has gone to ground.</summary>
+        public float Cover;
+        public bool Alarmed;
     }
 
     public enum ProjectileType
     {
         Rocket,
         Bomb,
+        /// <summary>A missile the player flies by hand through its own camera.</summary>
+        Guided,
+    }
+
+    /// <summary>What did the damage; kills are counted per weapon for tasks and mastery.</summary>
+    public enum Weapon
+    {
+        None,
+        Rocket,
+        Bomb,
+        Cannon,
+        Guided,
+        Support,
+        Ram,
+        Ally,
     }
 
     public struct Projectile
@@ -150,6 +205,19 @@ namespace Skyforge.Core
         Rearmed,
         /// <summary>A strike drone went off; the next one is waiting on the pad if any are left.</summary>
         Detonated,
+        /// <summary>The drone's cannon is firing at <see cref="CombatEvent.Target"/>.</summary>
+        CannonFire,
+        /// <summary>A friendly gun at Position is firing at <see cref="CombatEvent.Target"/>.</summary>
+        AllyFire,
+        /// <summary>Support has been called; Size is its tier, Position where it will land.</summary>
+        SupportCalled,
+        JammerOn,
+        FlaresOut,
+        GuidedLaunched,
+        /// <summary>The aircraft was lost and a spare takes its place on the pad.</summary>
+        SpareUsed,
+        /// <summary>A target has taken fright and is moving off.</summary>
+        Scattered,
     }
 
     public struct CombatEvent
@@ -245,10 +313,11 @@ namespace Skyforge.Core
             for (int i = 0; i < _targets.Length; i++)
             {
                 _targets[i] = PlaceTarget(definitions[i], -definitions[i].Delay * definitions[i].Speed);
-                _targets[i].Health = definitions[i].Kind.Health;
+                _targets[i].Health = definitions[i].Kind.Health * (definitions[i].Friendly ? 1f : Definition.HealthScale);
                 _targets[i].Alive = true;
             }
             DronesLeft = Definition.StrikeDrones;
+            StartWarfare();
             Rearm();
         }
 
@@ -257,6 +326,7 @@ namespace Skyforge.Core
             // A strike drone is the munition.
             Rockets = Kamikaze || !IsCombat ? 0 : _spec.Rockets;
             Bombs = Kamikaze || !IsCombat ? 0 : _spec.Bombs;
+            RearmWarfare();
         }
 
         /// <summary>The ground crew's part of a stop on the pad: full racks and a fresh battery.</summary>
@@ -274,6 +344,7 @@ namespace Skyforge.Core
             Hull = 1f;
             _signalLostFor = 0f;
             for (int i = 0; i < _targets.Length; i++) _targets[i].Aim = 0f;
+            if (!Kamikaze) Rearm();
         }
 
         TargetState PlaceTarget(TargetDefinition definition, float travelled)
@@ -323,9 +394,12 @@ namespace Skyforge.Core
             if (tracer) _tracerClock = 0f;
 
             MoveTargets(dt);
+            UpdateBehaviours(state, dt);
             UpdateProjectiles(dt);
             if (Status != MissionStatus.InProgress) return false;
+            if (!UpdateWarfare(state, dt, tracer)) return false;
             if (!EnemyFire(state, dt, tracer)) return false;
+            if (NeedsRespawn) return true;
             if (!AlliesUnderAttack(dt, tracer)) return false;
             UpdateLock(state);
 
@@ -341,10 +415,15 @@ namespace Skyforge.Core
                 TargetDefinition definition = Definition.Targets[i];
                 if (!_targets[i].Alive || definition.Path.Count < 2 || _targets[i].Arrived) continue;
                 if (ObjectiveIndex < definition.StartObjective) continue;
-                TargetState moved = PlaceTarget(definition, _targets[i].Travelled + definition.Speed * dt);
+                // A frightened column drives faster.
+                float pace = _targets[i].Alarmed && definition.Kind.Scatters ? 1.45f : 1f;
+                TargetState moved = PlaceTarget(definition, _targets[i].Travelled + definition.Speed * pace * dt);
                 moved.Health = _targets[i].Health;
                 moved.Alive = true;
                 moved.Aim = _targets[i].Aim;
+                moved.Clock = _targets[i].Clock;
+                moved.Cover = _targets[i].Cover;
+                moved.Alarmed = _targets[i].Alarmed;
                 _targets[i] = moved;
             }
         }
@@ -383,7 +462,7 @@ namespace Skyforge.Core
                 if (!_targets[i].Alive || definition.Friendly || !kind.Armed) continue;
 
                 Vector3 muzzle = _targets[i].Position + Vector3.up * 2f;
-                bool sees = !parked &&
+                bool sees = !parked && !Blinded(kind) &&
                             Vector3.Distance(state.Position, muzzle) <= kind.GunRange * _spec.JamScale &&
                             above >= kind.MinAltitude &&
                             HasLineOfSight(muzzle, state.Position);
@@ -397,7 +476,7 @@ namespace Skyforge.Core
                 _targets[i].Aim += dt;
                 if (_targets[i].Aim < AimSeconds / Mathf.Max(0.2f, _spec.DetectScale)) continue;
                 _targets[i].Firing = true;
-                damage += kind.GunDamage;
+                damage += kind.GunDamage * Definition.GunScale;
                 if (tracer) _events.Add(new CombatEvent { Type = CombatEventType.IncomingFire, Position = muzzle, Target = i });
             }
             if (damage <= 0f) return true;
@@ -409,8 +488,7 @@ namespace Skyforge.Core
             Hull = Mathf.Max(0f, Hull - damage * evasion * _spec.DamageScale * dt);
             if (Hull > 0f) return true;
             if (Kamikaze) return DroneLost(state.Position, false);
-            Fail(FailReason.ShotDown);
-            return false;
+            return AircraftDown(state.Position);
         }
 
         bool AlliesUnderAttack(float dt, bool tracer)
@@ -434,7 +512,7 @@ namespace Skyforge.Core
         void UpdateLock(FlightState state)
         {
             LockedTarget = -1;
-            if (Rockets <= 0 || state.Grounded) return;
+            if ((Rockets <= 0 && CannonSeconds <= 0f) || state.Grounded) return;
             float yaw = state.YawDeg * Mathf.Deg2Rad;
             var heading = new Vector2(Mathf.Sin(yaw), Mathf.Cos(yaw));
             float best = LockHalfAngleDeg;
@@ -466,7 +544,7 @@ namespace Skyforge.Core
                 {
                     Type = ProjectileType.Rocket, Position = state.Position + Vector3.down * 0.3f,
                     Direction = to.sqrMagnitude > 0.01f ? to.normalized : Vector3.forward,
-                    Target = LockedTarget, Damage = _spec.RocketDamage,
+                    Target = LockedTarget, Damage = _spec.RocketDamage * _ordnance,
                 });
                 _events.Add(new CombatEvent { Type = CombatEventType.RocketFired, Position = state.Position, Target = LockedTarget });
                 return ActionResult.RocketFired;
@@ -480,7 +558,7 @@ namespace Skyforge.Core
                 _projectiles.Add(new Projectile
                 {
                     Type = ProjectileType.Bomb, Position = state.Position, From = state.Position, Impact = impact,
-                    Duration = Mathf.Max(0.05f, fall), Damage = _spec.BombDamage, Target = -1,
+                    Duration = Mathf.Max(0.05f, fall), Damage = _spec.BombDamage * _ordnance, Target = -1,
                 });
                 _events.Add(new CombatEvent { Type = CombatEventType.BombDropped, Position = state.Position, Target = -1 });
                 return ActionResult.BombDropped;
@@ -495,8 +573,13 @@ namespace Skyforge.Core
                 Projectile p = _projectiles[i];
                 p.Elapsed += dt;
                 bool gone = false;
-                if (p.Type == ProjectileType.Rocket)
+                if (p.Type == ProjectileType.Guided)
                 {
+                    gone = FlyGuided(ref p, dt);
+                }
+                else if (p.Type == ProjectileType.Rocket)
+                {
+                    _weapon = Weapon.Rocket;
                     Vector3 aim = _targets[p.Target].Position + Vector3.up * 1.5f;
                     Vector3 to = aim - p.Position;
                     float step = RocketSpeed * dt;
@@ -528,7 +611,9 @@ namespace Skyforge.Core
                     p.Position = position;
                     if (p.Elapsed >= p.Duration)
                     {
+                        _weapon = Weapon.Bomb;
                         Explode(p.Impact, p.Damage, BombBlast, -1, false);
+                        if (_spec.Cluster) Scatter(p.Impact, p.Damage);
                         gone = true;
                     }
                 }
@@ -545,6 +630,7 @@ namespace Skyforge.Core
         void Explode(Vector3 point, float damage, float radius, int direct, bool rocket)
         {
             _events.Add(new CombatEvent { Type = CombatEventType.Explosion, Position = point, Target = direct, Size = radius });
+            Alarm(point, radius);
             for (int i = 0; i < _targets.Length; i++)
             {
                 if (!_targets[i].Alive) continue;
@@ -572,6 +658,7 @@ namespace Skyforge.Core
         void Damage(int index, float amount, bool byPlayer)
         {
             if (amount <= 0f || !_targets[index].Alive) return;
+            amount *= Protection(index);
             _targets[index].Health -= amount;
             if (_targets[index].Health > 0f)
             {
@@ -590,10 +677,12 @@ namespace Skyforge.Core
             });
             if (definition.Friendly)
             {
-                Fail(FailReason.AllyLost);
+                // A defence turret is expendable; what the mission is about is not.
+                if (definition.Kind.Id != "turret") Fail(FailReason.AllyLost);
                 return;
             }
             Kills++;
+            CountKill(index, byPlayer);
 
             // Fuel and ammunition take their neighbours with them, and a drone that is too close.
             if (definition.Kind.Blast > 0f)
@@ -604,11 +693,7 @@ namespace Skyforge.Core
                 if (gap < reach && !NeedsRespawn && !Kamikaze)
                 {
                     Hull = Mathf.Max(0f, Hull - 0.45f * (1f - gap / reach) * _spec.DamageScale);
-                    if (Hull <= 0f)
-                    {
-                        Fail(FailReason.ShotDown);
-                        return;
-                    }
+                    if (Hull <= 0f && !AircraftDown(_dronePosition)) return;
                 }
                 Explode(centre, 130f, reach, -1, false);
             }
@@ -637,6 +722,7 @@ namespace Skyforge.Core
         {
             DronesLeft = Mathf.Max(0, DronesLeft - 1);
             _events.Add(new CombatEvent { Type = CombatEventType.Detonated, Position = position, Target = -1, Size = BombBlast });
+            _weapon = Weapon.Ram;
             if (detonate) Explode(position, Mathf.Max(360f, _spec.BombDamage * 1.6f), BombBlast, -1, false);
             if (Status != MissionStatus.InProgress) return false;
 

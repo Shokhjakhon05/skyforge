@@ -117,6 +117,20 @@ namespace Skyforge.Core
         /// <summary>Where the operator is; signal strength is measured from here.</summary>
         public Vector3 BasePosition;
 
+        // What the generated operations and the veteran campaign turn on; the plain campaign leaves them alone.
+        /// <summary>The enemy reacts: columns scatter, guns move after being hit, infantry takes cover.</summary>
+        public bool Reactive;
+        /// <summary>Multipliers on hostile health and on the damage hostile guns do.</summary>
+        public float HealthScale = 1f, GunScale = 1f;
+        /// <summary>Aircraft standing by to take over when the one in the air is shot down.</summary>
+        public int Spares;
+        /// <summary>Racks never empty: the firing range.</summary>
+        public bool FreeAmmo;
+        /// <summary>"campaign", "veteran", "contract", "survival", "raid", "range", "custom", "sector".</summary>
+        public string Mode = "campaign";
+        /// <summary>For a generated operation: its title as text rather than as a key.</summary>
+        public string Title, Brief;
+
         /// <summary>A copy whose lists can be changed without touching this definition.</summary>
         public MissionDefinition Copy()
         {

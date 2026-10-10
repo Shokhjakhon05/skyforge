@@ -31,6 +31,18 @@ namespace Skyforge.Core
         public bool Grounded;
     }
 
+    /// <summary>Special equipment an aircraft may carry besides rockets and bombs.</summary>
+    public enum Ability
+    {
+        None,
+        /// <summary>For a few seconds no gun can find the aircraft.</summary>
+        Jammer,
+        /// <summary>Missile batteries and pursuers lose their lock.</summary>
+        Flares,
+        /// <summary>A missile flown by hand through its own camera.</summary>
+        GuidedMissile,
+    }
+
     /// <summary>Handling parameters of one drone. Differences between drones live here.</summary>
     public sealed class DroneSpec
     {
@@ -92,6 +104,17 @@ namespace Skyforge.Core
         public float LockRange = 150f;
         /// <summary>Seconds between rockets.</summary>
         public float FireInterval = 0.7f;
+
+        /// <summary>Damage per second of an automatic cannon that fires at the locked target; zero for none.</summary>
+        public float Cannon;
+        public float CannonRange = 95f;
+        /// <summary>Seconds of cannon fire carried.</summary>
+        public float CannonSeconds = 14f;
+        /// <summary>Bombs burst into a pattern of bomblets around the point of impact.</summary>
+        public bool Cluster;
+        /// <summary>The special equipment on the third button.</summary>
+        public Ability Ability;
+        public int AbilityCharges = 2;
 
         public static DroneSpec Sparrow() => new DroneSpec();
 
