@@ -500,6 +500,61 @@ namespace Skyforge
             footer = footer ?? Loc.T("title.note");
         }
 
+        // ---------------------------------------------------------------- for the screenshot run
+
+        public void AutomationHeadquarters(int which, int tab)
+        {
+            // Something to show: money, cases, a few skins, a rank, some sectors.
+            _save.Credits = Mathf.Max(_save.Credits, 9000);
+            _save.Parts = Mathf.Max(_save.Parts, 40);
+            if (_save.Career.Xp < 5000) _save.Career.Xp = 5200;
+            _save.Career.SeasonXp = Mathf.Max(_save.Career.SeasonXp, 1900);
+            for (int i = 0; i < CaseRules.Tiers; i++) _save.Career.Cases[i] = Mathf.Max(_save.Career.Cases[i], 2 - i / 2);
+            foreach (string skin in new[] { "olive", "cobalt", "ember", "obsidian" })
+                if (!_save.Career.Skins.Contains(skin)) _save.Career.Skins.Add(skin);
+            for (int i = 0; i < 5; i++) War.Capture(_save, _region.Id, i * 2);
+            _save.Career.SurvivalBest = Mathf.Max(_save.Career.SurvivalBest, 7);
+            _hq = (Hq)which;
+            _hqTab = tab;
+            _hqNote = null;
+            ShowHeadquarters(false);
+        }
+
+        public void AutomationCloseHeadquarters()
+        {
+            _list.Visible = false;
+            _hq = Hq.None;
+        }
+
+        /// <summary>Starts a generated operation of a kind; returns where its first hostile target stands.</summary>
+        public Vector3 AutomationOperation(int kind, int level)
+        {
+            MissionDefinition op = kind >= 0 ? Operations.Contract(_island, _region.Id, 40 + kind, level, (OperationKind)kind)
+                : kind == -1 ? Operations.Survival(_island, _region.Id, 3)
+                : kind == -2 ? Operations.Raid(_island, _region.Id, 3, level)
+                : Operations.Range(_island, _region.Id);
+            StartOperation(op);
+            foreach (TargetDefinition target in op.Targets)
+                if (!target.Friendly) return target.Path.Count > 0 ? target.Path[0] : target.Position;
+            return _island.Spawn;
+        }
+
+        public void AutomationAbility() => _abilityPressed = true;
+
+        public void AutomationWear(string skin)
+        {
+            if (!_save.Career.Skins.Contains(skin)) _save.Career.Skins.Add(skin);
+            Skins.Wear(_save, Garage.Selected(_save).Id, skin);
+            Repaint();
+        }
+
+        public void AutomationTransmission(int beat)
+        {
+            _transmission.Show(Loc.T("story." + beat + ".speaker"), Loc.T("story." + beat + ".text"));
+        }
+
+        public void AutomationHideTransmission() => _transmission.Visible = false;
+
         // ---------------------------------------------------------------- the story
 
         /// <summary>

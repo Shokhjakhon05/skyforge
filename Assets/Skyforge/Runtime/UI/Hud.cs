@@ -442,7 +442,7 @@ namespace Skyforge.UI
                 {
                     Skyforge.Core.TargetState target = run.Target(i);
                     Skyforge.Core.TargetDefinition definition = mission.Targets[i];
-                    if (!target.Alive || i == run.LockedTarget) continue;
+                    if (!target.Alive || target.Dormant || i == run.LockedTarget) continue;
                     // Red for what must die, pale for what merely shoots, green for what is ours.
                     bool wanted = objective != null && objective.TargetIndices.Contains(i);
                     if (!wanted && !definition.Friendly && !definition.Kind.Armed) continue;
@@ -509,7 +509,7 @@ namespace Skyforge.UI
             for (int i = 0; i < run.TargetCount && used < ScopeDots; i++)
             {
                 Skyforge.Core.TargetState target = run.Target(i);
-                if (!target.Alive) continue;
+                if (!target.Alive || target.Dormant) continue;
                 Skyforge.Core.TargetDefinition definition = mission.Targets[i];
                 bool wanted = objective != null && objective.TargetIndices.Contains(i);
                 RectTransform dot = _dots[used];

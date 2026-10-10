@@ -203,6 +203,54 @@ namespace Skyforge
             yield return MissionShot("14n", "first_strike", island.Anchors["poi0"] + new Vector3(0f, 24f, -70f), 0f, CameraView.Chase);
             _game.AutomationUseDrone("sparrow");
 
+            // The headquarters: every screen and tab once.
+            _game.AutomationShowMenu();
+            int[][] pages = { new[] { 1, 0 }, new[] { 1, 1 }, new[] { 1, 2 }, new[] { 1, 3 }, new[] { 2, 0 }, new[] { 2, 1 }, new[] { 2, 3 },
+                new[] { 3, 0 }, new[] { 3, 1 }, new[] { 4, 0 }, new[] { 4, 1 }, new[] { 4, 2 } };
+            foreach (int[] page in pages)
+            {
+                _game.AutomationHeadquarters(page[0], page[1]);
+                yield return Shot("17_hq_" + page[0] + "_" + page[1]);
+            }
+            _game.AutomationCloseHeadquarters();
+            _game.AutomationTransmission(2);
+            yield return Frames(90);
+            yield return Shot("17z_transmission");
+            _game.AutomationHideTransmission();
+
+            // The generated operations, one frame over each kind's targets.
+            string[] kinds = { "strike", "convoy", "defend", "airpatrol", "train", "launcher", "bridge", "rescue", "nighthunt", "platform", "flagship", "offensive" };
+            for (int kind = 0; kind < kinds.Length; kind++)
+            {
+                Vector3 at = _game.AutomationOperation(kind, 9);
+                _game.AutomationSetCamera(kind == 8 ? CameraView.Gun : CameraView.Chase);
+                _game.AutomationPlace(at + new Vector3(0f, kind >= 9 ? 44f : 30f, kind >= 9 ? -110f : -75f), 0f);
+                yield return Frames(kind == 3 ? 240 : 30);
+                yield return Shot("18" + (char)('a' + kind) + "_op_" + kinds[kind]);
+            }
+            _game.AutomationSetCamera(CameraView.Chase);
+            Vector3 wave = _game.AutomationOperation(-1, 1);
+            _game.AutomationPlace(island.Spawn + new Vector3(40f, 34f, -40f), 40f);
+            yield return Frames(200);
+            yield return Shot("18m_survival");
+            Vector3 range = _game.AutomationOperation(-3, 1);
+            _game.AutomationPlace(range + new Vector3(0f, 22f, -70f), 0f);
+            yield return Shot("18n_range");
+
+            // The hand-flown missile, seen through its own camera, and a painted aircraft.
+            _game.AutomationUseDrone("owl");
+            Vector3 mark = _game.AutomationOperation(0, 4);
+            _game.AutomationPlace(mark + new Vector3(0f, 40f, -130f), 0f);
+            yield return Frames(10);
+            _game.AutomationAbility();
+            yield return Frames(70);
+            yield return Shot("18o_guided_missile");
+            _game.AutomationUseDrone("talon");
+            _game.AutomationWear("ember");
+            _game.AutomationShowHangar("talon", 0, 9000);
+            yield return Shot("18p_hangar_painted");
+            _game.AutomationUseDrone("sparrow");
+
             _game.AutomationSelectMission("broken_arrow");
             _game.AutomationShowMenu();
             _game.AutomationShowTalk();
@@ -223,7 +271,7 @@ namespace Skyforge
                 yield return Shot("15" + (char)('a' + region) + "_globe_" + RegionCatalog.All[region].Id);
             }
             int shot = 0;
-            foreach (string regionId in new[] { "kharad", "nordheim", "tessara", "vulkar", "redrock" })
+            foreach (string regionId in new[] { "kharad", "nordheim", "tessara", "vulkar", "redrock", "meridian" })
             {
                 _game.AutomationLoadRegion(regionId);
                 yield return Shot("16" + (char)('a' + shot++) + "_" + regionId + "_menu");

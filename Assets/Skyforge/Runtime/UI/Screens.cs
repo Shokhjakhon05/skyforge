@@ -555,7 +555,9 @@ namespace Skyforge.UI
             _lines = UiKit.Label(p, 34, TextAnchor.UpperCenter, true);
             UiKit.Light(_lines);
             _lines.lineSpacing = 1.2f;
-            UiKit.Place(_lines.rectTransform, top, new Vector2(0f, -350f), new Vector2(1000f, 200f));
+            UiKit.Place(_lines.rectTransform, top, new Vector2(0f, -350f), new Vector2(1100f, 215f));
+            UiKit.FitWidth(_lines, 15);
+            _lines.supportRichText = true;
 
             _reward = UiKit.Label(p, 48, TextAnchor.UpperCenter, true);
             _reward.color = UiKit.Accent;
