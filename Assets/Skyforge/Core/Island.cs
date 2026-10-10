@@ -312,7 +312,7 @@ namespace Skyforge.Core
                     };
                     Ruins.Add(ruin);
                     AddRuinObstacles(ruin);
-                    if (random.NextDouble() < 0.3) Fires.Add(ruin.Base);
+                    if (random.NextDouble() < 0.1) Fires.Add(ruin.Base);
                     wanted--;
                 }
 
@@ -326,7 +326,7 @@ namespace Skyforge.Core
                     var wreck = new WreckSpec
                     {
                         Base = new Vector3(x, ground, z), YawDeg = Next(0f, 360f), Kind = random.Next(0, 6),
-                        Burning = random.NextDouble() < 0.45,
+                        Burning = random.NextDouble() < 0.35,
                     };
                     Wrecks.Add(wreck);
                     if (wreck.Burning) Fires.Add(wreck.Base);

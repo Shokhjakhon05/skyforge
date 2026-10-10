@@ -52,7 +52,6 @@ namespace Skyforge.World
         readonly List<Fire> _fires = new List<Fire>();
         readonly MaterialPropertyBlock _block = new MaterialPropertyBlock();
         readonly Material _glow, _matte, _scorchMaterial;
-        Material _plumeMaterial;
         readonly Mesh _blob, _plumeMesh;
         readonly System.Random _random = new System.Random(5);
         static readonly int BaseColor = Shader.PropertyToID("_BaseColor");
@@ -118,51 +117,58 @@ namespace Skyforge.World
             return obj.transform;
         }
 
+        // An icosahedron: twelve points, twenty faces.
+        static readonly float Golden = (1f + Mathf.Sqrt(5f)) * 0.5f;
+        static readonly Vector3[] BlobPoints =
+        {
+            new Vector3(-1, Golden, 0), new Vector3(1, Golden, 0), new Vector3(-1, -Golden, 0), new Vector3(1, -Golden, 0),
+            new Vector3(0, -1, Golden), new Vector3(0, 1, Golden), new Vector3(0, -1, -Golden), new Vector3(0, 1, -Golden),
+            new Vector3(Golden, 0, -1), new Vector3(Golden, 0, 1), new Vector3(-Golden, 0, -1), new Vector3(-Golden, 0, 1),
+        };
+        static readonly int[] BlobFaces =
+        {
+            0, 11, 5, 0, 5, 1, 0, 1, 7, 0, 7, 10, 0, 10, 11, 1, 5, 9, 5, 11, 4, 11, 10, 2, 10, 7, 6, 7, 1, 8,
+            3, 9, 4, 3, 4, 2, 3, 2, 6, 3, 6, 8, 3, 8, 9, 4, 9, 5, 2, 4, 11, 6, 2, 10, 8, 6, 7, 9, 8, 1,
+        };
+
+        /// <summary>Adds a faceted ball to a mesh: the shape every puff of smoke and fire is made of.</summary>
+        static void AddBlob(MeshBuilder builder, Vector3 centre, Vector3 radii, Quaternion turn, int color)
+        {
+            float unit = 1f / BlobPoints[0].magnitude;
+            for (int i = 0; i < BlobFaces.Length; i += 3)
+            {
+                Vector3 a = turn * Vector3.Scale(BlobPoints[BlobFaces[i]] * unit, radii);
+                Vector3 b = turn * Vector3.Scale(BlobPoints[BlobFaces[i + 1]] * unit, radii);
+                Vector3 c = turn * Vector3.Scale(BlobPoints[BlobFaces[i + 2]] * unit, radii);
+                builder.Triangle(centre + a, centre + b, centre + c, a + b + c, color);
+            }
+        }
+
         /// <summary>A faceted ball one metre across.</summary>
         static Mesh BuildBlob()
         {
-            // An icosahedron: twelve points, twenty faces.
-            float t = (1f + Mathf.Sqrt(5f)) * 0.5f;
-            var p = new[]
-            {
-                new Vector3(-1, t, 0), new Vector3(1, t, 0), new Vector3(-1, -t, 0), new Vector3(1, -t, 0),
-                new Vector3(0, -1, t), new Vector3(0, 1, t), new Vector3(0, -1, -t), new Vector3(0, 1, -t),
-                new Vector3(t, 0, -1), new Vector3(t, 0, 1), new Vector3(-t, 0, -1), new Vector3(-t, 0, 1),
-            };
-            int[] faces =
-            {
-                0, 11, 5, 0, 5, 1, 0, 1, 7, 0, 7, 10, 0, 10, 11, 1, 5, 9, 5, 11, 4, 11, 10, 2, 10, 7, 6, 7, 1, 8,
-                3, 9, 4, 3, 4, 2, 3, 2, 6, 3, 6, 8, 3, 8, 9, 4, 9, 5, 2, 4, 11, 6, 2, 10, 8, 6, 7, 9, 8, 1,
-            };
             var builder = new MeshBuilder();
-            float scale = 0.5f / p[0].magnitude;
-            for (int i = 0; i < faces.Length; i += 3)
-            {
-                Vector3 a = p[faces[i]] * scale, b = p[faces[i + 1]] * scale, c = p[faces[i + 2]] * scale;
-                builder.Triangle(a, b, c, a + b + c, Palette.White);
-            }
+            AddBlob(builder, Vector3.zero, Vector3.one * 0.5f, Quaternion.identity, Palette.White);
             return builder.Build("Blob");
         }
 
-        /// <summary>A column of smoke seen from far away: a leaning stack of blobs, thirty metres tall.</summary>
-        Mesh BuildPlume()
+        /// <summary>
+        /// A column of smoke seen from far away: billows that widen and pale as they climb and
+        /// lean downwind, over fifty metres tall. Black at the fire, grey where it thins out.
+        /// </summary>
+        static Mesh BuildPlume()
         {
             var builder = new MeshBuilder();
-            for (int i = 0; i < 9; i++)
+            const int billows = 12;
+            for (int i = 0; i < billows; i++)
             {
-                float share = i / 8f;
-                var centre = new Vector3(share * share * 9f, 2f + share * 34f, share * 3f);
-                float radius = Mathf.Lerp(1.6f, 5.5f, share);
-                // Squashed octahedra are enough at this distance.
-                Vector3 up = centre + Vector3.up * radius, down = centre + Vector3.down * radius * 0.8f;
-                for (int side = 0; side < 5; side++)
-                {
-                    float a0 = (side + i * 0.4f) * 2f * Mathf.PI / 5f, a1 = (side + 1 + i * 0.4f) * 2f * Mathf.PI / 5f;
-                    Vector3 r0 = centre + new Vector3(Mathf.Cos(a0), 0f, Mathf.Sin(a0)) * radius;
-                    Vector3 r1 = centre + new Vector3(Mathf.Cos(a1), 0f, Mathf.Sin(a1)) * radius;
-                    builder.Triangle(r0, r1, up, (r0 + r1) * 0.5f - centre + Vector3.up, Palette.White);
-                    builder.Triangle(r0, r1, down, (r0 + r1) * 0.5f - centre + Vector3.down, Palette.White);
-                }
+                float share = i / (float)(billows - 1);
+                // Not a neat stack: each billow sits a little off the line and is its own size.
+                float wobble = Mathf.Sin(i * 2.4f) * (1.2f + share * 3f);
+                var centre = new Vector3(Mathf.Pow(share, 1.6f) * 24f + wobble, 2.5f + share * 52f, Mathf.Cos(i * 1.7f) * (1f + share * 3.5f));
+                float radius = Mathf.Lerp(1.9f, 8.5f, share) * (0.85f + 0.3f * Mathf.Abs(Mathf.Sin(i * 5.1f)));
+                int color = share < 0.25f ? Palette.Soot : share < 0.5f ? Palette.Graphite : share < 0.8f ? Palette.DarkGrey : Palette.Concrete;
+                AddBlob(builder, centre, new Vector3(radius, radius * 0.8f, radius), Quaternion.Euler(i * 37f, i * 71f, 0f), color);
             }
             return builder.Build("Plume");
         }
@@ -259,8 +265,8 @@ namespace Skyforge.World
         {
             Emit(new Puff
             {
-                Position = at, Velocity = Scatter(0.4f, 0.4f), Life = 0.7f, SizeFrom = 0.35f, SizeTo = 1.1f,
-                From = new Color(0.86f, 0.84f, 0.80f), To = new Color(0.55f, 0.55f, 0.56f),
+                Position = at, Velocity = Scatter(0.3f, 0.3f), Life = 0.55f, SizeFrom = 0.16f, SizeTo = 0.6f,
+                From = new Color(0.78f, 0.76f, 0.72f), To = new Color(0.50f, 0.50f, 0.51f),
             });
         }
 
@@ -294,8 +300,7 @@ namespace Skyforge.World
         /// <summary>A fire that belongs to the island, not to a mission: it survives <see cref="ClearBattle"/>.</summary>
         public void BurnForEver(Vector3 at, float size, Transform parent)
         {
-            if (_plumeMaterial == null) _plumeMaterial = GameMaterials.Lit(new Color(0.16f, 0.15f, 0.15f), 0f);
-            Transform plume = Create("Plume", _plumeMesh, _plumeMaterial);
+            Transform plume = Create("Plume", _plumeMesh, GameMaterials.PaletteLit);
             plume.SetParent(parent, true);
             plume.position = at;
             plume.rotation = Quaternion.Euler(0f, Range(0f, 360f), 0f);

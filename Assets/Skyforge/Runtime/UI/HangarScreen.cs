@@ -76,11 +76,12 @@ namespace Skyforge.UI
             _role.color = UiKit.Accent;
             UiKit.Place(_role.rectTransform, topLeft, new Vector2(52f, -166f), new Vector2(380f, 38f));
             UiKit.FitWidth(_role, 18);
-            _weapons = UiKit.Label(p, 24, TextAnchor.UpperLeft);
+            // Two short lines beside the role, clear of the browse buttons on the right.
+            _weapons = UiKit.Label(p, 21, TextAnchor.UpperLeft, true);
             _weapons.fontStyle = FontStyle.Normal;
             _weapons.color = new Color(1f, 1f, 1f, 0.85f);
-            UiKit.Place(_weapons.rectTransform, topLeft, new Vector2(440f, -168f), new Vector2(580f, 34f));
-            UiKit.FitWidth(_weapons, 16);
+            UiKit.Place(_weapons.rectTransform, topLeft, new Vector2(440f, -150f), new Vector2(330f, 56f));
+            UiKit.FitWidth(_weapons, 15);
 
             Text previous = UiKit.Button(p, "Previous", UiKit.Faint, 44, () => Browse(-1));
             previous.text = "<";

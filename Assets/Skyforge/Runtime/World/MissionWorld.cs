@@ -399,7 +399,8 @@ namespace Skyforge.World
                 Vector3 direction = rocket ? projectile.Direction : Vector3.down + (projectile.Impact - projectile.From).normalized * 0.4f;
                 if (direction.sqrMagnitude < 0.01f) direction = Vector3.down;
                 view.SetPositionAndRotation(projectile.Position, Quaternion.LookRotation(direction.normalized));
-                if (rocket && trail) _effects.Trail(projectile.Position - direction.normalized * 0.8f);
+                // The first puffs would sit on the drone itself, so the trail starts a moment into the flight.
+                if (rocket && trail && projectile.Elapsed > 0.12f) _effects.Trail(projectile.Position - direction.normalized * 0.8f);
             }
             for (int i = rockets; i < _rockets.Count; i++)
                 if (_rockets[i].gameObject.activeSelf) _rockets[i].gameObject.SetActive(false);

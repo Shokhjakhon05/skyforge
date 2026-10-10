@@ -449,7 +449,7 @@ T = {
 "settings.credits": "MUALLIFLAR",
 "credits.title": "MUALLIFLAR",
 "credits.note": "3D modellar Creative Commons litsenziyalari asosida ishlatilgan. Mualliflariga rahmat.",
-"hangar.weapons": "Raketa {0} × {1}   Bomba {2} × {3}   Ushlash {4} m",
+"hangar.weapons": "Raketa {0} × {1}   Bomba {2} × {3}\nUshlash {4} m",
 "target.truck": "YUK MASHINASI",
 "target.truck_cargo": "YUK MASHINASI",
 "target.truck_army": "ARMIYA YUK MASHINASI",

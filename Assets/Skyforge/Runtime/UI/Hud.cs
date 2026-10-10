@@ -364,7 +364,7 @@ namespace Skyforge.UI
         /// <param name="underFire">Rounds are hitting the drone right now.</param>
         public void SetDamage(bool underFire, float deltaTime)
         {
-            float wanted = underFire ? 0.16f + 0.08f * Mathf.Sin(Time.unscaledTime * 18f) : 0f;
+            float wanted = underFire ? 0.07f + 0.05f * Mathf.Sin(Time.unscaledTime * 18f) : 0f;
             _damageShown = Mathf.MoveTowards(_damageShown, wanted, deltaTime * 0.9f);
             Color color = _damage.color;
             if (Mathf.Abs(color.a - _damageShown) < 0.004f) return;

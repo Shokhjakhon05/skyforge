@@ -518,7 +518,7 @@ namespace Skyforge
             { "settings.credits", new[] { "CREDITS", "АВТОРЫ" } },
             { "credits.title", new[] { "CREDITS", "АВТОРЫ" } },
             { "credits.note", new[] { "3D models are used under Creative Commons licences. Thank you to their authors.", "3D-модели использованы по лицензиям Creative Commons. Спасибо их авторам." } },
-            { "hangar.weapons", new[] { "Rockets {0} × {1}   Bombs {2} × {3}   Lock {4} m", "Ракеты {0} × {1}   Бомбы {2} × {3}   Захват {4} м" } },
+            { "hangar.weapons", new[] { "Rockets {0} × {1}   Bombs {2} × {3}\nLock {4} m", "Ракеты {0} × {1}   Бомбы {2} × {3}\nЗахват {4} м" } },
             { "target.truck", new[] { "TRUCK", "ГРУЗОВИК" } },
             { "target.truck_cargo", new[] { "CARGO TRUCK", "ГРУЗОВИК" } },
             { "target.truck_army", new[] { "ARMY TRUCK", "АРМЕЙСКИЙ ГРУЗОВИК" } },

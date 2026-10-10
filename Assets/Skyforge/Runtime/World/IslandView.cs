@@ -184,7 +184,7 @@ namespace Skyforge.World
                     // A track wanders a little; it is not laid with a ruler.
                     float sway = (Mathf.PerlinNoise(point.x * 0.01f + 5f, point.z * 0.01f + 9f) - 0.5f) * 14f;
                     Vector3 side = new Vector3(-path.z, 0f, path.x).normalized * sway * Mathf.Sin(Mathf.PI * i / steps);
-                    Stamp(road, point.x + side.x, point.z + side.z, 2.4f, 2.6f);
+                    Stamp(road, point.x + side.x, point.z + side.z, 1.8f, 2.6f);
                 }
             }
             foreach (Vector3 village in island.Villages) Stamp(road, village.x, village.z, 34f, 55f);
@@ -208,7 +208,7 @@ namespace Skyforge.World
                 if (map.Height(x, z) < 0.6f) continue;
                 float grain = 0.88f + Mathf.PerlinNoise(x * 0.45f + 3f, z * 0.45f + 8f) * 0.24f;
                 Color color = pixels[index];
-                color = Color.Lerp(color, dirt * grain, road[index] * 0.8f);
+                color = Color.Lerp(color, dirt * grain, road[index] * 0.6f);
                 // Earth thrown out of a crater lies in a paler ring around the black of it.
                 color = Color.Lerp(color, thrown * grain, rim[index] * (1f - burn[index]) * 0.7f);
                 color = Color.Lerp(color, soot * grain, burn[index] * 0.85f);

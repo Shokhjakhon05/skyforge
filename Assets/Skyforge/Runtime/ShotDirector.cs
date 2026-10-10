@@ -144,9 +144,9 @@ namespace Skyforge
             yield return Battle("12a", "first_strike", "poi0", new Vector3(0f, 24f, -85f), false);
             yield return Battle("12b", "tank_hunt", "poi1", new Vector3(-10f, 26f, -95f), false);
             yield return Battle("12c", "blind_them", "poi3", new Vector3(0f, 22f, -100f), false);
-            yield return Battle("12d", "hammer_fall", "poi7", new Vector3(0f, 44f, -8f), true);
+            yield return Battle("12d", "hammer_fall", "poi7", new Vector3(24f, 26f, -100f), false);
             yield return Battle("12e", "night_raid", "poi2", new Vector3(0f, 24f, -90f), false);
-            yield return Battle("12f", "iron_tide", "sea0", new Vector3(0f, 40f, -6f), true);
+            yield return Battle("12f", "iron_tide", "sea0", new Vector3(0f, 30f, -120f), false);
             yield return Battle("12g", "broken_arrow", "poi2", new Vector3(-10f, 26f, -100f), false);
             yield return MissionShot("12h", "fpv_strike", island.Anchors["poi9"] + new Vector3(0f, 20f, -60f), 0f, CameraView.Chase);
             yield return MissionShot("12i", "fpv_strike", island.Anchors["poi9"] + new Vector3(-6f, 9f, -30f), 0f, CameraView.Fpv);

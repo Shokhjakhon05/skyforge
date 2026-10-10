@@ -12,7 +12,7 @@ LANGUAGES = {"uz": ("LocUz", "Uzbek (Latin)")}
 
 
 def quote(text):
-    return '"' + text.replace("\\", "\\\\").replace('"', '\\"') + '"'
+    return '"' + text.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n") + '"'
 
 
 for code, (name, title) in LANGUAGES.items():
