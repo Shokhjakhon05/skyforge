@@ -321,7 +321,8 @@ namespace Skyforge.UI
 
         void Update()
         {
-            _time += Time.unscaledDeltaTime;
+            // The first frames after loading are long ones; counted in full they would eat the whole animation.
+            _time += Mathf.Min(Time.unscaledDeltaTime, 0.05f);
             if (_time > 0.4f && (Input.touchCount > 0 || Input.GetMouseButtonDown(0))) _time = Mathf.Max(_time, Seconds - 0.35f);
             Apply();
             if (_time < Seconds) return;
