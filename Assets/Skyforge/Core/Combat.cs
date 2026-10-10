@@ -640,7 +640,6 @@ namespace Skyforge.Core
         void Explode(Vector3 point, float damage, float radius, int direct, bool rocket)
         {
             _events.Add(new CombatEvent { Type = CombatEventType.Explosion, Position = point, Target = direct, Size = radius });
-            Alarm(point, radius);
             for (int i = 0; i < _targets.Length; i++)
             {
                 if (!_targets[i].Alive) continue;
@@ -663,6 +662,8 @@ namespace Skyforge.Core
                 Damage(i, dealt, true);
                 if (Status != MissionStatus.InProgress) return;
             }
+            // Whoever lived through it now knows: they run, move or go to ground.
+            Alarm(point, radius);
         }
 
         void Damage(int index, float amount, bool byPlayer)

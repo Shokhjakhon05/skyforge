@@ -115,6 +115,8 @@ namespace Skyforge.Core
         /// <summary>The special equipment on the third button.</summary>
         public Ability Ability;
         public int AbilityCharges = 2;
+        /// <summary>Multiplier on the damage of every weapon, from the armoury.</summary>
+        public float Ordnance = 1f;
 
         public static DroneSpec Sparrow() => new DroneSpec();
 

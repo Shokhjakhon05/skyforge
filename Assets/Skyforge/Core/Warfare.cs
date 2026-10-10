@@ -77,13 +77,6 @@ namespace Skyforge.Core
             return -1;
         }
 
-        /// <summary>Multiplier on rocket and bomb damage from the armoury's upgrades; set once before the first step.</summary>
-        public float Ordnance
-        {
-            get => _ordnance;
-            set => _ordnance = Mathf.Max(0.1f, value);
-        }
-
         /// <summary>The third button: whatever special equipment the aircraft carries.</summary>
         public void UseAbility() => _abilityAsked = true;
 
@@ -96,6 +89,7 @@ namespace Skyforge.Core
         void StartWarfare()
         {
             SparesLeft = Kamikaze ? 0 : Mathf.Max(0, Definition.Spares);
+            _ordnance = Mathf.Max(0.1f, _spec.Ordnance);
             Streak = 0;
         }
 
@@ -105,6 +99,9 @@ namespace Skyforge.Core
             CannonSeconds = armed && _spec.Cannon > 0f ? _spec.CannonSeconds : 0f;
             AbilityCharges = armed && _spec.Ability != Ability.None ? _spec.AbilityCharges : 0;
         }
+
+        /// <summary>Height of the ground or the sea at a point; zero on the bare plane the rules are tested on.</summary>
+        float Ground(float x, float z) => _map != null ? Mathf.Max(_map.Height(x, z), Island.WaterLevel) : 0f;
 
         // ---------------------------------------------------------------- how the enemy behaves
 
@@ -230,7 +227,7 @@ namespace Skyforge.Core
             if (orbit.sqrMagnitude > 0.01f) move += orbit.normalized * 0.45f;
 
             position += Vector3.ClampMagnitude(move, 1f) * kind.PursuitSpeed * dt;
-            float floor = Mathf.Max(_map.Height(position.x, position.z), Island.WaterLevel) + 14f;
+            float floor = Ground(position.x, position.z) + 14f;
             if (position.y < floor) position.y = floor;
             _targets[index].Position = position;
             var facing = new Vector3(to.x, 0f, to.z);
@@ -241,9 +238,9 @@ namespace Skyforge.Core
         {
             _targets[index].FleeLeft -= dt;
             Vector3 next = _targets[index].Position + _targets[index].Flee * FleeSpeed * dt;
-            float ground = _map.Height(next.x, next.z);
+            float ground = _map != null ? _map.Height(next.x, next.z) : 0f;
             // It will not drive into the sea or up a wall.
-            if (ground < Island.WaterLevel + 1.5f || _map.Steepness(next.x, next.z) > 0.45f)
+            if (_map != null && (ground < Island.WaterLevel + 1.5f || _map.Steepness(next.x, next.z) > 0.45f))
             {
                 _targets[index].FleeLeft = 0f;
                 return;
@@ -393,7 +390,7 @@ namespace Skyforge.Core
             p.Position += p.Direction * GuidedSpeed * dt;
 
             bool hit = p.Elapsed >= GuidedSeconds ||
-                       p.Position.y <= Mathf.Max(_map.Height(p.Position.x, p.Position.z), Island.WaterLevel) + 0.3f;
+                       p.Position.y <= Ground(p.Position.x, p.Position.z) + 0.3f;
             int direct = -1;
             for (int i = 0; i < _targets.Length && direct < 0; i++)
             {
@@ -414,9 +411,9 @@ namespace Skyforge.Core
             for (int i = 0; i < 6 && Status == MissionStatus.InProgress; i++)
             {
                 float angle = i * Mathf.PI / 3f + 0.4f;
-                Vector3 at = centre + new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * 15f;
-                at.y = Mathf.Max(_map.Height(at.x, at.z), Island.WaterLevel);
-                _strikes.Add(new PendingStrike { Position = at, Seconds = 0.15f + i * 0.08f, Damage = damage * 0.35f, Radius = 9f, Target = -1 });
+                Vector3 at = centre + new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * 17f;
+                at.y = Ground(at.x, at.z);
+                _strikes.Add(new PendingStrike { Position = at, Seconds = 0.15f + i * 0.08f, Damage = damage * 0.4f, Radius = 12f, Target = -1 });
             }
         }
 

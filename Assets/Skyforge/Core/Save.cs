@@ -36,7 +36,7 @@ namespace Skyforge.Core
     [Serializable]
     public sealed class SaveData
     {
-        public const int CurrentVersion = 6;
+        public const int CurrentVersion = 7;
 
         public int Version = CurrentVersion;
         public int Credits;
@@ -93,6 +93,10 @@ namespace Skyforge.Core
         public int Sessions;
         /// <summary>The date of the first launch, "yyyy-MM-dd".</summary>
         public string FirstDate = "";
+
+        // Added in version 7.
+        /// <summary>Rank, season, tasks, collection, base and the war over the map.</summary>
+        public CareerData Career = new CareerData();
 
         public DroneRecord FindDrone(string id)
         {
@@ -298,12 +302,24 @@ namespace Skyforge.Core
                 data.FirstDate = "";
                 data.Version = 6;
             }
+            if (data.Version == 6)
+            {
+                // Version 7 added the career. Stars already earned count towards the rank.
+                data.Career = new CareerData();
+                int stars = 0;
+                foreach (MissionRecord record in data.Missions) stars += Mathf.Max(0, record.Stars);
+                data.Career.Xp = stars * 60;
+                data.Career.RankPaid = Skyforge.Core.Career.Rank(data.Career.Xp);
+                data.Version = 7;
+            }
             Repair(data);
         }
 
         /// <summary>Fills in anything a hand-edited or partly written file left out, without touching progress.</summary>
         static void Repair(SaveData data)
         {
+            if (data.Career == null) data.Career = new CareerData();
+            data.Career.Repair();
             if (data.OwnedModules == null) data.OwnedModules = new List<string>();
             if (data.Choices == null) data.Choices = new List<string>();
             if (data.DailyDone == null) data.DailyDone = new List<int>();
