@@ -150,7 +150,7 @@ namespace Skyforge.Core
                 };
                 var errors = new List<string>();
                 MissionDefinition mission = MissionBuilder.Build(data, island, errors);
-                if (mission == null) continue;
+                if (mission == null || !WithinReach(mission)) continue;
                 mission.Mode = sector >= 0 ? "sector" : "contract";
                 mission.Reactive = true;
                 mission.HealthScale = HealthScale(level);
@@ -164,6 +164,33 @@ namespace Skyforge.Core
             }
             return null;
         }
+
+        /// <summary>
+        /// Whether the starter drone's radio reaches everything the operation is about. A contract
+        /// that cannot be flown with the aircraft everyone has is not offered.
+        /// </summary>
+        public static bool WithinReach(MissionDefinition mission)
+        {
+            float reach = new DroneSpec().SignalRange * 0.82f;
+            foreach (TargetDefinition target in mission.Targets)
+            {
+                if (target.Parent >= 0) continue;
+                // A target is fought from a rocket's range, not from on top of it.
+                if (Flat(target.Position, mission.BasePosition) - StandOff > reach) return false;
+                foreach (Vector3 point in target.Path)
+                    if (Flat(point, mission.BasePosition) - StandOff > reach) return false;
+            }
+            foreach (ObjectiveDefinition objective in mission.Objectives)
+            {
+                bool placed = objective.Type == ObjectiveType.Land || objective.Type == ObjectiveType.Scan || objective.Type == ObjectiveType.Reach;
+                if (placed && Flat(objective.Position, mission.BasePosition) > reach) return false;
+            }
+            return true;
+        }
+
+        const float StandOff = 100f;
+
+        static float Flat(Vector3 a, Vector3 b) => new Vector2(a.x - b.x, a.z - b.z).magnitude;
 
         /// <summary>Two words that make an operation's name: "Iron Tempest".</summary>
         public static string Codename(int seed)
@@ -495,6 +522,8 @@ namespace Skyforge.Core
                 targets = d.Targets.ToArray(), objectives = d.Objectives.ToArray(),
             };
             MissionDefinition mission = MissionBuilder.Build(data, island, new List<string>());
+            // A drop out of radio reach: try the neighbouring arrangement instead.
+            if (mission != null && !WithinReach(mission) && seed < 100000) return Raid(island, region, seed + 100003, level);
             if (mission == null) return null;
             mission.Mode = "raid";
             mission.Reactive = true;

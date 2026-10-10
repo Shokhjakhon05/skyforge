@@ -29,7 +29,7 @@ namespace Skyforge
             // The splash is caught mid-flourish on the first start only, then cleared out of the way.
             if (Stage == 0)
             {
-                yield return Frames(70);
+                yield return Frames(3);
                 yield return Shot("00_splash");
             }
             _game.AutomationSkipSplash();

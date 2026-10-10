@@ -173,7 +173,8 @@ namespace Skyforge.UI
             _message.color = UiKit.Accent;
             UiKit.Place(_message.rectTransform, middle, new Vector2(0f, 250f), new Vector2(1500f, 110f));
             _hint = UiKit.Label(safe, 40, TextAnchor.MiddleCenter);
-            UiKit.Place(_hint.rectTransform, middle, new Vector2(0f, 170f), new Vector2(1500f, 56f));
+            UiKit.Place(_hint.rectTransform, middle, new Vector2(-60f, 170f), new Vector2(1180f, 56f));
+            UiKit.FitWidth(_hint, 24);
 
             _cameraLabel = CreateButton(safe, 0, () => CameraPressed?.Invoke());
             _modeLabel = CreateButton(safe, 1, () => ModePressed?.Invoke());
@@ -471,7 +472,9 @@ namespace Skyforge.UI
                 {
                     _lock.anchoredPosition = new Vector2(point.x, point.y) / scale;
                     Skyforge.Core.TargetKind kind = mission.Targets[locked].Kind;
-                    int health = Mathf.CeilToInt(target.Health / kind.Health * 100f);
+                    // Against what it started with: tougher enemies in harder operations still read 100% when untouched.
+                    float full = kind.Health * (mission.Targets[locked].Friendly ? 1f : Mathf.Max(0.01f, mission.HealthScale));
+                    int health = Mathf.Clamp(Mathf.CeilToInt(target.Health / full * 100f), 0, 100);
                     if (locked != _shownLock || health != _shownLockHealth)
                     {
                         _shownLock = locked;

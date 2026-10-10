@@ -319,13 +319,18 @@ namespace Skyforge.World
         /// The gun camera: the picture a strike drone's operator sees, drained of colour and hard
         /// in contrast. Only the grade changes; the HUD draws the reticle.
         /// </summary>
-        public void SetScope(bool on)
+        /// <param name="thermal">A thermal sight at night: the picture is lifted out of the dark so that what glows stands on grey, not on black.</param>
+        public void SetScope(bool on, bool thermal = false)
         {
             _scope = on;
+            _thermal = on && thermal;
             _grade.saturation.value = on ? -100f : 8f;
-            _grade.contrast.value = on ? 38f : 18f;
-            _grade.postExposure.value = on ? 0.35f : 0.12f;
+            _grade.contrast.value = on ? (_thermal ? 22f : 38f) : 18f;
+            _grade.postExposure.value = on ? (_thermal ? 3.2f : 0.35f) : 0.12f;
         }
+
+        bool _thermal;
+        public bool Thermal => _thermal;
 
         public bool Scope => _scope;
 

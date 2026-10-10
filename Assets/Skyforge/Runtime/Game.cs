@@ -261,10 +261,10 @@ namespace Skyforge
 
             BuildHeadquarters();
             RefreshLabels();
-            ShowMenu();
             // The mark and the name, once per launch; the story's next transmission waits behind them.
             _splash = SplashScreen.Create(transform);
             _splash.Finished = () => { _splash = null; _sfx.Play(Sound.Open, 0.6f); TellStory(); };
+            ShowMenu();
         }
 
         SplashScreen _splash;
@@ -272,6 +272,7 @@ namespace Skyforge
         /// <summary>The screenshot run has no time for the splash.</summary>
         public void AutomationSkipSplash()
         {
+            if (_transmission != null) _transmission.Visible = false;
             if (_splash == null) return;
             _splash.Finished = null;
             Destroy(_splash.gameObject);
@@ -1185,9 +1186,10 @@ namespace Skyforge
         {
             bool riding = _phase == Phase.Mission && _run.GuidedActive;
             bool gun = (_camera.View == CameraView.Gun || riding) && !_photo && _killCam <= 0f;
-            if (gun != _look.Scope) _look.SetScope(gun);
             // At night the sight is thermal: what is warm glows.
-            _world.SetThermal(gun && _weather != null && _weather.Id == "night");
+            bool thermal = gun && _weather != null && _weather.Id == "night";
+            if (gun != _look.Scope || thermal != _look.Thermal) _look.SetScope(gun, thermal);
+            _world.SetThermal(thermal);
             if (riding)
             {
                 _hud.SetGunCamera(Loc.T("hud.gun.missile"));

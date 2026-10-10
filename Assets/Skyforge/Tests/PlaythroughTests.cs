@@ -491,6 +491,7 @@ namespace Skyforge.Tests
                         continue;
                     }
                     Assert.IsTrue(mission.Reactive, label);
+                    Assert.IsTrue(Operations.WithinReach(mission), label + " is out of the starter's radio reach");
                     Assert.AreEqual((OperationKind)kind, mission.Kind, label);
                     if (level > 1) continue;
                     var pilot = new Pilot(island, mission, spec);
