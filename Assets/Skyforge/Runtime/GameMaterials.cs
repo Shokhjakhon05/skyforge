@@ -68,6 +68,26 @@ namespace Skyforge
             }
         }
 
+        static Material _paletteBurnt;
+
+        /// <summary>The shared palette after a fire: what a destroyed building or emplacement is drawn with.</summary>
+        public static Material PaletteBurnt
+        {
+            get
+            {
+                if (_paletteBurnt == null)
+                {
+                    Texture2D source = Palette.CreateTexture(color =>
+                    {
+                        float light = ((Color)color).grayscale;
+                        return (Color32)new Color(0.09f + light * 0.16f, 0.085f + light * 0.14f, 0.08f + light * 0.13f);
+                    });
+                    _paletteBurnt = LitTextured(source, 0.02f);
+                }
+                return _paletteBurnt;
+            }
+        }
+
         static Material Load(string path)
         {
             var material = Resources.Load<Material>(path);

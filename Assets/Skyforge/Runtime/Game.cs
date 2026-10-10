@@ -76,7 +76,12 @@ namespace Skyforge
         MissionDefinition _mission;
         MissionRun _run;
         float _zoom = 1f;
-        bool _actionPressed;
+        bool _actionPressed, _bombPressed;
+        Effects _effects;
+        /// <summary>The freeze in progress ends with the next strike drone on the pad, not with the result.</summary>
+        bool _respawnAfterFreeze;
+        float _gunSoundClock, _noticeClock;
+        int _shownAmmoStamp = -1, _lastLock = -1;
         bool _advanceOnContinue;
 
         Phase _phase;
@@ -115,6 +120,7 @@ namespace Skyforge
             _audio = new DroneAudio(transform);
             _sfx = new Sfx(transform);
             _look = new SceneLook(transform, _camera.Camera, null);
+            _effects = new Effects(transform);
             ApplyQuality();
             AudioListener.volume = _save.Muted ? 0f : 1f;
 
@@ -128,6 +134,7 @@ namespace Skyforge
             _hud.MenuPressed += () => { Click(); ShowMenu(); };
             _hud.ZoomPressed += ToggleZoom;
             _hud.ActionPressed += () => _actionPressed = true;
+            _hud.BombPressed += () => _bombPressed = true;
 
             _menu = new MenuScreen(transform);
             _menu.StartPressed += () => { Click(); StartMission(); };
@@ -383,6 +390,7 @@ namespace Skyforge
             if (_regionRoot != null)
             {
                 _world.Hide();
+                _effects.ClearAll();
                 Destroy(_regionRoot.gameObject);
             }
             _region = region;
@@ -392,9 +400,10 @@ namespace Skyforge
 
             _island = Island.Generate(region.Seed, region.Biome);
             Material sea = IslandView.Build(_island, _regionRoot);
+            WarScenery.Build(_island, _regionRoot, _effects);
             BeaconsView.Build(_island, _regionRoot);
             _course = new RingCourse(_island, _regionRoot);
-            _world = new MissionWorld(_regionRoot, _island.Map);
+            _world = new MissionWorld(_regionRoot, _island.Map, _effects);
             _caches = new CachesView(_island, _regionRoot, index => Caches.IsFound(_save, region.Id, index));
             _camera.SetMap(_island.Map);
             _look.SetSea(sea);
@@ -519,9 +528,12 @@ namespace Skyforge
             ShowMenuScreen();
         }
 
-        FlightSim CreateSim(float payload)
+        /// <param name="strike">The mission is flown with one-way strike drones.</param>
+        FlightSim CreateSim(float payload, bool strike = false)
         {
-            var sim = new FlightSim(_island, Garage.SelectedSpec(_save).WithPayload(payload));
+            DroneSpec spec = Garage.SelectedSpec(_save);
+            if (strike) spec = spec.AsStrikeDrone();
+            var sim = new FlightSim(_island, spec.WithPayload(payload));
             sim.Mode = (FlightMode)Mathf.Clamp(_save.FlightModeIndex, 0, 1);
             return sim;
         }
@@ -542,7 +554,7 @@ namespace Skyforge
                 : AppliedMission();
             _phase = Phase.Mission;
             _analytics.Event("mission_start", _mission.Id);
-            _sim = CreateSim(_mission.Payload);
+            _sim = CreateSim(_mission.Payload, _mission.StrikeDrones > 0);
             ResetFlight();
             _run = new MissionRun(_mission, _sim.Spec, _island.Map);
             ApplyWeather(WeatherCatalog.Get(_mission.WeatherId));
@@ -583,7 +595,12 @@ namespace Skyforge
             _hud.SetAction(null);
             _zoom = 1f;
             _camera.Zoom = 1f;
-            _actionPressed = false;
+            _actionPressed = _bombPressed = false;
+            _respawnAfterFreeze = false;
+            _shownAmmoStamp = -1;
+            _lastLock = -1;
+            _hud.SetSecondary(null);
+            _hud.UpdateTargets(_camera.Camera, null, null, null);
             RefreshLabels();
             _shownHeadlineStamp = _shownSublineStamp = -1;
             _drone.Visible = _camera.View != CameraView.Fpv;
@@ -694,6 +711,7 @@ namespace Skyforge
         void ResetFlight()
         {
             _freezeTimer = 0f;
+            _respawnAfterFreeze = false;
             _messageTimer = 0f;
             _accumulator = 0f;
             _load = 0f;
@@ -733,6 +751,7 @@ namespace Skyforge
             flying = _phase == Phase.Mission || _phase == Phase.FreeFlight;
             Present(deltaTime, flying);
             _caches.Update(deltaTime);
+            _effects.Update(deltaTime, _camera.Camera.transform.position);
             if (_toastTimer > 0f)
             {
                 _toastTimer -= Time.unscaledDeltaTime;
@@ -763,7 +782,7 @@ namespace Skyforge
                 _previous = _sim.State;
                 SimEvent simEvent = _sim.Step(input, StepSeconds);
                 if (simEvent == SimEvent.TookOff) _hasFlown = true;
-                if (simEvent == SimEvent.Crashed) _save.Stats.Crashes++;
+                if (simEvent == SimEvent.Crashed && (_phase != Phase.Mission || !_run.Kamikaze)) _save.Stats.Crashes++;
                 _load = ComputeLoad(_sim.State);
                 _save.Stats.DistanceMeters += new Vector2(_sim.State.Velocity.x, _sim.State.Velocity.z).magnitude * StepSeconds;
 
@@ -781,9 +800,10 @@ namespace Skyforge
                 {
                     int before = _run.ObjectiveIndex;
                     ActionResult action = _run.Step(_sim.State, simEvent, _load, _sim.LastTouchdownSpeed, StepSeconds,
-                        _actionPressed, _sim.Wind, _zoom);
-                    _actionPressed = false;
+                        _actionPressed, _sim.Wind, _zoom, _bombPressed);
+                    _actionPressed = _bombPressed = false;
                     ActionTaken(action);
+                    CombatEvents();
                     if (_run.ShotLanded) ShotLanded();
                     if (_run.ObjectiveIndex != before) ObjectiveCompleted(before);
                     if (_run.Status != MissionStatus.InProgress)
@@ -791,12 +811,23 @@ namespace Skyforge
                         MissionEnded();
                         return;
                     }
+                    if (_run.NeedsRespawn)
+                    {
+                        // The strike drone is gone; show what it did, then hand over the next one.
+                        _drone.Visible = false;
+                        _respawnAfterFreeze = true;
+                        Freeze(Loc.T("msg.next_drone", _run.DronesLeft), 1.5f);
+                        return;
+                    }
                 }
                 else
                 {
                     if (simEvent == SimEvent.Crashed)
                     {
-                        _sfx.Play(Sound.Crash);
+                        _sfx.Play(Sound.Explosion, 0.8f);
+                        _effects.Explosion(_sim.State.Position, 4f);
+                        _camera.Shake(0.6f);
+                        _drone.Visible = false;
                         Freeze(Loc.T("msg.crash"), 1.6f);
                         return;
                     }
@@ -832,6 +863,17 @@ namespace Skyforge
 
         void AfterFreeze()
         {
+            if (_phase == Phase.Mission && _respawnAfterFreeze)
+            {
+                _respawnAfterFreeze = false;
+                _sim.Reset();
+                _previous = _sim.State;
+                _run.Respawned();
+                _hasFlown = false;
+                _camera.Snap();
+                _drone.Visible = _camera.View != CameraView.Fpv;
+                return;
+            }
             if (_phase == Phase.Mission)
             {
                 ShowResult();
@@ -903,6 +945,7 @@ namespace Skyforge
             if (objective != null && objective.Type == ObjectiveType.Find)
                 detail = Mathf.FloorToInt(_run.ScannerReading(now.Position) * 100f);
             if (objective != null && objective.Type == ObjectiveType.Mark) detail = _run.ThreatsLeft;
+            if (objective != null && objective.Type == ObjectiveType.Destroy) detail = _run.Remaining(objective);
             int headlineStamp = _run.ObjectiveIndex * 100000 + percent * 200 + detail;
             if (headlineStamp != _shownHeadlineStamp)
             {
@@ -916,7 +959,8 @@ namespace Skyforge
                 _shownSublineStamp = sublineStamp;
                 int step = Mathf.Min(_run.ObjectiveIndex + 1, _mission.Objectives.Count);
                 _hud.SetSubline(Loc.T("progress.step", step, _mission.Objectives.Count) + "   " +
-                                Loc.T("hud.timer", Format.Time(_run.Elapsed), Format.Time(_mission.TimeGoalSeconds)));
+                                Loc.T("hud.timer", Format.Time(_run.Elapsed), Format.Time(_mission.TimeGoalSeconds)) +
+                                (_run.Kamikaze ? "   " + Loc.T("hud.drones", _run.DronesLeft) : ""));
             }
 
             bool lowBattery = _run.Battery <= MissionRun.LowBattery;
@@ -928,14 +972,41 @@ namespace Skyforge
             _hud.UpdateMarker(_camera.Camera, hasTarget ? MarkerPosition(objective, now.Position) : Vector3.zero,
                 hasTarget, _run.TargetFramed);
 
-            string action = null;
-            if (live && objective.Type == ObjectiveType.Photo) action = Loc.T("hud.action.photo");
-            if (live && objective.Type == ObjectiveType.Strike && _run.ShotsLeft > 0 && !_run.Shot.Active)
-                action = Loc.T("hud.action.fire");
-            _hud.SetAction(action);
+            bool armed = live && _run.IsCombat && !_run.Kamikaze && objective.Type != ObjectiveType.Photo &&
+                         objective.Type != ObjectiveType.Strike;
+            if (armed)
+            {
+                // The buttons carry the ammunition count; their text is rebuilt only when it changes.
+                int ammo = _run.Rockets * 100 + _run.Bombs;
+                if (ammo != _shownAmmoStamp)
+                {
+                    _shownAmmoStamp = ammo;
+                    _hud.SetAction(Loc.T("hud.rockets", _run.Rockets));
+                    _hud.SetSecondary(Loc.T("hud.bombs", _run.Bombs));
+                }
+                _hud.SetActionReady(_run.LockedTarget >= 0);
+                if (_run.LockedTarget >= 0 && _lastLock < 0) _sfx.Play(Sound.Lock, 0.6f);
+                _lastLock = _run.LockedTarget;
+            }
+            else
+            {
+                string action = null;
+                if (live && objective.Type == ObjectiveType.Photo) action = Loc.T("hud.action.photo");
+                if (live && objective.Type == ObjectiveType.Strike && _run.ShotsLeft > 0 && !_run.Shot.Active)
+                    action = Loc.T("hud.action.fire");
+                _hud.SetAction(action);
+                _hud.SetActionReady(true);
+                _hud.SetSecondary(null);
+                _shownAmmoStamp = -1;
+            }
+            _hud.UpdateTargets(_camera.Camera, live && _run.IsCombat ? _run : null, _mission,
+                objective != null && objective.Type == ObjectiveType.Destroy ? objective : null);
+            _hud.SetDamage(_run.UnderFire && _freezeTimer <= 0f, Time.deltaTime);
+            _gunSoundClock -= Time.deltaTime;
+            _noticeClock -= Time.deltaTime;
 
             // One beep when something first goes wrong, not a siren for the rest of the flight.
-            bool warning = lowBattery || lowSignal || _run.BeingDetected;
+            bool warning = lowBattery || lowSignal || _run.BeingDetected || _run.UnderFire;
             if (warning && !_warned) _sfx.Play(Sound.Warning);
             _warned = warning;
 
@@ -962,6 +1033,8 @@ namespace Skyforge
                     return _run.TargetFramed && percent > 0
                         ? Loc.T("objective.marking", percent)
                         : Loc.T(objective.TextKey, detail);
+                case ObjectiveType.Destroy:
+                    return Loc.T(objective.TextKey, detail);
                 default:
                     return Loc.T(objective.TextKey);
             }
@@ -971,10 +1044,20 @@ namespace Skyforge
         {
             if (_run.Signal <= 0f) return Loc.T("warn.signal_lost", Mathf.CeilToInt(_run.SignalCountdown));
             if (_run.BeingDetected) return Loc.T("warn.detected");
+            if (_run.UnderFire) return Loc.T(_run.Hull < 0.3f ? "warn.hull" : "warn.under_fire");
             if (lowSignal) return Loc.T("warn.signal");
             if (lowBattery) return Loc.T("warn.battery");
             if (!_hasFlown) return Loc.T("hint.takeoff");
             if (objective == null) return "";
+            if (_run.IsCombat)
+            {
+                if (AllyUnderFire()) return Loc.T("warn.ally");
+                if (_run.Kamikaze) return Loc.T("hint.kamikaze");
+                if (objective.Type == ObjectiveType.Destroy && _run.Rockets <= 0 && _run.Bombs <= 0) return Loc.T("hint.rearm");
+                // The first fight explains the two weapons; after that the player knows.
+                if (objective.Type == ObjectiveType.Destroy && _mission.Order == 1)
+                    return Loc.T(_run.Rockets > 0 ? "hint.lock" : "hint.bomb");
+            }
 
             if (objective.Type == ObjectiveType.Follow && !_run.TargetFramed)
             {
@@ -986,6 +1069,85 @@ namespace Skyforge
             if ((objective.Type == ObjectiveType.Observe || objective.Type == ObjectiveType.Photo ||
                  objective.Type == ObjectiveType.Mark) && _run.TargetFramed) return Loc.T("hud.framed");
             return "";
+        }
+
+        bool AllyUnderFire()
+        {
+            for (int i = 0; i < _run.TargetCount; i++)
+            {
+                TargetDefinition definition = _mission.Targets[i];
+                if (definition.Attacks >= 0 && _run.Target(i).Alive && _run.Target(i).Firing) return true;
+            }
+            return false;
+        }
+
+        /// <summary>Sound, fire and smoke for everything that happened to the fight in the last step.</summary>
+        void CombatEvents()
+        {
+            Vector3 drone = _sim.State.Position;
+            foreach (CombatEvent e in _run.Events)
+            {
+                float distance = Vector3.Distance(drone, e.Position);
+                switch (e.Type)
+                {
+                    case CombatEventType.RocketFired:
+                        _sfx.Play(Sound.Rocket, 0.8f);
+                        break;
+                    case CombatEventType.BombDropped:
+                        _sfx.Play(Sound.Release);
+                        break;
+                    case CombatEventType.Explosion:
+                        _effects.Explosion(e.Position, e.Size);
+                        _sfx.Play(Sound.Explosion, Mathf.Lerp(1f, 0.25f, distance / 350f));
+                        _camera.Shake(1.2f - distance / (e.Size * 9f));
+                        break;
+                    case CombatEventType.TargetDestroyed:
+                    {
+                        TargetDefinition definition = _mission.Targets[e.Target];
+                        _effects.Explosion(e.Position + Vector3.up * 1.5f, e.Size);
+                        _sfx.Play(Sound.Explosion, Mathf.Lerp(1f, 0.35f, distance / 400f));
+                        _camera.Shake(1.3f - distance / (e.Size * 10f));
+                        if (!definition.Friendly)
+                        {
+                            _save.Stats.Kills++;
+                            ShowMessage(Loc.T("msg.destroyed", Loc.T(definition.Kind.NameKey)), 1.6f);
+                        }
+                        break;
+                    }
+                    case CombatEventType.IncomingFire:
+                    {
+                        // Most rounds go wide; the ones that count are in the hull gauge.
+                        Vector3 muzzle = _world.Muzzle(e.Target);
+                        _effects.MuzzleFlash(muzzle, 1.4f);
+                        _effects.Tracer(muzzle, drone + UnityEngine.Random.insideUnitSphere * 2.5f);
+                        if (_gunSoundClock <= 0f)
+                        {
+                            _gunSoundClock = 0.36f;
+                            _sfx.Play(Sound.Gun, Mathf.Lerp(0.9f, 0.3f, distance / 200f));
+                        }
+                        break;
+                    }
+                    case CombatEventType.AllyUnderFire:
+                    {
+                        TargetState ally = _run.Target(e.Target);
+                        _effects.MuzzleFlash(e.Position, 1.2f);
+                        _effects.Tracer(e.Position, ally.Position + Vector3.up * 2f + UnityEngine.Random.insideUnitSphere * 3f);
+                        if (_gunSoundClock <= 0f)
+                        {
+                            _gunSoundClock = 0.36f;
+                            _sfx.Play(Sound.Gun, Mathf.Lerp(0.6f, 0.1f, distance / 400f));
+                        }
+                        break;
+                    }
+                    case CombatEventType.Rearmed:
+                        _sfx.Play(Sound.Success);
+                        ShowMessage(Loc.T("msg.rearmed"), 1.4f);
+                        break;
+                    case CombatEventType.Detonated:
+                        _camera.Shake(1f);
+                        break;
+                }
+            }
         }
 
         /// <summary>Find has no marker by design; everything else points at where to go.</summary>
@@ -1032,6 +1194,14 @@ namespace Skyforge
                     _sfx.Play(Sound.Warning);
                     ShowMessage(Loc.T("msg.too_low"), 1.2f);
                     break;
+                case ActionResult.NoLock:
+                case ActionResult.NoAmmo:
+                    // A thumb held on the button would otherwise repeat this every frame.
+                    if (_noticeClock > 0f) break;
+                    _noticeClock = 1.2f;
+                    _sfx.Play(Sound.Warning);
+                    ShowMessage(Loc.T(action == ActionResult.NoLock ? "msg.no_lock" : "msg.no_ammo"), 1.2f);
+                    break;
             }
         }
 
@@ -1062,8 +1232,23 @@ namespace Skyforge
                 case FailReason.SignalLost: message = Loc.T("msg.signal"); break;
                 case FailReason.Detected: message = Loc.T("msg.detected"); break;
                 case FailReason.Missed: message = Loc.T("msg.miss"); break;
+                case FailReason.ShotDown: message = Loc.T("msg.shot_down"); break;
+                case FailReason.AllyLost: message = Loc.T("msg.ally_lost"); break;
+                case FailReason.Escaped: message = Loc.T("msg.escaped"); break;
+                case FailReason.OutOfDrones: message = Loc.T("msg.out_of_drones"); break;
                 default: message = Loc.T("fail." + _run.FailReason); break;
             }
+            // A drone that is destroyed goes up where it is.
+            if (_run.FailReason == FailReason.Destroyed || _run.FailReason == FailReason.ShotDown ||
+                _run.FailReason == FailReason.OutOfDrones)
+            {
+                _effects.Explosion(_sim.State.Position, 5f);
+                _sfx.Play(Sound.Explosion);
+                _camera.Shake(0.8f);
+                _drone.Visible = false;
+            }
+            _hud.SetSecondary(null);
+            _hud.UpdateTargets(_camera.Camera, null, null, null);
             _sfx.Play(_run.Status == MissionStatus.Succeeded ? Sound.Success : Sound.Crash);
             _hud.SetAction(null);
             Freeze(message, 1.8f);
@@ -1136,6 +1321,7 @@ namespace Skyforge
         {
             _weather = weather;
             _look.Apply(weather);
+            _effects.Wind = weather.WindAt(0f);
             _hud.SetWind(weather.HasWind ? Loc.T("hud.wind", Mathf.RoundToInt(weather.WindSpeed)) : "");
         }
 
@@ -1365,6 +1551,19 @@ namespace Skyforge
         }
 
         public Camera AutomationCamera => _camera.Camera;
+
+        /// <summary>Presses a weapon button, as the player's thumb would.</summary>
+        public void AutomationFire(bool bomb)
+        {
+            if (bomb) _bombPressed = true;
+            else _actionPressed = true;
+        }
+
+        public int AutomationKills => _run != null ? _run.Kills : 0;
+        public int AutomationLock => _run != null ? _run.LockedTarget : -1;
+
+        /// <summary>A blast for the camera, where no mission would put one.</summary>
+        public void AutomationExplosion(Vector3 at, float radius) => _effects.Explosion(at, radius);
 
         void RefreshLabels()
         {

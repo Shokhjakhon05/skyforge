@@ -186,6 +186,8 @@ namespace Skyforge.Core
         public int CreditsEarned;
         public int CachesFound;
         public int UpgradesBought;
+        /// <summary>Hostile targets destroyed, over the whole career.</summary>
+        public int Kills;
     }
 
     public sealed class Achievement

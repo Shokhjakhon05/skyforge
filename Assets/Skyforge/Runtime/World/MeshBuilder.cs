@@ -8,8 +8,9 @@ namespace Skyforge.World
     public static class Palette
     {
         public const int Graphite = 0, Orange = 1, LightGrey = 2, DarkGrey = 3, Red = 4, Green = 5,
-            Leaf = 6, LeafDark = 7, Trunk = 8, Concrete = 9, White = 10, Lens = 11;
-        const int Size = 16;
+            Leaf = 6, LeafDark = 7, Trunk = 8, Concrete = 9, White = 10, Lens = 11,
+            Brick = 12, Plaster = 13, Soot = 14, Rubble = 15, Rust = 16, Khaki = 17, Sandbag = 18, Yellow = 19, Olive = 20;
+        const int Size = 32;
 
         static readonly Color32[] Colors =
         {
@@ -17,13 +18,23 @@ namespace Skyforge.World
             new Color32(70, 76, 84, 255), new Color32(225, 40, 40, 255), new Color32(50, 215, 90, 255),
             new Color32(62, 118, 58, 255), new Color32(40, 88, 50, 255), new Color32(92, 68, 48, 255),
             new Color32(128, 132, 136, 255), new Color32(238, 238, 238, 255), new Color32(18, 22, 30, 255),
+            new Color32(142, 82, 62, 255), new Color32(190, 180, 156, 255), new Color32(30, 28, 27, 255),
+            new Color32(98, 93, 86, 255), new Color32(110, 62, 38, 255), new Color32(120, 116, 78, 255),
+            new Color32(172, 156, 116, 255), new Color32(232, 196, 60, 255), new Color32(74, 86, 54, 255),
             new Color32(255, 0, 255, 255), new Color32(255, 0, 255, 255), new Color32(255, 0, 255, 255),
-            new Color32(255, 0, 255, 255),
+            new Color32(255, 0, 255, 255), new Color32(255, 0, 255, 255), new Color32(255, 0, 255, 255),
+            new Color32(255, 0, 255, 255), new Color32(255, 0, 255, 255), new Color32(255, 0, 255, 255),
+            new Color32(255, 0, 255, 255), new Color32(255, 0, 255, 255),
         };
+
+        public static Color32 Color(int index) => Colors[Mathf.Clamp(index, 0, Colors.Length - 1)];
 
         public static Vector2 Uv(int index) => new Vector2((index + 0.5f) / Size, 0.5f);
 
-        public static Texture2D CreateTexture()
+        public static Texture2D CreateTexture() => CreateTexture(null);
+
+        /// <summary>The palette as a texture, with every colour passed through <paramref name="change"/> if one is given.</summary>
+        public static Texture2D CreateTexture(System.Func<Color32, Color32> change)
         {
             var texture = new Texture2D(Size, 1, TextureFormat.RGBA32, false)
             {
@@ -31,7 +42,13 @@ namespace Skyforge.World
                 filterMode = FilterMode.Point,
                 wrapMode = TextureWrapMode.Clamp,
             };
-            texture.SetPixels32(Colors);
+            Color32[] colors = Colors;
+            if (change != null)
+            {
+                colors = new Color32[Colors.Length];
+                for (int i = 0; i < colors.Length; i++) colors[i] = change(Colors[i]);
+            }
+            texture.SetPixels32(colors);
             texture.Apply(false, true);
             return texture;
         }

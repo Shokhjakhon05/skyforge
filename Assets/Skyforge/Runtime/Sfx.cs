@@ -9,6 +9,11 @@ namespace Skyforge
         Success,
         Crash,
         Warning,
+        Rocket,
+        Explosion,
+        Gun,
+        Release,
+        Lock,
     }
 
     /// <summary>Short interface and event sounds, synthesised at start like the motor hum.</summary>
@@ -33,10 +38,76 @@ namespace Skyforge
                 Tones("Success", 0.14f, 0.55f, 660f, 880f, 1100f, 1320f),
                 Crash(),
                 Tones("Warning", 0.10f, 0.45f, 520f, 0f, 520f),
+                Rocket(),
+                Explosion(),
+                Gun(),
+                Tones("Release", 0.07f, 0.5f, 300f, 210f),
+                Tones("Lock", 0.05f, 0.4f, 1760f, 0f, 1760f),
             };
         }
 
-        public void Play(Sound sound) => _source.PlayOneShot(_clips[(int)sound]);
+        public void Play(Sound sound, float volume = 1f)
+        {
+            if (volume > 0.02f) _source.PlayOneShot(_clips[(int)sound], Mathf.Clamp01(volume));
+        }
+
+        /// <summary>A rocket leaving the rail: a hiss that falls away.</summary>
+        static AudioClip Rocket()
+        {
+            var samples = new float[SampleRate * 6 / 10];
+            var random = new System.Random(3);
+            float band = 0f;
+            for (int i = 0; i < samples.Length; i++)
+            {
+                float position = i / (float)samples.Length;
+                float white = (float)random.NextDouble() * 2f - 1f;
+                // The filter closes as the rocket goes: bright at the start, a rumble at the end.
+                band += (white - band) * Mathf.Lerp(0.55f, 0.06f, position);
+                float envelope = Mathf.Min(1f, position * 40f) * (1f - position);
+                samples[i] = Mathf.Clamp(band * 1.6f * envelope, -1f, 1f) * 0.75f;
+            }
+            return Create("Rocket", samples);
+        }
+
+        /// <summary>A crack, then a long low roll.</summary>
+        static AudioClip Explosion()
+        {
+            var samples = new float[SampleRate * 16 / 10];
+            var random = new System.Random(17);
+            float low = 0f, lower = 0f;
+            for (int i = 0; i < samples.Length; i++)
+            {
+                float time = i / (float)SampleRate;
+                float position = i / (float)samples.Length;
+                float white = (float)random.NextDouble() * 2f - 1f;
+                low += (white - low) * 0.18f;
+                lower += (low - lower) * 0.05f;
+                float crack = white * Mathf.Exp(-time * 38f);
+                float thump = Mathf.Sin(2f * Mathf.PI * (62f - 34f * position) * time) * Mathf.Exp(-time * 3.2f);
+                float roll = (low * 0.9f + lower * 2.6f) * Mathf.Exp(-time * 2.4f);
+                samples[i] = Mathf.Clamp(crack * 0.7f + thump * 0.9f + roll * 1.5f, -1f, 1f) * 0.9f;
+            }
+            return Create("Explosion", samples);
+        }
+
+        /// <summary>Four rounds from a heavy gun.</summary>
+        static AudioClip Gun()
+        {
+            var samples = new float[SampleRate * 34 / 100];
+            var random = new System.Random(29);
+            float low = 0f;
+            int spacing = SampleRate * 8 / 100;
+            for (int i = 0; i < samples.Length; i++)
+            {
+                float sinceShot = (i % spacing) / (float)SampleRate;
+                float white = (float)random.NextDouble() * 2f - 1f;
+                low += (white - low) * 0.35f;
+                float envelope = Mathf.Exp(-sinceShot * 55f);
+                float thump = Mathf.Sin(2f * Mathf.PI * 140f * sinceShot);
+                samples[i] = Mathf.Clamp((low * 1.2f + thump * 0.6f) * envelope, -1f, 1f) * 0.7f;
+            }
+            return Create("Gun", samples);
+        }
 
         /// <summary>Notes played one after another; a frequency of zero is a rest.</summary>
         static AudioClip Tones(string name, float noteSeconds, float volume, params float[] frequencies)

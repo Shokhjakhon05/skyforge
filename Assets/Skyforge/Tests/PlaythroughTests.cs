@@ -133,7 +133,8 @@ namespace Skyforge.Tests
                 // Start descending well before the circle, because the drone sinks slowly. A strike
                 // needs height, so there the pilot climbs as soon as it is clear of the circle itself;
                 // and a pilot going around the radars has no reason to come down at all.
-                bool low = UnderRadar(position, objective.Type == ObjectiveType.Strike || around ? 12f : 130f);
+                bool low = UnderRadar(position,
+                    objective.Type == ObjectiveType.Strike || objective.Type == ObjectiveType.Destroy || around ? 12f : 130f);
                 // Under a radar: just above the tallest trees, well under the radar's floor.
                 float cruise = low ? 11f : 30f;
 
@@ -292,7 +293,8 @@ namespace Skyforge.Tests
                     Vector3 pace = _mission.Targets[index].Path.Count >= 2 && !target.Arrived
                         ? target.Forward * _mission.Targets[index].Speed * 2.86f
                         : Vector3.zero;
-                    return Steer(position + miss + pace, Ground(aim.x, aim.z) + height + 6f, aim, true, cruise);
+                    // Not at an exact height: over a hollow that would put the run below the treetops around it.
+                    return Steer(position + miss + pace, Ground(aim.x, aim.z) + height + 6f, aim, false, low ? cruise : 22f);
                 }
 
                 // Stand off at rocket range. If a hill hides the target, climb for a view of it; under a

@@ -23,6 +23,7 @@ namespace Skyforge
         float _yaw;
         float _fieldOfView = 52f;
         bool _snap = true;
+        float _shake;
 
         public CameraRig(Transform parent, HeightMap map)
         {
@@ -68,6 +69,9 @@ namespace Skyforge
             _snap = true;
         }
 
+        /// <summary>Rattles the picture: 1 is a blast right beside the drone.</summary>
+        public void Shake(float amount) => _shake = Mathf.Max(_shake, Mathf.Clamp01(amount));
+
         /// <summary>Jump straight to the drone on the next update instead of easing over to it.</summary>
         public void Snap() => _snap = true;
 
@@ -112,6 +116,13 @@ namespace Skyforge
                 targetFov = 2f * Mathf.Atan(Mathf.Tan(targetFov * 0.5f * Mathf.Deg2Rad) / Zoom) * Mathf.Rad2Deg;
             _fieldOfView = Mathf.Lerp(_fieldOfView, targetFov, 1f - Mathf.Exp(-6f * deltaTime));
             Camera.fieldOfView = _fieldOfView;
+
+            if (_shake > 0.001f)
+            {
+                t.position += Random.insideUnitSphere * (_shake * 0.45f);
+                t.rotation *= Quaternion.Euler(Random.insideUnitSphere * (_shake * 1.6f));
+                _shake = Mathf.MoveTowards(_shake, 0f, deltaTime * 2.2f);
+            }
         }
     }
 }

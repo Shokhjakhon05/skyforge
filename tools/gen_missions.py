@@ -229,10 +229,11 @@ def build(pattern, r):
         return dict(targets=[ship] + boats, objectives=[TAKEOFF, destroy([ship] + boats, "objective.destroy_fleet"), HOME])
 
     if pattern == "special":
-        marks = [target("sam", "sam", "poi2", dx=-16, dz=10), target("hq", "hq", "poi2", dx=6), target("tank", ARMOUR[tier], "poi2", dx=-4, dz=-20)]
-        guards = [target("gun", "gatling", "poi2", dx=22, dz=14)] if tier >= 1 else []
+        # The last position stands just clear of the radars: it is attacked from above their floor.
+        marks = [target("sam", "sam", "poi2", dx=14, dz=12), target("hq", "hq", "poi2", dx=-6), target("tank", ARMOUR[tier], "poi2", dx=4, dz=-20)]
+        guards = [target("gun", "gatling", "poi2", dx=22, dz=-10)] if tier >= 1 else []
         return dict(props=[{"id": "papers", "kind": "crates", "at": at("poi4")}],
-                    zones=[{"at": at(a), "radius": 170, "floor": floor} for a in ("poi3", "poi6")],
+                    zones=[{"at": at(a), "radius": 140, "floor": floor} for a in ("poi3", "poi6")],
                     targets=marks + guards,
                     objectives=[TAKEOFF, {"type": "photo", "target": "papers", "range": 45},
                                 destroy(marks, "objective.destroy_final"), HOME])

@@ -87,10 +87,36 @@ namespace Skyforge.World
         float _blastAge = -1f;
         MissionDefinition _mission;
 
-        public MissionWorld(Transform parent, HeightMap map)
+        /// <summary>One target in the world: its model, the part that tracks the drone, and whether it has burnt yet.</summary>
+        sealed class TargetView
+        {
+            public Transform Root, Head;
+            public Renderer[] Renderers;
+            public Model Model;
+            public bool Dead;
+        }
+
+        readonly Effects _effects;
+        readonly List<TargetView> _targets = new List<TargetView>();
+        readonly List<Transform> _rockets = new List<Transform>(), _bombs = new List<Transform>();
+        float _trailClock;
+
+        /// <summary>Which baked model a kind of target is drawn with; kinds not listed are built from solids.</summary>
+        static readonly Dictionary<string, string> TargetModels = new Dictionary<string, string>
+        {
+            { "truck", "truck" }, { "truck_cargo", "truck_cargo" }, { "truck_army", "truck_army" }, { "truck_fuel", "truck_fuel" },
+            { "staff_car", "jeep" }, { "jeep", "jeep" }, { "humvee", "humvee" }, { "apc", "apc" },
+            { "tank_light", "tank_light" }, { "tank", "tank" }, { "tank_heavy", "tank_heavy" },
+            { "aagun", "aagun" }, { "gatling", "gatling" }, { "sam", "sam" },
+            { "heli", "heli" }, { "heli_transport", "heli_transport" }, { "gunship", "heli" },
+            { "boat", "boat" }, { "warship", "warship" }, { "ally_truck", "truck_army" },
+        };
+
+        public MissionWorld(Transform parent, HeightMap map, Effects effects)
         {
             _parent = parent;
             _map = map;
+            _effects = effects;
             _current = GameMaterials.Unlit(new Color(1f, 0.62f, 0.10f));
             _later = GameMaterials.Unlit(new Color(0.75f, 0.85f, 0.95f));
             _done = GameMaterials.Unlit(new Color(0.35f, 0.85f, 0.45f));
@@ -116,7 +142,12 @@ namespace Skyforge.World
             _mission = mission;
 
             var props = new MeshBuilder();
-            foreach (PropDefinition prop in mission.Props) PropModels.Add(props, prop.Kind, prop.Position);
+            foreach (PropDefinition prop in mission.Props)
+            {
+                if (prop.Kind == "sandbags" || prop.Kind == "barrels" || prop.Kind == "wreck") SpawnDressing(prop.Kind, prop.Position, prop.Id.Length * 37f);
+                else PropModels.Add(props, prop.Kind, prop.Position);
+            }
+            SpawnTargets(mission);
             foreach (ZoneDefinition zone in mission.Zones) PropModels.Add(props, "radar", zone.Position);
             if (props.VertexCount > 0) Spawn("Props", props.Build("MissionProps"), GameMaterials.PaletteLit, true);
 
@@ -190,7 +221,196 @@ namespace Skyforge.World
             _ringObjective.Clear();
             _threatRings.Clear();
             _actors.Clear();
+            _targets.Clear();
+            _rockets.Clear();
+            _bombs.Clear();
+            _effects.ClearBattle();
             _mission = null;
+        }
+
+        // ---------------------------------------------------------------- targets
+
+        void SpawnTargets(MissionDefinition mission)
+        {
+            for (int i = 0; i < mission.Targets.Count; i++)
+            {
+                TargetDefinition definition = mission.Targets[i];
+                var root = new GameObject("Target_" + definition.Id);
+                root.transform.SetParent(_parent, false);
+                _spawned.Add(root);
+                var view = new TargetView { Root = root.transform };
+
+                if (TargetModels.TryGetValue(definition.Kind.Id, out string modelName)) view.Model = ModelLibrary.Get(modelName);
+                if (view.Model != null)
+                {
+                    var parts = new Dictionary<string, Transform>();
+                    // The commander's car is the pale one in the column.
+                    Material paint = definition.Kind.Id == "staff_car" ? view.Model.Tinted(new Color(0.80f, 0.80f, 0.76f)) : view.Model.Plain;
+                    view.Model.Spawn(root.transform, paint, true, parts);
+                    parts.TryGetValue("head", out view.Head);
+                }
+                else
+                {
+                    var builder = new MeshBuilder();
+                    PropModels.Add(builder, definition.Kind.Id, Vector3.zero);
+                    var body = new GameObject("Body");
+                    body.transform.SetParent(root.transform, false);
+                    body.AddComponent<MeshFilter>().sharedMesh = builder.Build("Target");
+                    var renderer = body.AddComponent<MeshRenderer>();
+                    renderer.sharedMaterial = GameMaterials.PaletteLit;
+                }
+                view.Renderers = root.GetComponentsInChildren<Renderer>();
+                _targets.Add(view);
+
+                // Dug-in positions sit behind sandbags.
+                string kind = definition.Kind.Id;
+                if (definition.Path.Count < 2 && (kind == "aagun" || kind == "gatling" || kind == "sam" || kind == "artillery" || kind == "squad"))
+                {
+                    float reach = definition.Kind.Radius + 2.2f;
+                    SpawnDressing("sandbags", OnGround(definition.Position + new Vector3(0f, 0f, reach)), 0f);
+                    SpawnDressing("sandbags", OnGround(definition.Position + new Vector3(reach * 0.87f, 0f, -reach * 0.5f)), 120f);
+                    SpawnDressing("sandbags", OnGround(definition.Position + new Vector3(-reach * 0.87f, 0f, -reach * 0.5f)), 240f);
+                }
+                // What is ours is ringed in green on the ground.
+                if (definition.Friendly)
+                {
+                    Transform ring = Spawn("OwnRing", _thinRingMesh, _done, false).transform;
+                    ring.SetPositionAndRotation(OnGround(definition.Position) + Vector3.up * 0.6f, Quaternion.Euler(90f, 0f, 0f));
+                    ring.localScale = Vector3.one * (definition.Kind.Radius + 6f);
+                }
+            }
+        }
+
+        Vector3 OnGround(Vector3 position)
+        {
+            position.y = Mathf.Max(_map.Height(position.x, position.z), Island.WaterLevel);
+            return position;
+        }
+
+        /// <summary>Things a mission stands around its targets that are models rather than solids.</summary>
+        void SpawnDressing(string kind, Vector3 position, float yawDeg)
+        {
+            if (kind == "barrels")
+            {
+                Model barrel = ModelLibrary.Get("barrel");
+                if (barrel == null) return;
+                for (int i = 0; i < 5; i++)
+                {
+                    Transform one = barrel.Spawn(_parent, barrel.Plain, true);
+                    one.position = OnGround(position + new Vector3((i % 3 - 1) * 1.25f, 0f, (i / 3) * 1.3f - 0.6f));
+                    _spawned.Add(one.gameObject);
+                }
+                return;
+            }
+            Model model = ModelLibrary.Get(kind == "wreck" ? "truck" : "sandbags");
+            if (model == null) return;
+            Transform body = model.Spawn(_parent, kind == "wreck" ? model.Burnt : model.Plain, true);
+            Vector3 normal = _map.Normal(position.x, position.z);
+            Vector3 forward = Vector3.ProjectOnPlane(Quaternion.Euler(0f, yawDeg, 0f) * Vector3.forward, normal).normalized;
+            body.SetPositionAndRotation(position, Quaternion.LookRotation(forward, normal));
+            _spawned.Add(body.gameObject);
+        }
+
+        void UpdateTargets(MissionRun run, FlightState drone, float deltaTime)
+        {
+            for (int i = 0; i < _targets.Count; i++)
+            {
+                TargetView view = _targets[i];
+                TargetState state = run.Target(i);
+                TargetDefinition definition = _mission.Targets[i];
+                bool afloat = _map.Height(state.Position.x, state.Position.z) < Island.WaterLevel;
+                Vector3 normal = definition.Altitude > 0f || afloat ? Vector3.up : _map.Normal(state.Position.x, state.Position.z);
+                Vector3 forward = Vector3.ProjectOnPlane(state.Forward, normal);
+                if (forward.sqrMagnitude < 0.01f) forward = Vector3.forward;
+
+                if (!state.Alive && !view.Dead)
+                {
+                    // Burnt out where it stood: soot for paint, and it never stands quite straight again.
+                    view.Dead = true;
+                    bool structure = view.Model == null;
+                    foreach (Renderer renderer in view.Renderers)
+                        renderer.sharedMaterial = view.Model != null ? view.Model.Burnt : GameMaterials.PaletteBurnt;
+                    view.Root.localScale = structure ? new Vector3(1.04f, 0.42f, 1.04f) : new Vector3(1f, 0.9f, 1f);
+                    if (afloat || definition.Altitude > 0f)
+                    {
+                        // A boat settles low in the water; an aircraft comes down.
+                        view.Root.position = OnGround(state.Position) + Vector3.down * (afloat ? definition.Kind.Height * 0.25f : 0f);
+                        view.Root.rotation = Quaternion.LookRotation(forward.normalized, Vector3.up) * Quaternion.Euler(6f, 0f, 14f);
+                    }
+                    else
+                    {
+                        view.Root.rotation = Quaternion.LookRotation(forward.normalized, normal) * Quaternion.Euler(0f, 0f, structure ? 0f : 6f);
+                    }
+                    _effects.Burn(view.Root.position + Vector3.up * 1.2f, Mathf.Clamp(definition.Kind.Radius * 0.55f, 1.6f, 5f));
+                }
+                if (view.Dead) continue;
+
+                view.Root.SetPositionAndRotation(state.Position, Quaternion.LookRotation(forward.normalized, normal));
+
+                // Guns follow the drone round; firing kicks the barrel back.
+                if (view.Head != null && definition.Kind.Armed)
+                {
+                    Vector3 to = drone.Position - state.Position;
+                    Vector3 local = Quaternion.Inverse(view.Root.rotation) * to;
+                    if (new Vector2(local.x, local.z).sqrMagnitude > 4f && to.magnitude < 420f)
+                    {
+                        float yaw = Mathf.Atan2(local.x, local.z) * Mathf.Rad2Deg;
+                        float turn = 1f - Mathf.Exp(-3f * deltaTime);
+                        view.Head.localRotation = Quaternion.Slerp(view.Head.localRotation, Quaternion.Euler(0f, yaw, 0f), turn);
+                    }
+                }
+            }
+        }
+
+        /// <summary>Where a target's gun is, for tracers and muzzle flashes.</summary>
+        public Vector3 Muzzle(int target)
+        {
+            TargetView view = _targets[target];
+            return view.Root.position + Vector3.up * Mathf.Min(3f, _mission.Targets[target].Kind.Height * 0.8f);
+        }
+
+        void UpdateProjectiles(MissionRun run, float deltaTime)
+        {
+            int rockets = 0, bombs = 0;
+            _trailClock -= deltaTime;
+            bool trail = _trailClock <= 0f;
+            if (trail) _trailClock = 0.035f;
+
+            foreach (Projectile projectile in run.Projectiles)
+            {
+                bool rocket = projectile.Type == ProjectileType.Rocket;
+                List<Transform> pool = rocket ? _rockets : _bombs;
+                int index = rocket ? rockets++ : bombs++;
+                if (index >= pool.Count) pool.Add(SpawnMunition(rocket));
+                Transform view = pool[index];
+                if (!view.gameObject.activeSelf) view.gameObject.SetActive(true);
+                Vector3 direction = rocket ? projectile.Direction : Vector3.down + (projectile.Impact - projectile.From).normalized * 0.4f;
+                if (direction.sqrMagnitude < 0.01f) direction = Vector3.down;
+                view.SetPositionAndRotation(projectile.Position, Quaternion.LookRotation(direction.normalized));
+                if (rocket && trail) _effects.Trail(projectile.Position - direction.normalized * 0.8f);
+            }
+            for (int i = rockets; i < _rockets.Count; i++)
+                if (_rockets[i].gameObject.activeSelf) _rockets[i].gameObject.SetActive(false);
+            for (int i = bombs; i < _bombs.Count; i++)
+                if (_bombs[i].gameObject.activeSelf) _bombs[i].gameObject.SetActive(false);
+        }
+
+        Transform SpawnMunition(bool rocket)
+        {
+            Model model = ModelLibrary.Get("missile");
+            Transform view;
+            if (model != null)
+            {
+                view = model.Spawn(_parent, model.Plain, false);
+                view.localScale = rocket ? new Vector3(0.7f, 0.7f, 1f) : new Vector3(1.3f, 1.3f, 0.8f);
+            }
+            else
+            {
+                view = Spawn(rocket ? "Rocket" : "Bomb", _ballMesh, _danger, false).transform;
+                view.localScale = new Vector3(0.3f, 0.3f, 1.2f);
+            }
+            _spawned.Add(view.gameObject);
+            return view;
         }
 
         /// <summary>Follows a running mission: moves actors, recolours rings, flies the munition.</summary>
@@ -215,6 +435,9 @@ namespace Skyforge.World
                     objective < run.ObjectiveIndex ? _done : objective == run.ObjectiveIndex ? _current : _later;
             }
 
+            UpdateTargets(run, drone, deltaTime);
+            UpdateProjectiles(run, deltaTime);
+
             ObjectiveDefinition current = run.CurrentObjective;
             bool marking = current != null && current.Type == ObjectiveType.Mark;
             for (int i = 0; i < _threatRings.Count; i++)
@@ -223,12 +446,14 @@ namespace Skyforge.World
             // Strike: a ring on the ground shows where a release would land right now.
             bool aiming = current != null && current.Type == ObjectiveType.Strike && run.ShotsLeft > 0 &&
                           !run.Shot.Active && run.Status == MissionStatus.InProgress;
-            if (_aimRing.gameObject.activeSelf != aiming) _aimRing.gameObject.SetActive(aiming);
-            if (aiming)
+            // With bombs on the racks the same ring shows where one would fall.
+            bool bombing = run.Bombs > 0 && !drone.Grounded && run.Status == MissionStatus.InProgress;
+            if (_aimRing.gameObject.activeSelf != (aiming || bombing)) _aimRing.gameObject.SetActive(aiming || bombing);
+            if (aiming || bombing)
             {
                 Vector3 impact = run.PredictImpact(drone, out _);
                 _aimRing.position = impact + Vector3.up * 1.4f;
-                _aimRing.localScale = Vector3.one * Mathf.Max(3f, current.Radius);
+                _aimRing.localScale = Vector3.one * (aiming ? Mathf.Max(3f, current.Radius) : 4f);
             }
 
             Shot shot = run.Shot;
@@ -318,6 +543,19 @@ namespace Skyforge.World
     /// <summary>Simple models for the things missions are about, built from boxes and cylinders.</summary>
     public static class PropModels
     {
+        /// <summary>A ridge tent: two sloping sides and two triangular ends.</summary>
+        static void Ridge(MeshBuilder b, Vector3 at, float width, float length, float height, int color)
+        {
+            float w = width * 0.5f, l = length * 0.5f;
+            Vector3 a = at + new Vector3(-w, 0f, -l), c = at + new Vector3(w, 0f, -l);
+            Vector3 d = at + new Vector3(w, 0f, l), e = at + new Vector3(-w, 0f, l);
+            Vector3 front = at + new Vector3(0f, height, -l), back = at + new Vector3(0f, height, l);
+            b.Quad(a, front, back, e, new Vector3(-1f, 1f, 0f), color);
+            b.Quad(c, front, back, d, new Vector3(1f, 1f, 0f), color);
+            b.Triangle(a, c, front, Vector3.back, color);
+            b.Triangle(e, d, back, Vector3.forward, color);
+        }
+
         public static void Add(MeshBuilder b, string kind, Vector3 at)
         {
             switch (kind)
@@ -373,6 +611,106 @@ namespace Skyforge.World
                     b.Cylinder(at - Vector3.up * 1.2f, 6f, 6f, 1.25f, 20, Palette.Concrete);
                     b.Cylinder(at + Vector3.up * 0.05f, 4.4f, 4.4f, 0.02f, 20, Palette.Orange);
                     b.Cylinder(at + Vector3.up * 0.05f, 3.6f, 3.6f, 0.03f, 20, Palette.White);
+                    break;
+                case "squad":
+                    // Five riflemen in a loose group.
+                    for (int i = 0; i < 5; i++)
+                    {
+                        float angle = i * 2.4f;
+                        Vector3 foot = at + new Vector3(Mathf.Cos(angle) * (1.2f + i * 0.45f), 0f, Mathf.Sin(angle) * (1.2f + i * 0.45f));
+                        b.Box(foot + new Vector3(0f, 0.45f, 0f), new Vector3(0.42f, 0.9f, 0.3f), Palette.Olive);
+                        b.Box(foot + new Vector3(0f, 1.25f, 0f), new Vector3(0.52f, 0.7f, 0.34f), Palette.Khaki);
+                        b.Box(foot + new Vector3(0f, 1.78f, 0f), new Vector3(0.3f, 0.3f, 0.3f), Palette.Sandbag);
+                        b.Box(foot + new Vector3(0f, 1.95f, 0f), new Vector3(0.36f, 0.14f, 0.38f), Palette.Olive);
+                        b.Box(foot + new Vector3(0.2f, 1.3f, 0.35f), new Vector3(0.08f, 0.1f, 0.9f), Palette.Graphite);
+                    }
+                    break;
+                case "artillery":
+                {
+                    Quaternion raised = Quaternion.Euler(-28f, 0f, 0f);
+                    b.Box(at + new Vector3(0f, 1.2f, 0.2f), new Vector3(2.2f, 1.5f, 0.2f), Palette.Olive);
+                    b.Box(at + new Vector3(0f, 1.1f, 0f) + raised * new Vector3(0f, 0f, 2.4f), new Vector3(0.32f, 0.32f, 5.2f), raised, Palette.Olive);
+                    b.Box(at + new Vector3(0f, 1.1f, 0f) + raised * new Vector3(0f, 0f, 5.1f), new Vector3(0.42f, 0.42f, 0.5f), raised, Palette.Graphite);
+                    foreach (float side in new[] { -1f, 1f })
+                    {
+                        b.Box(at + new Vector3(side * 1.15f, 0.7f, 0f), new Vector3(0.35f, 1.4f, 1.4f), Palette.Graphite);
+                        Quaternion spread = Quaternion.Euler(0f, side * 18f, 0f);
+                        b.Box(at + new Vector3(side * 0.9f, 0.35f, -2.2f), new Vector3(0.25f, 0.3f, 4f), spread, Palette.Olive);
+                    }
+                    break;
+                }
+                case "bunker":
+                    b.Box(at + new Vector3(0f, 0.9f, 0f), new Vector3(8f, 3.8f, 7f), Palette.Concrete);
+                    b.Box(at + new Vector3(0f, 2.95f, 0f), new Vector3(9f, 0.5f, 8f), Palette.Rubble);
+                    b.Box(at + new Vector3(0f, 1.9f, 3.52f), new Vector3(4.6f, 0.5f, 0.1f), Palette.Lens);
+                    b.Box(at + new Vector3(4.02f, 1.9f, 0f), new Vector3(0.1f, 0.5f, 3.6f), Palette.Lens);
+                    b.Box(at + new Vector3(-4.02f, 1.9f, 0f), new Vector3(0.1f, 0.5f, 3.6f), Palette.Lens);
+                    for (int i = 0; i < 6; i++)
+                        b.Box(at + new Vector3(-3.5f + i * 1.4f, 0.4f, 4.3f), new Vector3(1.3f, 0.8f, 0.9f), Palette.Sandbag);
+                    b.Box(at + new Vector3(0f, 3.4f, -1f), new Vector3(5f, 0.3f, 4f), Palette.Olive);
+                    break;
+                case "hq":
+                    // The command building: two storeys, a mast on the roof and their flag on it.
+                    b.Box(at + new Vector3(0f, 2.5f, 0f), new Vector3(15f, 8f, 10f), Palette.Plaster);
+                    b.Box(at + new Vector3(0f, 6.7f, 0f), new Vector3(15.8f, 0.5f, 10.8f), Palette.Concrete);
+                    b.Box(at + new Vector3(3.5f, 7.8f, -1.5f), new Vector3(5f, 1.8f, 4f), Palette.Concrete);
+                    for (int floor = 0; floor < 2; floor++)
+                    for (int i = 0; i < 5; i++)
+                    {
+                        float x = -5.6f + i * 2.8f, y = 1.9f + floor * 2.9f;
+                        b.Box(at + new Vector3(x, y, 5.02f), new Vector3(1.4f, 1.3f, 0.1f), Palette.Lens);
+                        b.Box(at + new Vector3(x, y, -5.02f), new Vector3(1.4f, 1.3f, 0.1f), Palette.Lens);
+                    }
+                    b.Box(at + new Vector3(0f, 1.1f, 5.05f), new Vector3(1.8f, 2.4f, 0.14f), Palette.Trunk);
+                    b.Cylinder(at + new Vector3(-5f, 6.9f, 2f), 0.12f, 0.08f, 6f, 6, Palette.LightGrey);
+                    b.Box(at + new Vector3(-3.9f, 12.2f, 2f), new Vector3(2.2f, 1.2f, 0.08f), Palette.Red);
+                    b.Cylinder(at + new Vector3(5.5f, 8.7f, -1.5f), 0.5f, 1.4f, 0.8f, 10, Palette.LightGrey);
+                    for (int i = 0; i < 8; i++)
+                        b.Box(at + new Vector3(-5.6f + i * 1.6f, 0.4f, 6.4f), new Vector3(1.5f, 0.8f, 0.9f), Palette.Sandbag);
+                    break;
+                case "depot":
+                    // Ammunition under a net: crates, shells and drums.
+                    for (int i = 0; i < 9; i++)
+                    {
+                        var spot = new Vector3((i % 3 - 1) * 2.6f, 0f, (i / 3 - 1) * 2.4f);
+                        b.Box(at + spot + new Vector3(0f, 0.7f, 0f), new Vector3(2.2f, 1.4f, 1.8f), i % 2 == 0 ? Palette.Olive : Palette.Trunk);
+                        if (i % 3 != 1) b.Box(at + spot + new Vector3(0.1f, 1.9f, 0f), new Vector3(1.8f, 1f, 1.5f), Palette.Olive);
+                    }
+                    for (int i = 0; i < 4; i++)
+                        b.Cylinder(at + new Vector3(5.2f, 0f, -2.2f + i * 1.5f), 0.55f, 0.55f, 1.4f, 8, i % 2 == 0 ? Palette.Red : Palette.DarkGrey);
+                    foreach (float x in new[] { -4.6f, 4.2f })
+                    foreach (float z in new[] { -4.2f, 4.2f })
+                        b.Cylinder(at + new Vector3(x, 0f, z), 0.1f, 0.1f, 3.6f, 5, Palette.Trunk);
+                    b.Box(at + new Vector3(-0.2f, 3.6f, 0f), new Vector3(9.4f, 0.12f, 9f), Palette.LeafDark);
+                    break;
+                case "barrels":
+                    for (int i = 0; i < 7; i++)
+                        b.Cylinder(at + new Vector3((i % 3 - 1) * 1.3f, 0f, (i / 3 - 1) * 1.3f), 0.55f, 0.55f, 1.4f, 8, i % 2 == 0 ? Palette.Red : Palette.Rust);
+                    break;
+                case "tent":
+                    Ridge(b, at + new Vector3(-2.6f, 0f, 0f), 4.2f, 6.5f, 2.6f, Palette.Olive);
+                    Ridge(b, at + new Vector3(2.8f, 0f, 0.8f), 4.2f, 6.5f, 2.6f, Palette.Khaki);
+                    b.Box(at + new Vector3(0.2f, 0.5f, -4.4f), new Vector3(1.2f, 1f, 1.2f), Palette.Trunk);
+                    break;
+                case "outpost":
+                    // Ours: a sandbagged yard, a watchtower, a tent and the flag.
+                    for (int i = 0; i < 16; i++)
+                    {
+                        float angle = i * Mathf.PI / 8f;
+                        if (i == 4) continue;
+                        Vector3 spot = at + new Vector3(Mathf.Cos(angle) * 7.5f, 0.45f, Mathf.Sin(angle) * 7.5f);
+                        b.Box(spot, new Vector3(2.9f, 0.9f, 1f), Quaternion.Euler(0f, 90f - angle * Mathf.Rad2Deg, 0f), Palette.Sandbag);
+                    }
+                    foreach (float x in new[] { -1.2f, 1.2f })
+                    foreach (float z in new[] { -1.2f, 1.2f })
+                        b.Cylinder(at + new Vector3(-3f + x, 0f, -2f + z), 0.12f, 0.12f, 6f, 5, Palette.Trunk);
+                    b.Box(at + new Vector3(-3f, 5f, -2f), new Vector3(3.2f, 0.2f, 3.2f), Palette.Trunk);
+                    b.Box(at + new Vector3(-3f, 5.6f, -2f), new Vector3(3.2f, 1f, 3.2f), Palette.Sandbag);
+                    b.Cylinder(at + new Vector3(-3f, 6.9f, -2f), 2.6f, 0f, 1.2f, 4, Palette.Olive);
+                    Ridge(b, at + new Vector3(2.8f, 0f, 1.5f), 4f, 5.5f, 2.4f, Palette.Olive);
+                    b.Cylinder(at + new Vector3(3f, 0f, -3.5f), 0.1f, 0.07f, 7.5f, 6, Palette.LightGrey);
+                    b.Box(at + new Vector3(4.1f, 6.8f, -3.5f), new Vector3(2.2f, 1.2f, 0.08f), Palette.Green);
+                    b.Box(at + new Vector3(0.5f, 0.6f, -4f), new Vector3(1.4f, 1.2f, 1.4f), Palette.Trunk);
                     break;
                 case "radar":
                     b.Cylinder(at - Vector3.up, 1.6f, 1.2f, 1.5f, 8, Palette.Concrete);

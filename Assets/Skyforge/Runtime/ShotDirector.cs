@@ -40,14 +40,16 @@ namespace Skyforge
                 yield return Shot(prefix + "c_hangar_modules");
                 _game.AutomationShowHangar("albatross", 0, 2500);
                 yield return Shot(prefix + "d_hangar_upgrades");
-                _game.AutomationSelectMission("clean_strike");
+                _game.AutomationSelectMission("first_strike");
+                _game.AutomationShowMenu();
+                yield return Shot(prefix + "d2_menu_combat");
                 _game.AutomationStartMission();
-                _game.AutomationPlace(_game.Island.Anchors["poi2"] + new Vector3(6f, 60f, -4f), 0f);
-                yield return Shot(prefix + "e_mission_strike");
-                _game.AutomationSelectMission("shadow");
+                _game.AutomationPlace(_game.Island.Anchors["poi0"] + new Vector3(0f, 24f, -80f), 0f);
+                yield return Shot(prefix + "e_mission_assault");
+                _game.AutomationSelectMission("fpv_strike");
                 _game.AutomationStartMission();
-                _game.AutomationPlace(_game.Island.Anchors["coast7"] + new Vector3(0f, 25f, -50f), 0f);
-                yield return Shot(prefix + "f_mission_follow");
+                _game.AutomationPlace(_game.Island.Anchors["poi9"] + new Vector3(0f, 22f, -70f), 0f);
+                yield return Shot(prefix + "f_mission_kamikaze");
                 _game.AutomationShowResult();
                 yield return Shot(prefix + "g_result");
                 _game.AutomationShowDaily();
@@ -123,21 +125,43 @@ namespace Skyforge
                 yield return Shot(index++ + "_weather_" + weather.Id);
             }
 
-            // One staged moment from each kind of mission that puts something new into the world.
-            yield return MissionShot("11a", "sprint", island.Rings[0] + new Vector3(-30f, 6f, -30f), 45f, CameraView.Chase);
-            yield return MissionShot("11b", "silent_path", island.Anchors["poi3"] + new Vector3(0f, 60f, -230f), 0f, CameraView.Chase);
-            yield return MissionShot("11c", "clean_strike", island.Anchors["poi2"] + new Vector3(6f, 60f, -4f), 0f, CameraView.Chase);
-            yield return MissionShot("11d", "clean_strike", island.Anchors["poi2"] + new Vector3(6f, 60f, -4f), 0f, CameraView.Top);
-            yield return MissionShot("11e", "safe_passage", island.Anchors["poi10"] + new Vector3(0f, 22f, -45f), 0f, CameraView.Chase);
-            yield return MissionShot("11f", "shadow", island.Anchors["coast7"] + new Vector3(0f, 25f, -50f), 0f, CameraView.Chase);
-            yield return MissionShot("11g", "evidence", island.Anchors["poi0"] + new Vector3(0f, 12f, -32f), 0f, CameraView.Fpv);
-            yield return MissionShot("11h", "coast_watch", island.Anchors["poi10"] + new Vector3(0f, 16f, -45f), 0f, CameraView.Chase);
-            yield return MissionShot("11i", "supply_run", island.Anchors["poi4"] + new Vector3(0f, 14f, -30f), 0f, CameraView.Chase);
+            // The war on the ground: a shelled village from the air and from among the ruins.
+            _game.AutomationFreeFlight(WeatherCatalog.Clear);
+            Vector3 village = island.Villages.Count > 0 ? island.Villages[0] : island.Anchors["poi1"];
+            _game.AutomationPlace(village + new Vector3(0f, 45f, -110f), 0f);
+            yield return Shot("11_village_above");
+            _game.AutomationPlace(village + new Vector3(-30f, 14f, -55f), 25f);
+            yield return Shot("11_village_low");
+            _game.AutomationSetCamera(CameraView.Fpv);
+            _game.AutomationPlace(village + new Vector3(10f, 9f, -48f), -10f);
+            yield return Shot("11_village_fpv");
+            _game.AutomationSetCamera(CameraView.Top);
+            _game.AutomationPlace(village + new Vector3(0f, 30f, 0f), 0f);
+            yield return Shot("11_village_top");
             _game.AutomationSetCamera(CameraView.Chase);
 
-            _game.AutomationSelectMission("clean_strike");
+            // The fights: each one seen from where a player would attack, then with the shooting started.
+            yield return Battle("12a", "first_strike", "poi0", new Vector3(0f, 24f, -85f), false);
+            yield return Battle("12b", "tank_hunt", "poi1", new Vector3(-10f, 26f, -95f), false);
+            yield return Battle("12c", "blind_them", "poi3", new Vector3(0f, 22f, -100f), false);
+            yield return Battle("12d", "hammer_fall", "poi7", new Vector3(0f, 44f, -8f), true);
+            yield return Battle("12e", "night_raid", "poi2", new Vector3(0f, 24f, -90f), false);
+            yield return Battle("12f", "iron_tide", "sea0", new Vector3(0f, 40f, -6f), true);
+            yield return Battle("12g", "broken_arrow", "poi2", new Vector3(-10f, 26f, -100f), false);
+            yield return MissionShot("12h", "fpv_strike", island.Anchors["poi9"] + new Vector3(0f, 20f, -60f), 0f, CameraView.Chase);
+            yield return MissionShot("12i", "fpv_strike", island.Anchors["poi9"] + new Vector3(-6f, 9f, -30f), 0f, CameraView.Fpv);
+            yield return MissionShot("12j", "hold_the_line", island.Spawn + new Vector3(20f, 30f, -40f), 40f, CameraView.Chase);
+            yield return MissionShot("12k", "convoy_ambush", island.Anchors["coast6"] + new Vector3(0f, 30f, -90f), 0f, CameraView.Chase);
+            yield return MissionShot("12l", "coast_watch", island.Anchors["sea3"] + new Vector3(0f, 26f, -90f), 0f, CameraView.Chase);
+            yield return MissionShot("12m", "headhunter", island.Anchors["coast1"] + new Vector3(0f, 28f, -80f), 0f, CameraView.Chase);
+            yield return MissionShot("12n", "sprint", island.Rings[0] + new Vector3(-30f, 6f, -30f), 45f, CameraView.Chase);
+            yield return MissionShot("12o", "silent_path", island.Anchors["poi3"] + new Vector3(0f, 60f, -230f), 0f, CameraView.Chase);
+            yield return MissionShot("12p", "supply_run", island.Anchors["poi4"] + new Vector3(0f, 14f, -30f), 0f, CameraView.Chase);
+            _game.AutomationSetCamera(CameraView.Chase);
+
+            _game.AutomationSelectMission("hammer_fall");
             _game.AutomationShowMenu();
-            yield return Shot("12_menu_strike");
+            yield return Shot("12z_menu_demolition");
 
             // The hangar, and a few of the drones in the air.
             _game.AutomationShowHangar("sparrow", 0, 2500);
@@ -149,7 +173,7 @@ namespace Skyforge
             _game.AutomationShowHangar("aegis", 0, 2500);
             yield return Shot("13d_hangar_aegis");
             int drone = 0;
-            foreach (string id in new[] { "viper", "mule", "petrel", "relay", "albatross", "talon" })
+            foreach (string id in new[] { "kestrel", "viper", "mule", "ghost", "petrel", "albatross", "talon", "aegis" })
             {
                 _game.AutomationUseDrone(id);
                 _game.AutomationFreeFlight(WeatherCatalog.Clear);
@@ -195,7 +219,7 @@ namespace Skyforge
             _game.AutomationLoadRegion("arvelia");
 
             // Start again in each other language; the new game object's director takes those shots.
-            _game.AutomationSelectMission("first_contact");
+            _game.AutomationSelectMission("first_strike");
             _game.AutomationShowMenu();
             _game.AutomationSetLanguage(OtherLanguages[0]);
             Stage = 1;
@@ -211,15 +235,46 @@ namespace Skyforge
             yield return Shot(prefix + "_" + missionId + "_" + view.ToString().ToLowerInvariant());
         }
 
+        /// <summary>
+        /// A fight in three pictures: the approach, the moment after the weapons are released,
+        /// and what is left when the smoke has had a second to rise.
+        /// </summary>
+        /// <param name="bombs">Attack from overhead with bombs instead of from a distance with rockets.</param>
+        IEnumerator Battle(string prefix, string missionId, string anchor, Vector3 offset, bool bombs)
+        {
+            _game.AutomationSelectMission(missionId);
+            _game.AutomationStartMission();
+            _game.AutomationSetCamera(CameraView.Chase);
+            _game.AutomationPlace(_game.Island.Anchors[anchor] + offset, 0f);
+            yield return Shot(prefix + "_" + missionId + "_1_approach");
+
+            // Keep the button down until something dies, or for long enough that nothing will.
+            int before = _game.AutomationKills;
+            for (int frame = 0; frame < 160 && _game.AutomationKills == before; frame++)
+            {
+                if (frame % 4 == 0) _game.AutomationFire(bombs);
+                yield return null;
+            }
+            yield return Shot(prefix + "_" + missionId + "_2_hit", 1);
+            for (int frame = 0; frame < 30; frame++)
+            {
+                if (frame % 4 == 0) _game.AutomationFire(bombs);
+                yield return null;
+            }
+            yield return Shot(prefix + "_" + missionId + "_3_burning", 1);
+            Debug.Log("[Skyforge] Battle " + missionId + ": kills " + _game.AutomationKills + ", lock " + _game.AutomationLock);
+        }
+
         static IEnumerator Frames(int count)
         {
             for (int i = 0; i < count; i++) yield return null;
         }
 
         /// <summary>Lets the scene settle, then renders the camera and the UI into a PNG.</summary>
-        IEnumerator Shot(string name)
+        /// <param name="settle">Frames to wait first, so that a newly staged scene has been drawn once.</param>
+        IEnumerator Shot(string name, int settle = 6)
         {
-            yield return Frames(6);
+            yield return Frames(settle);
 
             Camera cam = _game.AutomationCamera;
             Canvas[] canvases = FindObjectsByType<Canvas>(FindObjectsSortMode.None);

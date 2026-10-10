@@ -7,7 +7,10 @@ namespace Skyforge.UI
     /// <summary>Flight HUD: telemetry, gauges, the current goal, buttons, stick visuals and the target marker.</summary>
     public sealed class Hud
     {
-        public event Action CameraPressed, ModePressed, SticksPressed, MenuPressed, ZoomPressed, ActionPressed;
+        public event Action CameraPressed, ModePressed, SticksPressed, MenuPressed, ZoomPressed, ActionPressed, BombPressed;
+
+        /// <summary>How many targets can be marked on screen at once.</summary>
+        const int TargetMarks = 10;
 
         readonly Canvas _canvas;
         readonly Text _speed, _altitude, _headline, _subline, _message, _hint, _markerText, _wind, _fps;
@@ -19,6 +22,16 @@ namespace Skyforge.UI
         readonly Gauge _battery, _signal, _hull, _detection;
         readonly GameObject _gauges;
         int _shownSpeed = -1, _shownAltitude = -1, _shownDistance = -1;
+
+        // Combat: the second weapon button, a mark on every target, the lock frame and the hit flash.
+        readonly Text _secondaryLabel, _lockText;
+        readonly GameObject _secondary;
+        readonly Image _actionImage, _lockImage, _damage;
+        readonly RectTransform _lock;
+        readonly RectTransform[] _marks = new RectTransform[TargetMarks];
+        readonly Image[] _markImages = new Image[TargetMarks];
+        int _shownLock = -1, _shownLockHealth = -1;
+        float _damageShown;
 
         sealed class StickVisual
         {
@@ -60,6 +73,31 @@ namespace Skyforge.UI
             UiKit.Stretch(screen);
             _left = CreateStick(screen);
             _right = CreateStick(screen);
+
+            // A wash of red over the whole picture while rounds are hitting the drone.
+            _damage = UiKit.Box(screen, "Damage", new Color(0.9f, 0.08f, 0.05f, 0f));
+            UiKit.Stretch(_damage.rectTransform);
+
+            for (int i = 0; i < TargetMarks; i++)
+            {
+                _marks[i] = UiKit.Rect("TargetMark", screen);
+                _marks[i].anchorMin = _marks[i].anchorMax = Vector2.zero;
+                _marks[i].sizeDelta = new Vector2(20f, 20f);
+                _marks[i].localRotation = Quaternion.Euler(0f, 0f, 45f);
+                _markImages[i] = UiKit.Box(_marks[i], "Diamond", UiKit.Bad);
+                UiKit.Stretch(_markImages[i].rectTransform);
+                _marks[i].gameObject.SetActive(false);
+            }
+
+            _lock = UiKit.Rect("Lock", screen);
+            _lock.anchorMin = _lock.anchorMax = Vector2.zero;
+            _lock.sizeDelta = new Vector2(120f, 120f);
+            _lockImage = UiKit.Box(_lock, "Frame", UiKit.Good, UiKit.Ring);
+            UiKit.Stretch(_lockImage.rectTransform);
+            _lockText = UiKit.Label(_lock, 28, TextAnchor.UpperCenter);
+            _lockText.color = UiKit.Good;
+            UiKit.Place(_lockText.rectTransform, new Vector2(0.5f, 0f), new Vector2(0f, -10f), new Vector2(520f, 36f));
+            _lock.gameObject.SetActive(false);
 
             _marker = UiKit.Rect("Marker", screen);
             _marker.anchorMin = _marker.anchorMax = Vector2.zero;
@@ -121,7 +159,17 @@ namespace Skyforge.UI
             var actionRect = (RectTransform)_actionLabel.transform.parent;
             UiKit.Place(actionRect, new Vector2(1f, 0.5f), new Vector2(-36f, 70f), new Vector2(300f, 140f));
             _action = actionRect.gameObject;
+            _actionImage = actionRect.GetComponent<Image>();
+            UiKit.FitWidth(_actionLabel, 26);
             _action.SetActive(false);
+
+            // Bombs go beside it, a little lower, where the same thumb finds them.
+            _secondaryLabel = UiKit.Button(safe, "Secondary", UiKit.Bad, 38, () => BombPressed?.Invoke());
+            UiKit.FitWidth(_secondaryLabel, 24);
+            var secondaryRect = (RectTransform)_secondaryLabel.transform.parent;
+            UiKit.Place(secondaryRect, new Vector2(1f, 0.5f), new Vector2(-350f, 70f), new Vector2(260f, 140f));
+            _secondary = secondaryRect.gameObject;
+            _secondary.SetActive(false);
         }
 
         public bool Visible
@@ -166,6 +214,88 @@ namespace Skyforge.UI
             bool show = !string.IsNullOrEmpty(label);
             if (_action.activeSelf != show) _action.SetActive(show);
             if (show && _actionLabel.text != label) _actionLabel.text = label;
+        }
+
+        /// <summary>Null or empty hides the second weapon button.</summary>
+        public void SetSecondary(string label)
+        {
+            bool show = !string.IsNullOrEmpty(label);
+            if (_secondary.activeSelf != show) _secondary.SetActive(show);
+            if (show && _secondaryLabel.text != label) _secondaryLabel.text = label;
+        }
+
+        /// <summary>The action button is bright when pressing it would do something, dull when it would not.</summary>
+        public void SetActionReady(bool ready)
+        {
+            Color wanted = ready ? UiKit.Accent : new Color(0.45f, 0.42f, 0.36f, 0.85f);
+            if (_actionImage.color != wanted) _actionImage.color = wanted;
+        }
+
+        /// <summary>
+        /// Marks what is left to destroy and frames the target the next rocket would go for.
+        /// </summary>
+        /// <param name="objective">The Destroy objective in progress, or null to hide everything.</param>
+        public void UpdateTargets(Camera camera, Skyforge.Core.MissionRun run, Skyforge.Core.MissionDefinition mission,
+            Skyforge.Core.ObjectiveDefinition objective)
+        {
+            int used = 0;
+            float scale = _canvas.scaleFactor;
+            if (run != null)
+            {
+                for (int i = 0; i < run.TargetCount && used < TargetMarks; i++)
+                {
+                    Skyforge.Core.TargetState target = run.Target(i);
+                    Skyforge.Core.TargetDefinition definition = mission.Targets[i];
+                    if (!target.Alive || i == run.LockedTarget) continue;
+                    // Red for what must die, pale for what merely shoots, green for what is ours.
+                    bool wanted = objective != null && objective.TargetIndices.Contains(i);
+                    if (!wanted && !definition.Friendly && !definition.Kind.Armed) continue;
+                    Vector3 point = camera.WorldToScreenPoint(target.Position + Vector3.up * (definition.Kind.Height + 2.5f));
+                    if (point.z <= 0f || point.x < 0f || point.x > Screen.width || point.y < 0f || point.y > Screen.height) continue;
+
+                    RectTransform mark = _marks[used];
+                    if (!mark.gameObject.activeSelf) mark.gameObject.SetActive(true);
+                    mark.anchoredPosition = new Vector2(point.x, point.y) / scale;
+                    Color color = definition.Friendly ? UiKit.Good : wanted ? UiKit.Bad : new Color(1f, 0.75f, 0.7f, 0.7f);
+                    if (_markImages[used].color != color) _markImages[used].color = color;
+                    used++;
+                }
+            }
+            for (int i = used; i < TargetMarks; i++)
+                if (_marks[i].gameObject.activeSelf) _marks[i].gameObject.SetActive(false);
+
+            int locked = run != null ? run.LockedTarget : -1;
+            bool show = locked >= 0;
+            if (show)
+            {
+                Skyforge.Core.TargetState target = run.Target(locked);
+                Vector3 point = camera.WorldToScreenPoint(target.Position + Vector3.up * 1.5f);
+                show = point.z > 0f;
+                if (show)
+                {
+                    _lock.anchoredPosition = new Vector2(point.x, point.y) / scale;
+                    Skyforge.Core.TargetKind kind = mission.Targets[locked].Kind;
+                    int health = Mathf.CeilToInt(target.Health / kind.Health * 100f);
+                    if (locked != _shownLock || health != _shownLockHealth)
+                    {
+                        _shownLock = locked;
+                        _shownLockHealth = health;
+                        _lockText.text = Loc.T(kind.NameKey) + "  " + health + "%";
+                    }
+                }
+            }
+            if (_lock.gameObject.activeSelf != show) _lock.gameObject.SetActive(show);
+        }
+
+        /// <param name="underFire">Rounds are hitting the drone right now.</param>
+        public void SetDamage(bool underFire, float deltaTime)
+        {
+            float wanted = underFire ? 0.16f + 0.08f * Mathf.Sin(Time.unscaledTime * 18f) : 0f;
+            _damageShown = Mathf.MoveTowards(_damageShown, wanted, deltaTime * 0.9f);
+            Color color = _damage.color;
+            if (Mathf.Abs(color.a - _damageShown) < 0.004f) return;
+            color.a = _damageShown;
+            _damage.color = color;
         }
 
         public void SetZoomLabel(string text) => _zoomLabel.text = text;

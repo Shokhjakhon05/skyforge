@@ -157,7 +157,7 @@ namespace Skyforge.UI
             body.Append("<color=").Append(UiKit.AccentHex).Append(">").Append(Loc.T("menu.stars")).Append("</color>  ");
             body.Append(Loc.T("star.complete")).Append("; ");
             body.Append(Loc.T("star.time", Format.Time(mission.TimeGoalSeconds))).Append("; ");
-            body.Append(Loc.T("star.no_damage")).Append(".\n");
+            body.Append(Loc.T(mission.StrikeDrones > 0 ? "star.spare" : mission.Targets.Count > 0 ? "star.hull" : "star.no_damage")).Append(".\n");
             body.Append(Loc.T("menu.reward", mission.BaseReward, mission.StarReward));
             if (locked) body.Append("\n<color=#F24D40>").Append(Loc.T("menu.locked")).Append("</color>");
             _body.text = body.ToString();
@@ -247,7 +247,32 @@ namespace Skyforge.UI
             close.text = Loc.T("settings.close");
             close.color = new Color(0.08f, 0.06f, 0.02f);
             UiKit.Place((RectTransform)close.transform.parent, new Vector2(0.5f, 0f), new Vector2(0f, 50f), new Vector2(460f, 110f));
+            // The authors of the 3D models, as their licences ask.
+            Text credits = UiKit.Button(p, "Credits", UiKit.Faint, 30, () => _credits.SetActive(true));
+            credits.text = Loc.T("settings.credits");
+            UiKit.Place((RectTransform)credits.transform.parent, new Vector2(1f, 0f), new Vector2(-60f, 50f), new Vector2(300f, 110f));
+
+            Image sheet = UiKit.Box(p, "CreditsSheet", UiKit.ModalColor);
+            UiKit.Stretch(sheet.rectTransform);
+            sheet.raycastTarget = true;
+            _credits = sheet.gameObject;
+            Text heading = UiKit.Label(sheet.transform, 48, TextAnchor.UpperLeft);
+            heading.text = Loc.T("credits.title");
+            UiKit.Place(heading.rectTransform, topLeft, new Vector2(60f, -36f), new Vector2(900f, 60f));
+            Text list = UiKit.Label(sheet.transform, 24, TextAnchor.UpperLeft, true);
+            list.fontStyle = FontStyle.Normal;
+            var names = Resources.Load<TextAsset>("credits");
+            list.text = Loc.T("credits.note") + "\n\n" + (names != null ? names.text.Replace("\n\"", "   \"").Replace(":\n", ":\n") : "");
+            UiKit.Place(list.rectTransform, topLeft, new Vector2(60f, -110f), new Vector2(1380f, 680f));
+            UiKit.FitWidth(list, 16);
+            Text back = UiKit.Button(sheet.transform, "Back", UiKit.Accent, 36, () => _credits.SetActive(false));
+            back.text = Loc.T("settings.close_short");
+            back.color = new Color(0.08f, 0.06f, 0.02f);
+            UiKit.Place((RectTransform)back.transform.parent, new Vector2(0.5f, 0f), new Vector2(0f, 40f), new Vector2(460f, 100f));
+            _credits.SetActive(false);
         }
+
+        GameObject _credits;
 
         public bool Visible
         {
@@ -270,6 +295,7 @@ namespace Skyforge.UI
                 _languageButtons[i].color = current ? UiKit.Accent : UiKit.Faint;
                 _languageLabels[i].color = current ? new Color(0.08f, 0.06f, 0.02f) : Color.white;
             }
+            _credits.SetActive(false);
             _fps.text = Loc.T(save.ShowFps ? "settings.fps_on" : "settings.fps_off");
             _sound.text = Loc.T(save.Muted ? "settings.sound_off" : "settings.sound_on");
             Visible = true;
@@ -370,7 +396,7 @@ namespace Skyforge.UI
                 _lines.text =
                     Mark(true) + Loc.T("result.completed") + "\n" +
                     Mark(outcome.TimeGoalMet) + Loc.T("result.time", time, goal) + "\n" +
-                    Mark(outcome.NoDamage) + Loc.T(outcome.NoDamage ? "result.undamaged" : "result.damaged") +
+                    Mark(outcome.NoDamage) + Loc.T(CleanKey(mission, outcome.NoDamage)) +
                     (string.IsNullOrEmpty(extra) ? "" : "\n<color=" + UiKit.AccentHex + ">" + extra + "</color>");
                 _reward.text = (outcome.PartsGranted > 0
                                    ? Loc.T("result.parts", outcome.CreditsGranted, outcome.PartsGranted)
@@ -384,6 +410,14 @@ namespace Skyforge.UI
                 _reward.text = "";
             }
             Visible = true;
+        }
+
+        /// <summary>The third star means something different when the mission was a fight.</summary>
+        static string CleanKey(MissionDefinition mission, bool earned)
+        {
+            if (mission.StrikeDrones > 0) return earned ? "result.spare_ok" : "result.spare_bad";
+            if (mission.Targets.Count > 0) return earned ? "result.hull_ok" : "result.hull_bad";
+            return earned ? "result.undamaged" : "result.damaged";
         }
 
         /// <summary>Earned and missed lines differ by a word as well as by colour.</summary>

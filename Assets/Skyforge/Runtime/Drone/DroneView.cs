@@ -34,6 +34,8 @@ namespace Skyforge.Drone
             _tilt = new GameObject("Tilt").transform;
             _tilt.SetParent(transform, false);
 
+            if (BuildFromModel(look)) return;
+
             float s = look.Scale;
             float reach = 0.62f * s * look.ArmReach;
             float length = 0.62f * s * look.BodyLength;
@@ -110,6 +112,26 @@ namespace Skyforge.Drone
             }
 
             _renderers = GetComponentsInChildren<Renderer>();
+        }
+
+        /// <summary>
+        /// The airframe as a baked 3D model, repainted in the drone's own colour, with the parts
+        /// named rotor0..N spinning. Returns false if the drone has no model or it failed to load.
+        /// </summary>
+        bool BuildFromModel(DroneLook look)
+        {
+            Model model = ModelLibrary.Get(look.Model);
+            if (model == null) return false;
+
+            var parts = new Dictionary<string, Transform>();
+            Transform body = model.Spawn(_tilt, model.Tinted(Palette.Color(look.BodyColor)), true, parts);
+            body.localScale = Vector3.one * look.Scale;
+            // The model's feet are at the depth the simulation rests on; scaling must not move them.
+            body.localPosition = new Vector3(0f, -FootDepth * (1f - look.Scale), 0f);
+            for (int i = 0; i < 8; i++)
+                if (parts.TryGetValue("rotor" + i, out Transform rotor)) _rotors.Add(rotor);
+            _renderers = GetComponentsInChildren<Renderer>();
+            return true;
         }
 
         /// <summary>Legs down to the ground, or two floats for a drone that lands on water.</summary>

@@ -124,6 +124,17 @@ namespace Skyforge.Tests
             // A strike is released from high up; under a radar that height would give the drone away.
             foreach (RegionDefinition region in RegionCatalog.All)
                 foreach (MissionDefinition mission in LoadAll(region, new List<string>()))
+                {
+                    // Targets are attacked from rocket height too, and that is above a radar's floor.
+                    foreach (TargetDefinition target in mission.Targets)
+                    {
+                        if (target.Path.Count >= 2) continue;
+                        foreach (ZoneDefinition zone in mission.Zones)
+                        {
+                            float dx = target.Position.x - zone.Position.x, dz = target.Position.z - zone.Position.z;
+                            Assert.Greater(Mathf.Sqrt(dx * dx + dz * dz), zone.Radius + 20f, mission.Id + ": target " + target.Id + " is inside a radar's circle");
+                        }
+                    }
                     foreach (ObjectiveDefinition objective in mission.Objectives)
                     {
                         if (objective.Type != ObjectiveType.Strike || !string.IsNullOrEmpty(objective.ActorId)) continue;
@@ -132,7 +143,7 @@ namespace Skyforge.Tests
                             float dx = objective.Position.x - zone.Position.x, dz = objective.Position.z - zone.Position.z;
                             Assert.Greater(Mathf.Sqrt(dx * dx + dz * dz), zone.Radius + 20f, mission.Id + ": the strike target is inside a radar's circle");
                         }
-                    }
+                    }                }
         }
 
         [Test]

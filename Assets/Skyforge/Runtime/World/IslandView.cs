@@ -46,7 +46,7 @@ namespace Skyforge.World
         {
             Material sea = GameMaterials.Water;
             CreateObject("Terrain", parent, BuildTerrainMesh(island.Map),
-                GameMaterials.LitTextured(BuildTerrainTexture(island.Map, TerrainPaint.For(island.Biome))), true);
+                GameMaterials.LitTextured(BuildTerrainTexture(island, TerrainPaint.For(island.Biome))), true);
             CreateObject("Sea", parent, BuildSeaMesh(), sea, false);
             CreateObject("Trees", parent, BuildTreesMesh(island), GameMaterials.PaletteLit, true);
             CreateObject("Pad", parent, BuildPadMesh(island), GameMaterials.PaletteLit, false);
@@ -96,8 +96,9 @@ namespace Skyforge.World
         }
 
         /// <summary>Paints sand, grass, rock and snow from height and steepness.</summary>
-        static Texture2D BuildTerrainTexture(HeightMap map, TerrainPaint paint)
+        static Texture2D BuildTerrainTexture(Island island, TerrainPaint paint)
         {
+            HeightMap map = island.Map;
             const int size = 1024;
             Color sandWet = paint.SandWet, sand = paint.Sand, grass = paint.Ground, grassDry = paint.GroundDry;
             Color rock = paint.Rock, snow = paint.Snow;
@@ -133,6 +134,7 @@ namespace Skyforge.World
                 color.a = 1f;
                 pixels[py * size + px] = color;
             }
+            PaintWar(island, pixels, size, paint);
 
             var texture = new Texture2D(size, size, TextureFormat.RGBA32, true)
             {
@@ -143,6 +145,76 @@ namespace Skyforge.World
             texture.SetPixels32(pixels);
             texture.Apply(true, true);
             return texture;
+        }
+
+        /// <summary>
+        /// Dirt roads, the trampled grey ground of the shelled villages, and the black of craters,
+        /// painted over the terrain colours. Each is gathered into a mask first, so that overlaps
+        /// do not darken twice.
+        /// </summary>
+        static void PaintWar(Island island, Color32[] pixels, int size, TerrainPaint paint)
+        {
+            HeightMap map = island.Map;
+            float metres = map.Size / size;
+            var road = new float[size * size];
+            var burn = new float[size * size];
+            var rim = new float[size * size];
+
+            void Stamp(float[] mask, float x, float z, float radius, float soft)
+            {
+                int cx = Mathf.RoundToInt((x + map.HalfSize) / metres - 0.5f), cy = Mathf.RoundToInt((z + map.HalfSize) / metres - 0.5f);
+                int reach = Mathf.CeilToInt((radius + soft) / metres);
+                for (int py = Mathf.Max(0, cy - reach); py <= Mathf.Min(size - 1, cy + reach); py++)
+                for (int px = Mathf.Max(0, cx - reach); px <= Mathf.Min(size - 1, cx + reach); px++)
+                {
+                    float dx = (px - cx) * metres, dz = (py - cy) * metres;
+                    float weight = Mathf.InverseLerp(radius + soft, radius, Mathf.Sqrt(dx * dx + dz * dz));
+                    int index = py * size + px;
+                    if (weight > mask[index]) mask[index] = weight;
+                }
+            }
+
+            foreach (RoadSpec segment in island.Roads)
+            {
+                Vector3 path = segment.To - segment.From;
+                int steps = Mathf.Max(1, Mathf.CeilToInt(path.magnitude / metres));
+                for (int i = 0; i <= steps; i++)
+                {
+                    Vector3 point = segment.From + path * (i / (float)steps);
+                    // A track wanders a little; it is not laid with a ruler.
+                    float sway = (Mathf.PerlinNoise(point.x * 0.01f + 5f, point.z * 0.01f + 9f) - 0.5f) * 14f;
+                    Vector3 side = new Vector3(-path.z, 0f, path.x).normalized * sway * Mathf.Sin(Mathf.PI * i / steps);
+                    Stamp(road, point.x + side.x, point.z + side.z, 2.4f, 2.6f);
+                }
+            }
+            foreach (Vector3 village in island.Villages) Stamp(road, village.x, village.z, 34f, 55f);
+            foreach (RuinSpec ruin in island.Ruins) Stamp(burn, ruin.Base.x, ruin.Base.z, ruin.Width * 0.6f, 7f);
+            foreach (WreckSpec wreck in island.Wrecks) Stamp(burn, wreck.Base.x, wreck.Base.z, 3.5f, 5f);
+            foreach (CraterSpec crater in island.Craters)
+            {
+                Stamp(burn, crater.X, crater.Z, crater.Radius * 0.75f, crater.Radius * 0.7f);
+                Stamp(rim, crater.X, crater.Z, crater.Radius * 1.5f, crater.Radius * 0.8f);
+            }
+
+            Color dirt = Color.Lerp(paint.GroundDry, new Color(0.34f, 0.28f, 0.21f), 0.65f);
+            Color thrown = Color.Lerp(paint.Sand, new Color(0.50f, 0.42f, 0.32f), 0.6f);
+            var soot = new Color(0.085f, 0.08f, 0.075f);
+            for (int py = 0; py < size; py++)
+            for (int px = 0; px < size; px++)
+            {
+                int index = py * size + px;
+                if (road[index] <= 0f && burn[index] <= 0f && rim[index] <= 0f) continue;
+                float x = -map.HalfSize + (px + 0.5f) * metres, z = -map.HalfSize + (py + 0.5f) * metres;
+                if (map.Height(x, z) < 0.6f) continue;
+                float grain = 0.88f + Mathf.PerlinNoise(x * 0.45f + 3f, z * 0.45f + 8f) * 0.24f;
+                Color color = pixels[index];
+                color = Color.Lerp(color, dirt * grain, road[index] * 0.8f);
+                // Earth thrown out of a crater lies in a paler ring around the black of it.
+                color = Color.Lerp(color, thrown * grain, rim[index] * (1f - burn[index]) * 0.7f);
+                color = Color.Lerp(color, soot * grain, burn[index] * 0.85f);
+                color.a = 1f;
+                pixels[index] = color;
+            }
         }
 
         static Mesh BuildSeaMesh()
@@ -167,6 +239,17 @@ namespace Skyforge.World
             for (int i = 0; i < island.Trees.Count; i++)
             {
                 TreeSpec tree = island.Trees[i];
+                if (tree.Burnt)
+                {
+                    // A black pole and two stubs of branch.
+                    float pole = tree.Height * 0.75f;
+                    builder.Cylinder(tree.Base - Vector3.up * 0.5f, tree.Radius * 0.15f, tree.Radius * 0.05f, pole + 0.5f, 5, Palette.Soot);
+                    Quaternion lean = Quaternion.Euler(0f, i * 73f, 52f);
+                    builder.Box(tree.Base + Vector3.up * pole * 0.55f + lean * Vector3.up * 0.9f, new Vector3(0.14f, 1.9f, 0.14f), lean, Palette.Soot);
+                    lean = Quaternion.Euler(0f, i * 73f + 160f, 44f);
+                    builder.Box(tree.Base + Vector3.up * pole * 0.72f + lean * Vector3.up * 0.7f, new Vector3(0.11f, 1.4f, 0.11f), lean, Palette.Soot);
+                    continue;
+                }
                 int leaf = i % 3 == 0 || island.Biome != Biome.Temperate ? Palette.LeafDark : Palette.Leaf;
                 float trunk = tree.Height * 0.25f;
                 builder.Cylinder(tree.Base - Vector3.up * 0.5f, tree.Radius * 0.16f, tree.Radius * 0.14f,
