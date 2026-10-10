@@ -130,6 +130,12 @@ namespace Skyforge.Core
         public string Mode = "campaign";
         /// <summary>For a generated operation: its title as text rather than as a key.</summary>
         public string Title, Brief;
+        /// <summary>For a generated operation: how hard it was made, and of which kind.</summary>
+        public int Level;
+        public OperationKind Kind;
+
+        public string TitleText => !string.IsNullOrEmpty(Title) ? Title : Loc.T(TitleKey);
+        public string BriefText => !string.IsNullOrEmpty(Brief) ? Brief : Loc.T(BriefKey);
 
         /// <summary>A copy whose lists can be changed without touching this definition.</summary>
         public MissionDefinition Copy()

@@ -94,9 +94,9 @@ namespace Skyforge.Core
                 new TargetKind { Id = "hunter", Health = 30f, Radius = 2.2f, Height = 2f, GunRange = 48f, GunDamage = 0.05f, Pursues = true, PursuitSpeed = 13f },
                 new TargetKind { Id = "fighter", Health = 70f, Radius = 4f, Height = 3f, GunRange = 85f, GunDamage = 0.07f, Pursues = true, PursuitSpeed = 21f },
                 // Big things that come apart.
-                new TargetKind { Id = "train_engine", Health = 300f, Radius = 6f, Height = 4f, Structure = true },
+                new TargetKind { Id = "train_engine", Health = 260f, Radius = 6f, Height = 4f },
                 new TargetKind { Id = "train_car", Health = 140f, Radius = 6f, Height = 4f, Blast = 14f },
-                new TargetKind { Id = "train_gun", Health = 170f, Radius = 6f, Height = 5f, GunRange = 110f, GunDamage = 0.085f },
+                new TargetKind { Id = "train_gun", Health = 150f, Radius = 6f, Height = 5f, GunRange = 95f, GunDamage = 0.07f },
                 new TargetKind { Id = "launcher", Health = 210f, Radius = 6f, Height = 5f, Blast = 20f },
                 new TargetKind { Id = "ship_turret", Health = 90f, Radius = 3f, Height = 3f, GunRange = 120f, GunDamage = 0.07f },
                 new TargetKind { Id = "bridge", Health = 380f, Radius = 10f, Height = 6f, Structure = true },
@@ -155,6 +155,8 @@ namespace Skyforge.Core
         /// <summary>Seconds of cover left to infantry that has gone to ground.</summary>
         public float Cover;
         public bool Alarmed;
+        /// <summary>Not in the fight yet: a later wave waiting for its cue, kept out of sight and out of reach.</summary>
+        public bool Dormant;
     }
 
     public enum ProjectileType
@@ -244,6 +246,8 @@ namespace Skyforge.Core
         /// <summary>Finishing with at least this much hull earns the third star in a combat mission.</summary>
         public const float CleanHull = 0.5f;
 
+        public const float DormantDepth = 5000f;
+
         TargetState[] _targets = new TargetState[0];
         readonly List<Projectile> _projectiles = new List<Projectile>();
         readonly List<CombatEvent> _events = new List<CombatEvent>();
@@ -313,6 +317,12 @@ namespace Skyforge.Core
             for (int i = 0; i < _targets.Length; i++)
             {
                 _targets[i] = PlaceTarget(definitions[i], -definitions[i].Delay * definitions[i].Speed);
+                // A later wave waits far below the map until the objective it belongs to begins.
+                if (definitions[i].StartObjective > 1 && definitions[i].Parent < 0)
+                {
+                    _targets[i].Dormant = true;
+                    _targets[i].Position.y -= DormantDepth;
+                }
                 _targets[i].Health = definitions[i].Kind.Health * (definitions[i].Friendly ? 1f : Definition.HealthScale);
                 _targets[i].Alive = true;
             }

@@ -71,6 +71,9 @@ namespace Skyforge.Core
         public bool friendly;
         /// <summary>Id of the friendly target this one attacks when it gets near.</summary>
         public string attacks;
+        /// <summary>Id of the target this one is mounted on; then <see cref="at"/> is not needed and ox, oy, oz place it on its parent.</summary>
+        public string parent;
+        public float ox, oy, oz;
     }
 
     [Serializable]
@@ -259,7 +262,23 @@ namespace Skyforge.Core
                     Delay = Mathf.Max(0f, target.delay), Loop = target.loop, Altitude = Mathf.Max(0f, target.altitude), Friendly = target.friendly,
                 };
                 bool placed;
-                if (target.path != null && target.path.Length > 0)
+                if (!string.IsNullOrEmpty(target.parent))
+                {
+                    // Mounted: it goes wherever its parent goes. The parent must come first in the file.
+                    if (targetIndex.TryGetValue(target.parent, out int parent))
+                    {
+                        definition.Parent = parent;
+                        definition.Offset = new Vector3(target.ox, target.oy, target.oz);
+                        definition.Position = mission.Targets[parent].Position;
+                        placed = true;
+                    }
+                    else
+                    {
+                        Error("target '" + target.id + "' is mounted on unknown target '" + target.parent + "'");
+                        placed = false;
+                    }
+                }
+                else if (target.path != null && target.path.Length > 0)
                 {
                     if (target.path.Length < 2) Error("target '" + target.id + "' needs a path of two or more points");
                     if (target.speed <= 0f) Error("target '" + target.id + "' moves and needs a positive speed");

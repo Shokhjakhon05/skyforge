@@ -468,5 +468,56 @@ namespace Skyforge.Tests
 
         [Test]
         public void RedrockCanBeFlownThrough() => PlayRegion(RegionCatalog.Get("redrock"));
+
+        [Test]
+        public void EveryKindOfOperationBuildsAtEveryLevelAndTheFirstLevelCanBeWonWithTheStarter()
+        {
+            var problems = new List<string>();
+            DroneSpec spec = DroneCatalog.Get(DroneCatalog.Starter).Spec;
+            foreach (RegionDefinition region in RegionCatalog.All)
+            {
+                Island island = Island.Generate(region.Seed, region.Biome);
+                for (int kind = 0; kind < Operations.KindCount; kind++)
+                foreach (int level in new[] { 1, 2, 9, 22, Operations.MaxLevel })
+                {
+                    string label = $"{region.Id} {(OperationKind)kind} L{level}";
+                    MissionDefinition mission = Operations.Contract(island, region.Id, 100 + kind * 7 + level, level, (OperationKind)kind);
+                    if (mission == null)
+                    {
+                        problems.Add(label + ": not built");
+                        continue;
+                    }
+                    Assert.IsTrue(mission.Reactive, label);
+                    Assert.AreEqual((OperationKind)kind, mission.Kind, label);
+                    if (level > 1) continue;
+                    var pilot = new Pilot(island, mission, spec);
+                    pilot.Fly();
+                    if (pilot.Run.Status != MissionStatus.Succeeded)
+                        problems.Add($"{label}: {pilot.Run.Status} {pilot.Run.FailReason} step {pilot.Run.ObjectiveIndex}/{mission.Objectives.Count} hull {pilot.Run.Hull * 100f:0}%");
+                }
+                Assert.IsNotNull(Operations.Survival(island, region.Id, 2), region.Id + " survival");
+                Assert.IsNotNull(Operations.Raid(island, region.Id, 5, 6), region.Id + " raid");
+                Assert.IsNotNull(Operations.Range(island, region.Id), region.Id + " range");
+                for (int sector = 0; sector < 12; sector++)
+                    Assert.IsNotNull(Operations.Contract(island, region.Id, 9 + sector, 4, null, sector), region.Id + " sector " + sector);
+            }
+            Assert.IsEmpty(problems, string.Join("\n", problems));
+        }
+
+        [Test]
+        public void TheSameSeedAndLevelAlwaysGiveTheSameContract()
+        {
+            RegionDefinition region = RegionCatalog.All[0];
+            Island island = Island.Generate(region.Seed, region.Biome);
+            MissionDefinition a = Operations.Contract(island, region.Id, 77, 6), b = Operations.Contract(island, region.Id, 77, 6);
+            Assert.AreEqual(a.Id, b.Id);
+            Assert.AreEqual(a.Targets.Count, b.Targets.Count);
+            for (int i = 0; i < a.Targets.Count; i++)
+            {
+                Assert.AreEqual(a.Targets[i].Kind.Id, b.Targets[i].Kind.Id);
+                Assert.AreEqual(a.Targets[i].Position, b.Targets[i].Position);
+            }
+            Assert.AreNotEqual(a.Id, Operations.Contract(island, region.Id, 78, 6).Id);
+        }
     }
 }

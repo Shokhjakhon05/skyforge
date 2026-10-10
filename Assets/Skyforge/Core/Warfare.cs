@@ -161,7 +161,25 @@ namespace Skyforge.Core
                 if (!_targets[i].Alive) continue;
                 TargetDefinition definition = Definition.Targets[i];
                 TargetKind kind = definition.Kind;
-                if (ObjectiveIndex >= definition.StartObjective) _targets[i].Clock += dt;
+                if (ObjectiveIndex >= definition.StartObjective)
+                {
+                    _targets[i].Clock += dt;
+                    if (_targets[i].Dormant)
+                    {
+                        // Its cue: up from below the map to where the mission put it.
+                        _targets[i].Dormant = false;
+                        if (definition.Path.Count < 2)
+                        {
+                            Vector3 at = OnGround(definition.Position);
+                            at.y += definition.Altitude;
+                            _targets[i].Position = at;
+                        }
+                    }
+                }
+                else if (_targets[i].Dormant)
+                {
+                    continue;
+                }
                 if (_targets[i].Cover > 0f) _targets[i].Cover -= dt;
 
                 if (definition.Parent >= 0)
