@@ -1,0 +1,105 @@
+{
+  "id": "hold_the_line",
+  "region": "arvelia",
+  "order": 11,
+  "template": "defend",
+  "weather": "overcast",
+  "timeGoal": 230,
+  "baseReward": 420,
+  "starReward": 110,
+  "targets": [
+    {
+      "id": "outpost",
+      "kind": "outpost",
+      "at": {
+        "anchor": "pad",
+        "dx": 62,
+        "dz": 34
+      },
+      "friendly": true
+    },
+    {
+      "id": "raider1",
+      "kind": "jeep",
+      "path": [
+        {
+          "anchor": "coast6"
+        },
+        {
+          "anchor": "poi10"
+        },
+        {
+          "anchor": "pad",
+          "dx": 100,
+          "dz": 70
+        }
+      ],
+      "speed": 7,
+      "startObjective": 1,
+      "attacks": "outpost"
+    },
+    {
+      "id": "raider2",
+      "kind": "jeep",
+      "path": [
+        {
+          "anchor": "coast6"
+        },
+        {
+          "anchor": "poi10"
+        },
+        {
+          "anchor": "pad",
+          "dx": 100,
+          "dz": 70
+        }
+      ],
+      "speed": 7,
+      "startObjective": 1,
+      "delay": 9,
+      "attacks": "outpost"
+    },
+    {
+      "id": "raider3",
+      "kind": "apc",
+      "path": [
+        {
+          "anchor": "coast6"
+        },
+        {
+          "anchor": "poi10"
+        },
+        {
+          "anchor": "pad",
+          "dx": 100,
+          "dz": 70
+        }
+      ],
+      "speed": 6,
+      "startObjective": 1,
+      "delay": 20,
+      "attacks": "outpost"
+    }
+  ],
+  "objectives": [
+    {
+      "type": "takeoff"
+    },
+    {
+      "type": "destroy",
+      "targets": [
+        "raider1",
+        "raider2",
+        "raider3"
+      ],
+      "text": "objective.defend"
+    },
+    {
+      "type": "land",
+      "at": {
+        "anchor": "pad"
+      },
+      "radius": 8
+    }
+  ]
+}

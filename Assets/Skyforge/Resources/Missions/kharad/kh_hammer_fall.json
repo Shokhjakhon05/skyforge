@@ -1,0 +1,75 @@
+{
+  "id": "kh_hammer_fall",
+  "region": "kharad",
+  "order": 10,
+  "template": "demolition",
+  "weather": "clear",
+  "timeGoal": 380,
+  "baseReward": 570,
+  "starReward": 150,
+  "targets": [
+    {
+      "id": "hq",
+      "kind": "hq",
+      "at": {
+        "anchor": "poi7"
+      }
+    },
+    {
+      "id": "depot",
+      "kind": "depot",
+      "at": {
+        "anchor": "poi7",
+        "dx": 24,
+        "dz": -6
+      }
+    },
+    {
+      "id": "squad",
+      "kind": "squad",
+      "at": {
+        "anchor": "poi7",
+        "dx": -14,
+        "dz": 12
+      }
+    },
+    {
+      "id": "gun",
+      "kind": "gatling",
+      "at": {
+        "anchor": "poi7",
+        "dx": -6,
+        "dz": -20
+      }
+    },
+    {
+      "id": "bunker",
+      "kind": "bunker",
+      "at": {
+        "anchor": "poi7",
+        "dx": 10,
+        "dz": 20
+      }
+    }
+  ],
+  "objectives": [
+    {
+      "type": "takeoff"
+    },
+    {
+      "type": "destroy",
+      "targets": [
+        "hq",
+        "depot"
+      ],
+      "text": "objective.destroy_hq"
+    },
+    {
+      "type": "land",
+      "at": {
+        "anchor": "pad"
+      },
+      "radius": 8
+    }
+  ]
+}

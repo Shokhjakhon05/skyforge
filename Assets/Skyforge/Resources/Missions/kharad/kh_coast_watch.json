@@ -1,25 +1,45 @@
 {
   "id": "kh_coast_watch",
   "region": "kharad",
-  "order": 2,
+  "order": 3,
   "template": "recon",
   "weather": "clear",
-  "timeGoal": 150,
-  "baseReward": 270,
+  "timeGoal": 170,
+  "baseReward": 320,
   "starReward": 90,
   "props": [
     {
       "id": "camp",
       "kind": "camp",
       "at": {
-        "anchor": "poi1"
+        "anchor": "poi10"
+      }
+    }
+  ],
+  "targets": [
+    {
+      "id": "boat1",
+      "kind": "boat",
+      "at": {
+        "anchor": "sea3"
       }
     },
     {
-      "id": "boat",
+      "id": "boat2",
       "kind": "boat",
       "at": {
-        "anchor": "sea0"
+        "anchor": "sea3",
+        "dx": 34,
+        "dz": 22
+      }
+    },
+    {
+      "id": "squad",
+      "kind": "squad",
+      "at": {
+        "anchor": "poi10",
+        "dx": 12,
+        "dz": 8
       }
     }
   ],
@@ -30,14 +50,16 @@
     {
       "type": "observe",
       "target": "camp",
-      "range": 90,
+      "range": 100,
       "hold": 4
     },
     {
-      "type": "observe",
-      "target": "boat",
-      "range": 110,
-      "hold": 4
+      "type": "destroy",
+      "targets": [
+        "boat1",
+        "boat2"
+      ],
+      "text": "objective.destroy_boats"
     },
     {
       "type": "land",

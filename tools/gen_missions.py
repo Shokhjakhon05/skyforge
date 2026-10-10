@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Writes the campaign's mission files.
 
-The three regions share fifteen mission patterns; what changes is where on the island each
-one happens, the weather, the pay and the clock. Edit the tables below and run from the
-repository root:  python3 tools/gen_missions.py
+The three regions share fifteen mission patterns, twelve of them combat. What changes from
+region to region is how much the enemy brings (the tier), the weather, the pay and the clock.
+The inland anchors sit at the same angles on every island, so the same places serve all three.
+Edit the tables below and run from the repository root:  python3 tools/gen_missions.py
 """
 import json
 import os
@@ -30,130 +31,211 @@ def scan(anchor, dy=18, radius=12, height=14, hold=3, text=None):
     return objective
 
 
-# Per region: a short prefix for mission ids, a pay multiplier, and where each pattern happens.
+def target(tid, kind, anchor, dx=0, dz=0, **extra):
+    entry = {"id": tid, "kind": kind, "at": at(anchor, dx=dx, dz=dz)}
+    entry.update(extra)
+    return entry
+
+
+def mover(tid, kind, path, speed, delay=0, **extra):
+    """A target that drives a route; `delay` seconds after its cue it sets off, which spaces a column out."""
+    entry = {"id": tid, "kind": kind, "path": [at(*p) if isinstance(p, tuple) else at(p) for p in path], "speed": speed,
+             "startObjective": 1}
+    if delay:
+        entry["delay"] = delay
+    entry.update(extra)
+    return entry
+
+
+def destroy(targets, text=None):
+    objective = {"type": "destroy", "targets": [t["id"] if isinstance(t, dict) else t for t in targets]}
+    if text:
+        objective["text"] = text
+    return objective
+
+
+# Per region: a prefix for mission ids, how hard the enemy is (0..2), pay and clock multipliers.
 REGIONS = {
     "arvelia": dict(
-        prefix="", pay=1.0,
-        scan=["beacon0", "beacon1", "beacon2"], camp="poi10", boat="sea3",
-        photo=["poi0", "poi1", "poi9", "coast7"], drop="poi4", source="poi7",
-        relay="poi5", radars=["poi3", "poi6"], tail=["coast7", "coast0", "coast1"],
-        van="poi2", convoy=["coast6", "poi10", "poi11"], storm=["poi0", "poi10"],
-        night=["poi1", "poi9"], mover=["coast0", "coast1"], haul="poi8",
-        special=dict(radars=["poi3", "poi6"], papers="poi4", van="poi2"),
-        weather=dict(scan="clear", recon="sunset", photo="clear", race="overcast", delivery="overcast",
-                     search="fog", stealth="sunset", tail="overcast", strike="dust", escort="rain",
-                     storm="storm", night="night", mover="clear", haul="rain", special="sunset"),
+        prefix="", tier=0, pay=1.0,
+        weather=dict(first_strike="clear", convoy="overcast", recon="sunset", hunt="clear", race="overcast",
+                     kamikaze="dust", delivery="overcast", sead="sunset", stealth="sunset", demolition="rain",
+                     defend="overcast", airfield="night", eliminate="clear", naval="rain", special="sunset"),
     ),
     "kharad": dict(
-        prefix="kh_", pay=1.5,
-        scan=["beacon0", "beacon2", "beacon1"], camp="poi1", boat="sea0",
-        photo=["poi11", "poi10", "poi2", "coast0"], drop="poi8", source="poi4",
-        relay="poi6", radars=["poi0", "poi9"], tail=["coast0", "coast7", "coast6"],
-        van="poi3", convoy=["coast1", "poi1", "poi0"], storm=["poi11", "poi1"],
-        night=["poi10", "poi2"], mover=["coast7", "coast6"], haul="poi7",
-        special=dict(radars=["poi0", "poi9"], papers="poi10", van="poi3"),
-        weather=dict(scan="clear", recon="clear", photo="sunset", race="sunset", delivery="clear",
-                     search="dust", stealth="night", tail="sunset", strike="clear", escort="dust",
-                     storm="dust", night="night", mover="sunset", haul="clear", special="night"),
+        prefix="kh_", tier=1, pay=1.5,
+        weather=dict(first_strike="clear", convoy="sunset", recon="clear", hunt="dust", race="sunset",
+                     kamikaze="clear", delivery="clear", sead="dust", stealth="night", demolition="clear",
+                     defend="dust", airfield="night", eliminate="sunset", naval="clear", special="night"),
     ),
     "nordheim": dict(
         # Steep ground: the radars sit higher so there is room to fly under them.
-        prefix="nh_", pay=2.2, clock=1.25, floor=38,
-        scan=["beacon1", "beacon0", "beacon2"], camp="poi0", boat="sea3",
-        photo=["poi10", "poi11", "poi9", "coast7"], drop="poi6", source="poi8",
-        relay="poi5", radars=["poi3", "poi6"], tail=["coast7", "coast0", "coast1"],
-        van="poi9", convoy=["coast6", "poi10", "poi11"], storm=["poi10", "poi0"],
-        night=["poi0", "poi2"], mover=["coast1", "coast0"], haul="poi4",
-        special=dict(radars=["poi3", "poi6"], papers="poi4", van="poi11"),
-        weather=dict(scan="snow", recon="overcast", photo="snow", race="overcast", delivery="snow",
-                     search="fog", stealth="night", tail="snow", strike="overcast", escort="snow",
-                     storm="storm", night="night", mover="overcast", haul="snow", special="night"),
+        prefix="nh_", tier=2, pay=2.2, clock=1.25, floor=38,
+        weather=dict(first_strike="snow", convoy="overcast", recon="overcast", hunt="snow", race="overcast",
+                     kamikaze="overcast", delivery="snow", sead="fog", stealth="night", demolition="snow",
+                     defend="storm", airfield="night", eliminate="overcast", naval="storm", special="night"),
     ),
 }
 
 # (pattern, id, template, time goal, base reward, star reward)
 PATTERNS = [
-    ("scan", "first_contact", "scan", 240, 150, 50),
-    ("recon", "coast_watch", "recon", 150, 180, 60),
-    ("photo", "evidence", "photo", 200, 200, 60),
-    ("race", "sprint", "race", 210, 220, 70),
-    ("delivery", "supply_run", "delivery", 240, 240, 70),
-    ("search", "lost_signal", "search", 260, 260, 80),
-    ("stealth", "silent_path", "stealth", 300, 300, 90),
-    ("tail", "shadow", "tail", 150, 320, 90),
-    ("strike", "clean_strike", "strike", 200, 350, 100),
-    ("escort", "safe_passage", "escort", 220, 380, 100),
-    ("storm", "storm_front", "storm", 170, 420, 110),
-    ("night", "night_watch", "recon", 200, 440, 110),
-    ("mover", "moving_target", "strike", 270, 470, 120),
-    ("haul", "long_haul", "delivery", 300, 500, 120),
-    ("special", "broken_arrow", "special", 360, 650, 150),
+    ("first_strike", "first_strike", "assault", 100, 150, 50),
+    ("convoy", "convoy_ambush", "convoy", 200, 190, 60),
+    ("recon", "coast_watch", "recon", 150, 210, 60),
+    ("hunt", "tank_hunt", "hunt", 220, 240, 70),
+    ("race", "sprint", "race", 270, 240, 70),
+    ("kamikaze", "fpv_strike", "kamikaze", 130, 270, 80),
+    ("delivery", "supply_run", "delivery", 240, 280, 80),
+    ("sead", "blind_them", "sead", 160, 320, 90),
+    ("stealth", "silent_path", "stealth", 340, 340, 90),
+    ("demolition", "hammer_fall", "demolition", 340, 380, 100),
+    ("defend", "hold_the_line", "defend", 230, 420, 110),
+    ("airfield", "night_raid", "airfield", 240, 450, 110),
+    ("eliminate", "headhunter", "eliminate", 120, 480, 120),
+    ("naval", "iron_tide", "naval", 180, 520, 120),
+    ("special", "broken_arrow", "special", 420, 680, 150),
 ]
+
+SOFT = ["truck", "truck_army", "truck_army"]
+SCOUT = ["jeep", "humvee", "humvee"]
+ARMOUR = ["tank_light", "tank", "tank_heavy"]
 
 
 def build(pattern, r):
     """Returns the parts of a mission that depend on the pattern."""
-    if pattern == "scan":
-        return dict(objectives=[TAKEOFF] + [scan(b) for b in r["scan"]] + [HOME])
+    tier = r["tier"]
+    floor = r.get("floor", 26)
+
+    if pattern == "first_strike":
+        # The opening minute: an unguarded supply point a short hop from the pad.
+        targets = [target("truck1", "truck", "poi0", dx=-9), target("truck2", "truck_cargo", "poi0", dx=9, dz=4),
+                   target("fuel", "truck_fuel", "poi0", dz=-12)]
+        if tier >= 1:
+            targets.append(target("guard", "jeep", "poi0", dx=-16, dz=12))
+        if tier >= 2:
+            targets.append(target("tents", "tent", "poi0", dx=16, dz=-14))
+        return dict(targets=targets, props=[{"id": "bags", "kind": "sandbags", "at": at("poi0", dx=3, dz=14)},
+                                            {"id": "drums", "kind": "barrels", "at": at("poi0", dx=-4, dz=-20)}],
+                    objectives=[TAKEOFF, destroy(targets, "objective.destroy_supply"), HOME])
+
+    if pattern == "convoy":
+        road = ["coast6", "coast7", "coast0", "coast1"]
+        column = [mover("lead", SCOUT[tier], road, 4.5), mover("truck1", SOFT[tier], road, 4.5, delay=5),
+                  mover("truck2", "truck_cargo", road, 4.5, delay=10), mover("fuel", "truck_fuel", road, 4.5, delay=15)]
+        if tier >= 1:
+            column.append(mover("apc", "apc", road, 4.5, delay=20))
+        if tier >= 2:
+            column.append(mover("tank", "tank_light", road, 4.5, delay=25))
+        return dict(targets=column, objectives=[TAKEOFF, destroy(column, "objective.destroy_convoy"), HOME])
+
     if pattern == "recon":
-        return dict(
-            props=[{"id": "camp", "kind": "camp", "at": at(r["camp"])}, {"id": "boat", "kind": "boat", "at": at(r["boat"])}],
-            objectives=[TAKEOFF, {"type": "observe", "target": "camp", "range": 90, "hold": 4},
-                        {"type": "observe", "target": "boat", "range": 110, "hold": 4}, HOME])
-    if pattern == "photo":
-        kinds = ["crates", "vehicle", "antenna", "transmitter"]
-        props = [{"id": "item%d" % i, "kind": kinds[i], "at": at(a)} for i, a in enumerate(r["photo"])]
-        return dict(props=props, objectives=[TAKEOFF] + [{"type": "photo", "target": p["id"], "range": 45} for p in props] + [HOME])
+        boats = [target("boat1", "boat", "sea3"), target("boat2", "boat", "sea3", dx=34, dz=22)]
+        if tier >= 2:
+            boats.append(target("boat3", "boat", "sea3", dx=-30, dz=30))
+        guards = [target("squad", "squad", "poi10", dx=12, dz=8)] if tier >= 1 else []
+        return dict(props=[{"id": "camp", "kind": "camp", "at": at("poi10")}], targets=boats + guards,
+                    objectives=[TAKEOFF, {"type": "observe", "target": "camp", "range": 100, "hold": 4},
+                                destroy(boats, "objective.destroy_boats"), HOME])
+
+    if pattern == "hunt":
+        tanks = [target("tank1", "tank_light", "poi1", dx=-12, dz=6), target("tank2", ARMOUR[min(2, tier + 1)], "poi1", dx=10, dz=-8)]
+        if tier >= 1:
+            tanks.append(target("tank3", "tank", "poi1", dx=2, dz=18))
+        if tier >= 2:
+            tanks.append(target("tank4", "tank_heavy", "poi1", dx=-18, dz=-14))
+        return dict(targets=tanks, props=[{"id": "bags", "kind": "sandbags", "at": at("poi1", dx=18, dz=10)}],
+                    objectives=[TAKEOFF, destroy(tanks, "objective.destroy_armour"), HOME])
+
     if pattern == "race":
         gates = [{"type": "reach", "at": at("ring%d" % i), "radius": 7, "gate": True} for i in range(10)]
         return dict(objectives=[TAKEOFF] + gates + [HOME])
+
+    if pattern == "kamikaze":
+        # Each strike drone is one hit; there is one more of them than there are things to hit.
+        marks = [target("heavy", "tank_heavy", "poi9", dx=-8), target("bunker", "bunker", "poi9", dx=12, dz=8)]
+        # Nothing here outranges a rifle: a strike drone has no armour to get through air defence with.
+        if tier >= 1:
+            marks.append(target("howitzer", "artillery", "poi9", dx=-4, dz=-18))
+        if tier >= 2:
+            marks.append(target("tank", "tank", "poi9", dx=18, dz=-10))
+        guards = [target("squad", "squad", "poi9", dx=2, dz=20)]
+        return dict(strikeDrones=len(marks) + 1, targets=marks + guards,
+                    objectives=[TAKEOFF, destroy(marks, "objective.destroy_kamikaze")])
+
     if pattern == "delivery":
-        return dict(payload=0.7, props=[{"id": "dropzone", "kind": "pad", "at": at(r["drop"])}],
+        return dict(payload=0.7, props=[{"id": "dropzone", "kind": "pad", "at": at("poi4")},
+                                        {"id": "tent", "kind": "tent", "at": at("poi4", dx=14, dz=6)}],
                     objectives=[TAKEOFF, {"type": "land", "text": "objective.deliver", "target": "dropzone", "radius": 6},
                                 {"type": "takeoff", "text": "objective.takeoff_again"}, HOME])
-    if pattern == "search":
-        return dict(props=[{"id": "source", "kind": "transmitter", "at": at(r["source"])}],
-                    objectives=[TAKEOFF, {"type": "find", "target": "source", "radius": 16, "range": 700},
-                                scan(r["source"], dy=10, radius=10, height=10, text="objective.scan_source"), HOME])
+
+    if pattern == "sead":
+        guns = [target("radar", "radar", "poi3"), target("gun1", "aagun", "poi3", dx=-16, dz=8),
+                target("gun2", "gatling", "poi3", dx=14, dz=-12)]
+        if tier >= 1:
+            guns.append(target("sam", "sam", "poi3", dx=6, dz=20))
+        if tier >= 2:
+            guns.append(target("gun3", "aagun", "poi3", dx=-10, dz=-22))
+        return dict(targets=guns, props=[{"id": "bags", "kind": "sandbags", "at": at("poi3", dx=-16, dz=14)}],
+                    objectives=[TAKEOFF, destroy(guns, "objective.destroy_airdefence"), HOME])
+
     if pattern == "stealth":
-        return dict(props=[{"id": "relay", "kind": "antenna", "at": at(r["relay"])}],
-                    zones=[{"at": at(a), "radius": 170, "floor": r.get("floor", 26)} for a in r["radars"]],
-                    objectives=[TAKEOFF, scan(r["relay"], hold=4, text="objective.scan_relay"), HOME])
-    if pattern == "tail":
-        return dict(actors=[{"id": "courier", "kind": "truck", "path": [at(a) for a in r["tail"]], "speed": 7,
-                             "startObjective": 1, "detectRange": 28}],
-                    objectives=[TAKEOFF, {"type": "follow", "target": "courier", "min": 35, "max": 110, "hold": 45}, HOME])
-    if pattern == "strike":
-        return dict(props=[{"id": "command_van", "kind": "vehicle", "at": at(r["van"])}],
-                    objectives=[TAKEOFF, {"type": "strike", "target": "command_van", "radius": 7, "minAltitude": 40, "shots": 1}, HOME])
-    if pattern == "escort":
-        a, b, c = r["convoy"]
-        return dict(props=[{"id": "ambush1", "kind": "threat", "at": at(b, dz=6)}, {"id": "ambush2", "kind": "threat", "at": at(c, dz=6)}],
-                    actors=[{"id": "convoy", "kind": "truck", "path": [at(a), at(b), at(c), at("pad", dx=45)], "speed": 5, "startObjective": 1}],
-                    objectives=[TAKEOFF, {"type": "mark", "targets": ["ambush1", "ambush2"], "actor": "convoy", "range": 80, "hold": 3},
-                                {"type": "arrive", "actor": "convoy"}, HOME])
-    if pattern == "storm":
-        gates = [{"type": "reach", "at": at(a, dy=20), "radius": 14, "gate": True} for a in r["storm"]]
-        return dict(batteryStart=0.6, objectives=[TAKEOFF] + gates + [HOME])
-    if pattern == "night":
-        a, b = r["night"]
-        return dict(props=[{"id": "camp", "kind": "camp", "at": at(a)}, {"id": "cache", "kind": "crates", "at": at(b)}],
-                    objectives=[TAKEOFF, {"type": "observe", "target": "camp", "range": 110, "hold": 4},
-                                {"type": "photo", "target": "cache", "range": 70}, HOME])
-    if pattern == "mover":
-        return dict(actors=[{"id": "runner", "kind": "car", "path": [at(a) for a in r["mover"]], "speed": 3, "startObjective": 1}],
-                    objectives=[TAKEOFF, {"type": "strike", "text": "objective.strike_moving", "target": "runner",
-                                          "radius": 9, "minAltitude": 35, "shots": 2}, HOME])
-    if pattern == "haul":
-        return dict(payload=1.0, props=[{"id": "outpost", "kind": "pad", "at": at(r["haul"])}],
-                    objectives=[TAKEOFF, {"type": "land", "text": "objective.deliver", "target": "outpost", "radius": 6},
-                                {"type": "takeoff", "text": "objective.takeoff_again"}, HOME])
+        return dict(props=[{"id": "relay", "kind": "antenna", "at": at("poi5")}],
+                    zones=[{"at": at(a), "radius": 170, "floor": floor} for a in ("poi3", "poi6")],
+                    objectives=[TAKEOFF, scan("poi5", hold=4, text="objective.scan_relay"), HOME])
+
+    if pattern == "demolition":
+        marks = [target("hq", "hq", "poi7"), target("depot", "depot", "poi7", dx=24, dz=-6)]
+        guards = [target("squad", "squad", "poi7", dx=-14, dz=12), target("gun", "gatling", "poi7", dx=-6, dz=-20)]
+        if tier >= 1:
+            guards.append(target("bunker", "bunker", "poi7", dx=10, dz=20))
+        if tier >= 2:
+            guards.append(target("tank", "tank", "poi7", dx=-22, dz=-4))
+        return dict(targets=marks + guards, objectives=[TAKEOFF, destroy(marks, "objective.destroy_hq"), HOME])
+
+    if pattern == "defend":
+        base = target("outpost", "outpost", "pad", dx=62, dz=34, friendly=True)
+        road = ["coast6", "poi10", ("pad", 100, 0, 70)]
+        wave = [mover("raider1", "jeep", road, 7, attacks="outpost"), mover("raider2", SCOUT[tier], road, 7, delay=9, attacks="outpost"),
+                mover("raider3", "apc", road, 6, delay=20, attacks="outpost")]
+        if tier >= 1:
+            wave.append(mover("raider4", "tank_light", road, 5.5, delay=30, attacks="outpost"))
+        if tier >= 2:
+            wave.append(mover("raider5", "tank", road, 5.5, delay=42, attacks="outpost"))
+        return dict(targets=[base] + wave, objectives=[TAKEOFF, destroy(wave, "objective.defend"), HOME])
+
+    if pattern == "airfield":
+        parked = [target("heli1", "heli", "poi2", dx=-14), target("heli2", "heli_transport", "poi2", dx=12, dz=10),
+                  target("fuel", "truck_fuel", "poi2", dx=2, dz=-18)]
+        if tier >= 1:
+            parked.append(target("heli3", "heli", "poi2", dx=-6, dz=22))
+        guards = [target("gun", "gatling", "poi2", dx=24, dz=-8)]
+        if tier >= 2:
+            guards.append(target("gun2", "aagun", "poi2", dx=-24, dz=-12))
+        return dict(targets=parked + guards, objectives=[TAKEOFF, destroy(parked, "objective.destroy_airfield"), HOME])
+
+    if pattern == "eliminate":
+        road = ["coast1", "poi2", "poi1", "coast0"]
+        escort = [mover("escort1", SCOUT[tier], road, 7), mover("escort2", "apc" if tier else "jeep", road, 7, delay=10)]
+        if tier >= 2:
+            escort.append(mover("escort3", "tank_light", road, 7, delay=15))
+        commander = mover("commander", "staff_car", road, 7, delay=5)
+        return dict(targets=[commander] + escort, objectives=[TAKEOFF, destroy([commander], "objective.eliminate"), HOME])
+
+    if pattern == "naval":
+        ship = target("ship", "warship", "sea0")
+        boats = [target("boat1", "boat", "sea0", dx=-46, dz=30), target("boat2", "boat", "sea0", dx=44, dz=-34)]
+        if tier >= 2:
+            boats.append(target("boat3", "boat", "sea0", dx=10, dz=60))
+        return dict(targets=[ship] + boats, objectives=[TAKEOFF, destroy([ship] + boats, "objective.destroy_fleet"), HOME])
+
     if pattern == "special":
-        s = r["special"]
-        return dict(props=[{"id": "papers", "kind": "crates", "at": at(s["papers"])}, {"id": "command_van", "kind": "vehicle", "at": at(s["van"])}],
-                    zones=[{"at": at(a), "radius": 170, "floor": r.get("floor", 26)} for a in s["radars"]],
+        marks = [target("sam", "sam", "poi2", dx=-16, dz=10), target("hq", "hq", "poi2", dx=6), target("tank", ARMOUR[tier], "poi2", dx=-4, dz=-20)]
+        guards = [target("gun", "gatling", "poi2", dx=22, dz=14)] if tier >= 1 else []
+        return dict(props=[{"id": "papers", "kind": "crates", "at": at("poi4")}],
+                    zones=[{"at": at(a), "radius": 170, "floor": floor} for a in ("poi3", "poi6")],
+                    targets=marks + guards,
                     objectives=[TAKEOFF, {"type": "photo", "target": "papers", "range": 45},
-                                {"type": "strike", "target": "command_van", "radius": 7, "minAltitude": 40, "shots": 1}, HOME])
+                                destroy(marks, "objective.destroy_final"), HOME])
     raise ValueError(pattern)
 
 
@@ -163,7 +245,7 @@ def main():
         folder = os.path.join(OUT, region)
         os.makedirs(folder, exist_ok=True)
         for name in os.listdir(folder):
-            if name.endswith(".json"):
+            if name.endswith(".json") or name.endswith(".json.meta"):
                 os.remove(os.path.join(folder, name))
         for order, (pattern, name, template, goal, base, star) in enumerate(PATTERNS, start=1):
             mission = {
@@ -172,8 +254,8 @@ def main():
                 "order": order,
                 "template": template,
                 "weather": r["weather"][pattern],
-                # Mountains make every route longer: a region may stretch the clock.
-                "timeGoal": int(round(goal * r.get("clock", 1.0) / 10.0)) * 10,
+                # Mountains make every route longer, and a stronger enemy takes longer to beat.
+                "timeGoal": int(round(goal * r.get("clock", 1.0) * (1.0 + 0.12 * r["tier"]) / 10.0)) * 10,
                 "baseReward": int(round(base * r["pay"] / 10.0)) * 10,
                 "starReward": int(round(star * r["pay"] / 10.0)) * 10,
             }

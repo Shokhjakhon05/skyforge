@@ -1,19 +1,28 @@
 {
   "id": "nh_supply_run",
   "region": "nordheim",
-  "order": 5,
+  "order": 7,
   "template": "delivery",
   "weather": "snow",
-  "timeGoal": 300,
-  "baseReward": 530,
-  "starReward": 150,
+  "timeGoal": 370,
+  "baseReward": 620,
+  "starReward": 180,
   "payload": 0.7,
   "props": [
     {
       "id": "dropzone",
       "kind": "pad",
       "at": {
-        "anchor": "poi6"
+        "anchor": "poi4"
+      }
+    },
+    {
+      "id": "tent",
+      "kind": "tent",
+      "at": {
+        "anchor": "poi4",
+        "dx": 14,
+        "dz": 6
       }
     }
   ],

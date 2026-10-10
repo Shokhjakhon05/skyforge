@@ -1,0 +1,93 @@
+{
+  "id": "headhunter",
+  "region": "arvelia",
+  "order": 13,
+  "template": "eliminate",
+  "weather": "clear",
+  "timeGoal": 120,
+  "baseReward": 480,
+  "starReward": 120,
+  "targets": [
+    {
+      "id": "commander",
+      "kind": "staff_car",
+      "path": [
+        {
+          "anchor": "coast1"
+        },
+        {
+          "anchor": "poi2"
+        },
+        {
+          "anchor": "poi1"
+        },
+        {
+          "anchor": "coast0"
+        }
+      ],
+      "speed": 7,
+      "startObjective": 1,
+      "delay": 5
+    },
+    {
+      "id": "escort1",
+      "kind": "jeep",
+      "path": [
+        {
+          "anchor": "coast1"
+        },
+        {
+          "anchor": "poi2"
+        },
+        {
+          "anchor": "poi1"
+        },
+        {
+          "anchor": "coast0"
+        }
+      ],
+      "speed": 7,
+      "startObjective": 1
+    },
+    {
+      "id": "escort2",
+      "kind": "jeep",
+      "path": [
+        {
+          "anchor": "coast1"
+        },
+        {
+          "anchor": "poi2"
+        },
+        {
+          "anchor": "poi1"
+        },
+        {
+          "anchor": "coast0"
+        }
+      ],
+      "speed": 7,
+      "startObjective": 1,
+      "delay": 10
+    }
+  ],
+  "objectives": [
+    {
+      "type": "takeoff"
+    },
+    {
+      "type": "destroy",
+      "targets": [
+        "commander"
+      ],
+      "text": "objective.eliminate"
+    },
+    {
+      "type": "land",
+      "at": {
+        "anchor": "pad"
+      },
+      "radius": 8
+    }
+  ]
+}

@@ -1,11 +1,11 @@
 {
   "id": "nh_silent_path",
   "region": "nordheim",
-  "order": 7,
+  "order": 9,
   "template": "stealth",
   "weather": "night",
-  "timeGoal": 380,
-  "baseReward": 660,
+  "timeGoal": 530,
+  "baseReward": 750,
   "starReward": 200,
   "props": [
     {

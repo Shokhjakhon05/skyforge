@@ -4,8 +4,8 @@
   "order": 15,
   "template": "special",
   "weather": "night",
-  "timeGoal": 450,
-  "baseReward": 1430,
+  "timeGoal": 650,
+  "baseReward": 1500,
   "starReward": 330,
   "props": [
     {
@@ -13,13 +13,6 @@
       "kind": "crates",
       "at": {
         "anchor": "poi4"
-      }
-    },
-    {
-      "id": "command_van",
-      "kind": "vehicle",
-      "at": {
-        "anchor": "poi11"
       }
     }
   ],
@@ -39,6 +32,43 @@
       "floor": 38
     }
   ],
+  "targets": [
+    {
+      "id": "sam",
+      "kind": "sam",
+      "at": {
+        "anchor": "poi2",
+        "dx": -16,
+        "dz": 10
+      }
+    },
+    {
+      "id": "hq",
+      "kind": "hq",
+      "at": {
+        "anchor": "poi2",
+        "dx": 6
+      }
+    },
+    {
+      "id": "tank",
+      "kind": "tank_heavy",
+      "at": {
+        "anchor": "poi2",
+        "dx": -4,
+        "dz": -20
+      }
+    },
+    {
+      "id": "gun",
+      "kind": "gatling",
+      "at": {
+        "anchor": "poi2",
+        "dx": 22,
+        "dz": 14
+      }
+    }
+  ],
   "objectives": [
     {
       "type": "takeoff"
@@ -49,11 +79,13 @@
       "range": 45
     },
     {
-      "type": "strike",
-      "target": "command_van",
-      "radius": 7,
-      "minAltitude": 40,
-      "shots": 1
+      "type": "destroy",
+      "targets": [
+        "sam",
+        "hq",
+        "tank"
+      ],
+      "text": "objective.destroy_final"
     },
     {
       "type": "land",

@@ -56,6 +56,24 @@ namespace Skyforge.Core
     }
 
     [Serializable]
+    public sealed class TargetData
+    {
+        public string id;
+        public string kind;
+        public PlaceData at;
+        /// <summary>Two or more points make the target a mover; then <see cref="at"/> is not needed.</summary>
+        public PlaceData[] path;
+        public float speed;
+        public int startObjective;
+        public float delay;
+        public bool loop;
+        public float altitude;
+        public bool friendly;
+        /// <summary>Id of the friendly target this one attacks when it gets near.</summary>
+        public string attacks;
+    }
+
+    [Serializable]
     public sealed class ZoneData
     {
         public PlaceData at;
@@ -79,6 +97,9 @@ namespace Skyforge.Core
         public PropData[] props;
         public ActorData[] actors;
         public ZoneData[] zones;
+        public TargetData[] targets;
+        /// <summary>Above zero: the mission is flown with this many strike drones.</summary>
+        public int strikeDrones;
         public ObjectiveData[] objectives;
     }
 
@@ -90,13 +111,14 @@ namespace Skyforge.Core
     {
         public static readonly string[] Templates =
         {
-            "scan", "recon", "photo", "tail", "race", "delivery", "search", "stealth", "strike", "escort", "storm",
-            "special",
+            "recon", "race", "delivery", "stealth", "special", "assault", "convoy", "hunt", "sead", "demolition", "defend", "kamikaze", "eliminate", "airfield",
+            "naval",
         };
 
         public static readonly string[] PropKinds =
         {
-            "antenna", "crates", "camp", "vehicle", "boat", "transmitter", "threat", "pad", "radar",
+            "antenna", "crates", "camp", "vehicle", "boat", "transmitter", "threat", "pad", "radar", "sandbags", "barrels",
+            "tent", "wreck",
         };
 
         public static readonly string[] ActorKinds = { "truck", "car", "boat" };
@@ -152,6 +174,7 @@ namespace Skyforge.Core
                 BatteryStart = data.batteryStart,
                 Payload = data.payload,
                 BasePosition = island.Spawn,
+                StrikeDrones = Mathf.Max(0, data.strikeDrones),
             };
 
             bool Place(PlaceData place, string what, out Vector3 position)
@@ -214,6 +237,56 @@ namespace Skyforge.Core
                     mission.Zones.Add(new ZoneDefinition { Position = position, Radius = zone.radius, Floor = zone.floor });
             }
 
+            var targetIndex = new Dictionary<string, int>();
+            TargetData[] targets = data.targets ?? new TargetData[0];
+            foreach (TargetData target in targets)
+            {
+                if (string.IsNullOrEmpty(target.id) || targetIndex.ContainsKey(target.id) || propPositions.ContainsKey(target.id) ||
+                    actorIds.Contains(target.id))
+                {
+                    Error("target id missing or repeated: '" + target.id + "'");
+                    continue;
+                }
+                TargetKind kind = TargetKinds.Get(target.kind);
+                if (kind == null)
+                {
+                    Error("target '" + target.id + "' has unknown kind '" + target.kind + "'");
+                    continue;
+                }
+                var definition = new TargetDefinition
+                {
+                    Id = target.id, Kind = kind, Speed = target.speed, StartObjective = target.startObjective,
+                    Delay = Mathf.Max(0f, target.delay), Loop = target.loop, Altitude = Mathf.Max(0f, target.altitude), Friendly = target.friendly,
+                };
+                bool placed;
+                if (target.path != null && target.path.Length > 0)
+                {
+                    if (target.path.Length < 2) Error("target '" + target.id + "' needs a path of two or more points");
+                    if (target.speed <= 0f) Error("target '" + target.id + "' moves and needs a positive speed");
+                    foreach (PlaceData point in target.path)
+                        if (Place(point, "path of target '" + target.id + "'", out Vector3 position)) definition.Path.Add(position);
+                    placed = definition.Path.Count == target.path.Length;
+                    if (placed) definition.Position = definition.Path[0];
+                }
+                else
+                {
+                    placed = Place(target.at, "target '" + target.id + "'", out Vector3 position);
+                    definition.Position = position;
+                }
+                if (!placed) continue;
+                targetIndex[target.id] = mission.Targets.Count;
+                mission.Targets.Add(definition);
+            }
+            foreach (TargetData target in targets)
+            {
+                if (string.IsNullOrEmpty(target.attacks) || !targetIndex.TryGetValue(target.id ?? "", out int attacker)) continue;
+                if (targetIndex.TryGetValue(target.attacks, out int victim) && mission.Targets[victim].Friendly)
+                    mission.Targets[attacker].Attacks = victim;
+                else
+                    Error("target '" + target.id + "' attacks '" + target.attacks + "', which is not a friendly target");
+            }
+            if (mission.StrikeDrones > 0 && mission.Targets.Count == 0) Error("strike drones need targets");
+
             ObjectiveData[] objectives = data.objectives ?? new ObjectiveData[0];
             if (objectives.Length == 0) Error("has no objectives");
             for (int i = 0; i < objectives.Length; i++)
@@ -242,7 +315,8 @@ namespace Skyforge.Core
                 };
 
                 // Where it is: an actor, a prop, or a place.
-                bool needsPlace = type != ObjectiveType.TakeOff && type != ObjectiveType.Mark && type != ObjectiveType.Arrive;
+                bool needsPlace = type != ObjectiveType.TakeOff && type != ObjectiveType.Mark && type != ObjectiveType.Arrive &&
+                                  type != ObjectiveType.Destroy;
                 if (needsPlace)
                 {
                     if (!string.IsNullOrEmpty(source.target))
@@ -297,10 +371,22 @@ namespace Skyforge.Core
                         if (!actorIds.Contains(source.actor ?? "")) Error(what + " needs an actor");
                         objective.ActorId = source.actor;
                         break;
+                    case ObjectiveType.Destroy:
+                        foreach (string id in source.targets ?? new string[0])
+                        {
+                            if (!targetIndex.TryGetValue(id, out int index)) Error(what + " refers to unknown target '" + id + "'");
+                            else if (mission.Targets[index].Friendly) Error(what + " would destroy the friendly '" + id + "'");
+                            else objective.TargetIndices.Add(index);
+                        }
+                        if (objective.TargetIndices.Count == 0) Error(what + " has no targets");
+                        break;
                 }
                 mission.Objectives.Add(objective);
             }
 
+            foreach (TargetDefinition target in mission.Targets)
+                if (target.StartObjective < 0 || target.StartObjective >= Mathf.Max(1, mission.Objectives.Count))
+                    Error("target '" + target.Id + "' starts at an objective that does not exist");
             foreach (ActorDefinition actor in mission.Actors)
                 if (actor.StartObjective < 0 || actor.StartObjective >= Mathf.Max(1, mission.Objectives.Count))
                     Error("actor '" + actor.Id + "' starts at an objective that does not exist");

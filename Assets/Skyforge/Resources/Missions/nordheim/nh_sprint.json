@@ -1,11 +1,11 @@
 {
   "id": "nh_sprint",
   "region": "nordheim",
-  "order": 4,
+  "order": 5,
   "template": "race",
   "weather": "overcast",
-  "timeGoal": 260,
-  "baseReward": 480,
+  "timeGoal": 420,
+  "baseReward": 530,
   "starReward": 150,
   "objectives": [
     {

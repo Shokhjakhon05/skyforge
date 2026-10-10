@@ -4,39 +4,69 @@
   "order": 15,
   "template": "special",
   "weather": "night",
-  "timeGoal": 360,
-  "baseReward": 980,
+  "timeGoal": 470,
+  "baseReward": 1020,
   "starReward": 220,
   "props": [
     {
       "id": "papers",
       "kind": "crates",
       "at": {
-        "anchor": "poi10"
-      }
-    },
-    {
-      "id": "command_van",
-      "kind": "vehicle",
-      "at": {
-        "anchor": "poi3"
+        "anchor": "poi4"
       }
     }
   ],
   "zones": [
     {
       "at": {
-        "anchor": "poi0"
+        "anchor": "poi3"
       },
       "radius": 170,
       "floor": 26
     },
     {
       "at": {
-        "anchor": "poi9"
+        "anchor": "poi6"
       },
       "radius": 170,
       "floor": 26
+    }
+  ],
+  "targets": [
+    {
+      "id": "sam",
+      "kind": "sam",
+      "at": {
+        "anchor": "poi2",
+        "dx": -16,
+        "dz": 10
+      }
+    },
+    {
+      "id": "hq",
+      "kind": "hq",
+      "at": {
+        "anchor": "poi2",
+        "dx": 6
+      }
+    },
+    {
+      "id": "tank",
+      "kind": "tank",
+      "at": {
+        "anchor": "poi2",
+        "dx": -4,
+        "dz": -20
+      }
+    },
+    {
+      "id": "gun",
+      "kind": "gatling",
+      "at": {
+        "anchor": "poi2",
+        "dx": 22,
+        "dz": 14
+      }
     }
   ],
   "objectives": [
@@ -49,11 +79,13 @@
       "range": 45
     },
     {
-      "type": "strike",
-      "target": "command_van",
-      "radius": 7,
-      "minAltitude": 40,
-      "shots": 1
+      "type": "destroy",
+      "targets": [
+        "sam",
+        "hq",
+        "tank"
+      ],
+      "text": "objective.destroy_final"
     },
     {
       "type": "land",

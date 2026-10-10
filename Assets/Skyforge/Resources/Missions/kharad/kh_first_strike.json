@@ -1,0 +1,88 @@
+{
+  "id": "kh_first_strike",
+  "region": "kharad",
+  "order": 1,
+  "template": "assault",
+  "weather": "clear",
+  "timeGoal": 110,
+  "baseReward": 220,
+  "starReward": 80,
+  "targets": [
+    {
+      "id": "truck1",
+      "kind": "truck",
+      "at": {
+        "anchor": "poi0",
+        "dx": -9
+      }
+    },
+    {
+      "id": "truck2",
+      "kind": "truck_cargo",
+      "at": {
+        "anchor": "poi0",
+        "dx": 9,
+        "dz": 4
+      }
+    },
+    {
+      "id": "fuel",
+      "kind": "truck_fuel",
+      "at": {
+        "anchor": "poi0",
+        "dz": -12
+      }
+    },
+    {
+      "id": "guard",
+      "kind": "jeep",
+      "at": {
+        "anchor": "poi0",
+        "dx": -16,
+        "dz": 12
+      }
+    }
+  ],
+  "props": [
+    {
+      "id": "bags",
+      "kind": "sandbags",
+      "at": {
+        "anchor": "poi0",
+        "dx": 3,
+        "dz": 14
+      }
+    },
+    {
+      "id": "drums",
+      "kind": "barrels",
+      "at": {
+        "anchor": "poi0",
+        "dx": -4,
+        "dz": -20
+      }
+    }
+  ],
+  "objectives": [
+    {
+      "type": "takeoff"
+    },
+    {
+      "type": "destroy",
+      "targets": [
+        "truck1",
+        "truck2",
+        "fuel",
+        "guard"
+      ],
+      "text": "objective.destroy_supply"
+    },
+    {
+      "type": "land",
+      "at": {
+        "anchor": "pad"
+      },
+      "radius": 8
+    }
+  ]
+}

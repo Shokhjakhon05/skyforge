@@ -1,0 +1,62 @@
+{
+  "id": "kh_fpv_strike",
+  "region": "kharad",
+  "order": 6,
+  "template": "kamikaze",
+  "weather": "clear",
+  "timeGoal": 150,
+  "baseReward": 400,
+  "starReward": 120,
+  "strikeDrones": 4,
+  "targets": [
+    {
+      "id": "heavy",
+      "kind": "tank_heavy",
+      "at": {
+        "anchor": "poi9",
+        "dx": -8
+      }
+    },
+    {
+      "id": "bunker",
+      "kind": "bunker",
+      "at": {
+        "anchor": "poi9",
+        "dx": 12,
+        "dz": 8
+      }
+    },
+    {
+      "id": "howitzer",
+      "kind": "artillery",
+      "at": {
+        "anchor": "poi9",
+        "dx": -4,
+        "dz": -18
+      }
+    },
+    {
+      "id": "squad",
+      "kind": "squad",
+      "at": {
+        "anchor": "poi9",
+        "dx": 2,
+        "dz": 20
+      }
+    }
+  ],
+  "objectives": [
+    {
+      "type": "takeoff"
+    },
+    {
+      "type": "destroy",
+      "targets": [
+        "heavy",
+        "bunker",
+        "howitzer"
+      ],
+      "text": "objective.destroy_kamikaze"
+    }
+  ]
+}

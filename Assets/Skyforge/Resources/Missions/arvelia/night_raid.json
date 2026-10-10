@@ -1,0 +1,68 @@
+{
+  "id": "night_raid",
+  "region": "arvelia",
+  "order": 12,
+  "template": "airfield",
+  "weather": "night",
+  "timeGoal": 240,
+  "baseReward": 450,
+  "starReward": 110,
+  "targets": [
+    {
+      "id": "heli1",
+      "kind": "heli",
+      "at": {
+        "anchor": "poi2",
+        "dx": -14
+      }
+    },
+    {
+      "id": "heli2",
+      "kind": "heli_transport",
+      "at": {
+        "anchor": "poi2",
+        "dx": 12,
+        "dz": 10
+      }
+    },
+    {
+      "id": "fuel",
+      "kind": "truck_fuel",
+      "at": {
+        "anchor": "poi2",
+        "dx": 2,
+        "dz": -18
+      }
+    },
+    {
+      "id": "gun",
+      "kind": "gatling",
+      "at": {
+        "anchor": "poi2",
+        "dx": 24,
+        "dz": -8
+      }
+    }
+  ],
+  "objectives": [
+    {
+      "type": "takeoff"
+    },
+    {
+      "type": "destroy",
+      "targets": [
+        "heli1",
+        "heli2",
+        "fuel"
+      ],
+      "text": "objective.destroy_airfield"
+    },
+    {
+      "type": "land",
+      "at": {
+        "anchor": "pad"
+      },
+      "radius": 8
+    }
+  ]
+}

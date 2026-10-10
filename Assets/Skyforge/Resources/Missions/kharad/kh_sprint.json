@@ -1,11 +1,11 @@
 {
   "id": "kh_sprint",
   "region": "kharad",
-  "order": 4,
+  "order": 5,
   "template": "race",
   "weather": "sunset",
-  "timeGoal": 210,
-  "baseReward": 330,
+  "timeGoal": 300,
+  "baseReward": 360,
   "starReward": 100,
   "objectives": [
     {

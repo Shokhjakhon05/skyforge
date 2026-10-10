@@ -8,6 +8,36 @@ namespace Skyforge.Core
         public Vector3 Base;
         public float Height;
         public float Radius;
+        /// <summary>Caught in the fighting: a bare black trunk.</summary>
+        public bool Burnt;
+    }
+
+    /// <summary>What is left of a building: jagged walls around a rubble floor.</summary>
+    public struct RuinSpec
+    {
+        public Vector3 Base;
+        public float YawDeg;
+        public float Width, Depth, Height;
+        public int Seed;
+    }
+
+    /// <summary>A burnt-out vehicle left where it was hit.</summary>
+    public struct WreckSpec
+    {
+        public Vector3 Base;
+        public float YawDeg;
+        public int Kind;
+        public bool Burning;
+    }
+
+    public struct CraterSpec
+    {
+        public float X, Z, Radius;
+    }
+
+    public struct RoadSpec
+    {
+        public Vector3 From, To;
     }
 
     /// <summary>
@@ -31,6 +61,21 @@ namespace Skyforge.Core
         /// spots inland), coast0..7 (on the shore), sea0..3 (open water) and summit.
         /// </summary>
         public Dictionary<string, Vector3> Anchors { get; private set; }
+
+        // The war: what the fighting has left on the island. Ruins are obstacles; the rest is scenery.
+        public List<RuinSpec> Ruins { get; private set; }
+        public List<WreckSpec> Wrecks { get; private set; }
+        public List<CraterSpec> Craters { get; private set; }
+        public List<RoadSpec> Roads { get; private set; }
+        /// <summary>Centres of the shelled villages.</summary>
+        public List<Vector3> Villages { get; private set; }
+        /// <summary>Where smoke still rises: burning wrecks and smouldering ruins.</summary>
+        public List<Vector3> Fires { get; private set; }
+
+        /// <summary>No ruin is taller than this, so a drone that clears the trees clears the villages too.</summary>
+        public const float RuinMaxHeight = 9.5f;
+        /// <summary>Ruins keep this far from the middle of a village, where missions put their targets.</summary>
+        public const float VillageSquare = 30f;
         public Vector3 Spawn { get; private set; }
         public float SpawnYawDeg { get; private set; }
 
@@ -50,6 +95,12 @@ namespace Skyforge.Core
                 Rings = new List<Vector3>(),
                 Beacons = new List<Vector3>(),
                 Anchors = new Dictionary<string, Vector3>(),
+                Ruins = new List<RuinSpec>(),
+                Wrecks = new List<WreckSpec>(),
+                Craters = new List<CraterSpec>(),
+                Roads = new List<RoadSpec>(),
+                Villages = new List<Vector3>(),
+                Fires = new List<Vector3>(),
             };
             var random = new System.Random(seed);
             float offsetX = (float)random.NextDouble() * 1000f;
@@ -59,6 +110,7 @@ namespace Skyforge.Core
             island.PlaceSpawn();
             island.PlaceBeacons();
             island.PlaceAnchors();
+            island.PlaceWar(new System.Random(seed * 31 + 7));
             island.PlaceTrees(random, offsetX, offsetZ);
             island.PlaceRings();
             island.Anchors["pad"] = island.Spawn;
@@ -126,10 +178,12 @@ namespace Skyforge.Core
                 float sx = x - Spawn.x, sz = z - Spawn.z;
                 if (sx * sx + sz * sz < 45f * 45f) continue;
                 if (NearBeacon(x, z, 18f) || NearAnchor(x, z, 16f)) continue;
+                if (NearRuin(x, z, 4f) || NearRoad(x, z, 7f)) continue;
 
                 float height = 8f * scale;
                 float radius = 1.9f * scale;
-                Trees.Add(new TreeSpec { Base = new Vector3(x, ground, z), Height = height, Radius = radius });
+                bool burnt = NearVillage(x, z, 95f) && random.NextDouble() < 0.65;
+                Trees.Add(new TreeSpec { Base = new Vector3(x, ground, z), Height = height, Radius = radius, Burnt = burnt });
                 Obstacles.Add(new Obstacle { X = x, Z = z, Radius = radius * 0.6f, Top = ground + height * 0.9f });
             }
         }
@@ -220,6 +274,146 @@ namespace Skyforge.Core
             }
             Anchors["summit"] = summit;
         }
+
+        // ---------------------------------------------------------------- the war
+
+        /// <summary>
+        /// Shelled villages around most of the inland anchors, wrecks and craters among them, and
+        /// dirt roads joining it all up. The middle of each village stays open: that is where
+        /// missions park their targets.
+        /// </summary>
+        void PlaceWar(System.Random random)
+        {
+            float Next(float min, float max) => min + (float)random.NextDouble() * (max - min);
+
+            for (int i = 0; i < 12; i++)
+            {
+                Vector3 centre = Anchors["poi" + i];
+                bool village = random.NextDouble() < Biome.Ruined;
+                // The road net: each inland point to the next one round, and out to the shore.
+                Roads.Add(new RoadSpec { From = centre, To = Anchors["poi" + (i + 1) % 12] });
+                if (i % 3 == 2) Roads.Add(new RoadSpec { From = centre, To = Anchors["coast" + ((i + 1) / 3 * 2) % 8] });
+                if (!village) continue;
+                Villages.Add(centre);
+
+                int wanted = random.Next(5, 9);
+                for (int attempt = 0; attempt < 40 && wanted > 0; attempt++)
+                {
+                    float angle = Next(0f, 2f * Mathf.PI), reach = Next(VillageSquare + 6f, 72f);
+                    float x = centre.x + Mathf.Cos(angle) * reach, z = centre.z + Mathf.Sin(angle) * reach;
+                    float ground = Map.Height(x, z);
+                    float width = Next(7f, 12f), depth = Next(6f, 9f);
+                    if (ground < 3.5f || Map.Steepness(x, z) > 0.2f) continue;
+                    if (TooCloseForRuin(x, z, width)) continue;
+                    var ruin = new RuinSpec
+                    {
+                        Base = new Vector3(x, ground, z), YawDeg = Next(0f, 180f), Width = width, Depth = depth,
+                        Height = Next(4.5f, RuinMaxHeight), Seed = random.Next(),
+                    };
+                    Ruins.Add(ruin);
+                    AddRuinObstacles(ruin);
+                    if (random.NextDouble() < 0.3) Fires.Add(ruin.Base);
+                    wanted--;
+                }
+
+                int wrecks = random.Next(1, 4);
+                for (int w = 0; w < wrecks; w++)
+                {
+                    float angle = Next(0f, 2f * Mathf.PI), reach = Next(VillageSquare - 4f, 60f);
+                    float x = centre.x + Mathf.Cos(angle) * reach, z = centre.z + Mathf.Sin(angle) * reach;
+                    float ground = Map.Height(x, z);
+                    if (ground < 3f || Map.Steepness(x, z) > 0.25f || NearRuin(x, z, 5f)) continue;
+                    var wreck = new WreckSpec
+                    {
+                        Base = new Vector3(x, ground, z), YawDeg = Next(0f, 360f), Kind = random.Next(0, 6),
+                        Burning = random.NextDouble() < 0.45,
+                    };
+                    Wrecks.Add(wreck);
+                    if (wreck.Burning) Fires.Add(wreck.Base);
+                }
+
+                int craters = random.Next(8, 15);
+                for (int c = 0; c < craters; c++)
+                {
+                    float angle = Next(0f, 2f * Mathf.PI), reach = Next(8f, 105f);
+                    Craters.Add(new CraterSpec
+                    {
+                        X = centre.x + Mathf.Cos(angle) * reach, Z = centre.z + Mathf.Sin(angle) * reach, Radius = Next(2.5f, 6f),
+                    });
+                }
+            }
+
+            // The front has passed over the open ground too.
+            for (int c = 0; c < 70; c++)
+            {
+                float x = Next(-1f, 1f) * Map.HalfSize * 0.8f, z = Next(-1f, 1f) * Map.HalfSize * 0.8f;
+                if (Map.Height(x, z) < 2.5f) continue;
+                Craters.Add(new CraterSpec { X = x, Z = z, Radius = Next(2.5f, 5f) });
+            }
+            Roads.Add(new RoadSpec { From = Spawn, To = Anchors["poi0"] });
+            Roads.Add(new RoadSpec { From = Spawn, To = Anchors["poi11"] });
+        }
+
+        bool TooCloseForRuin(float x, float z, float size)
+        {
+            float sx = x - Spawn.x, sz = z - Spawn.z;
+            if (sx * sx + sz * sz < 80f * 80f) return true;
+            if (NearBeacon(x, z, 24f) || NearAnchor(x, z, VillageSquare)) return true;
+            return NearRuin(x, z, size + 5f);
+        }
+
+        /// <summary>A ruin's footprint as two upright cylinders along its longer side.</summary>
+        void AddRuinObstacles(RuinSpec ruin)
+        {
+            float yaw = ruin.YawDeg * Mathf.Deg2Rad;
+            var along = new Vector3(Mathf.Cos(yaw), 0f, -Mathf.Sin(yaw));
+            float radius = ruin.Depth * 0.5f;
+            float offset = Mathf.Max(0f, ruin.Width * 0.5f - radius);
+            foreach (float side in new[] { -1f, 1f })
+            {
+                Vector3 centre = ruin.Base + along * (side * offset);
+                Obstacles.Add(new Obstacle { X = centre.x, Z = centre.z, Radius = radius, Top = ruin.Base.y + ruin.Height });
+            }
+        }
+
+        bool NearRuin(float x, float z, float margin)
+        {
+            foreach (RuinSpec ruin in Ruins)
+            {
+                float dx = x - ruin.Base.x, dz = z - ruin.Base.z;
+                float limit = ruin.Width * 0.5f + margin;
+                if (dx * dx + dz * dz < limit * limit) return true;
+            }
+            return false;
+        }
+
+        bool NearVillage(float x, float z, float distance)
+        {
+            foreach (Vector3 village in Villages)
+            {
+                float dx = x - village.x, dz = z - village.z;
+                if (dx * dx + dz * dz < distance * distance) return true;
+            }
+            return false;
+        }
+
+        /// <summary>Distance from a point to the nearest road, at most <paramref name="limit"/>.</summary>
+        public float RoadDistance(float x, float z, float limit)
+        {
+            float best = limit;
+            foreach (RoadSpec road in Roads)
+            {
+                float ax = road.From.x, az = road.From.z, bx = road.To.x - ax, bz = road.To.z - az;
+                float length = bx * bx + bz * bz;
+                float t = length > 0.01f ? Mathf.Clamp01(((x - ax) * bx + (z - az) * bz) / length) : 0f;
+                float dx = x - (ax + bx * t), dz = z - (az + bz * t);
+                float distance = Mathf.Sqrt(dx * dx + dz * dz);
+                if (distance < best) best = distance;
+            }
+            return best;
+        }
+
+        bool NearRoad(float x, float z, float distance) => RoadDistance(x, z, distance) < distance;
 
         bool NearAnchor(float x, float z, float distance)
         {

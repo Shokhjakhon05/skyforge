@@ -27,6 +27,8 @@ namespace Skyforge.Core
         Mark,
         /// <summary>Wait for an actor to finish its route.</summary>
         Arrive,
+        /// <summary>Destroy every listed target, with rockets, bombs or the drone itself.</summary>
+        Destroy,
     }
 
     public sealed class ObjectiveDefinition
@@ -52,6 +54,8 @@ namespace Skyforge.Core
         public List<Vector3> Targets = new List<Vector3>();
         /// <summary>Reach: draw the point as a gate to fly through.</summary>
         public bool Gate;
+        /// <summary>Destroy: indices into the mission's targets.</summary>
+        public List<int> TargetIndices = new List<int>();
     }
 
     public sealed class ActorDefinition
@@ -98,6 +102,10 @@ namespace Skyforge.Core
         public List<ActorDefinition> Actors = new List<ActorDefinition>();
         public List<ZoneDefinition> Zones = new List<ZoneDefinition>();
         public List<PropDefinition> Props = new List<PropDefinition>();
+        /// <summary>Everything that can be destroyed, hostile or friendly.</summary>
+        public List<TargetDefinition> Targets = new List<TargetDefinition>();
+        /// <summary>Above zero the mission is flown with this many strike drones, each of which is its own munition.</summary>
+        public int StrikeDrones;
         /// <summary>Finishing faster than this earns the second star.</summary>
         public float TimeGoalSeconds;
         public int BaseReward;
@@ -117,6 +125,7 @@ namespace Skyforge.Core
             copy.Actors = new List<ActorDefinition>(Actors);
             copy.Zones = new List<ZoneDefinition>(Zones);
             copy.Props = new List<PropDefinition>(Props);
+            copy.Targets = new List<TargetDefinition>(Targets);
             return copy;
         }
 
@@ -148,6 +157,12 @@ namespace Skyforge.Core
         Detected,
         Missed,
         Ambushed,
+        ShotDown,
+        /// <summary>Something the player was protecting has been destroyed.</summary>
+        AllyLost,
+        /// <summary>A target reached the end of its road alive.</summary>
+        Escaped,
+        OutOfDrones,
     }
 
     /// <summary>What the player did with the action button on a step.</summary>
@@ -160,6 +175,11 @@ namespace Skyforge.Core
         Released,
         /// <summary>Too low to release.</summary>
         ReleaseRefused,
+        RocketFired,
+        BombDropped,
+        /// <summary>Nothing is in the sights.</summary>
+        NoLock,
+        NoAmmo,
     }
 
     /// <summary>Where a moving actor is right now.</summary>
@@ -186,7 +206,7 @@ namespace Skyforge.Core
     /// battery, signal, hull and detection gauges, moves the actors, walks through the objectives
     /// and decides the outcome.
     /// </summary>
-    public sealed class MissionRun
+    public sealed partial class MissionRun
     {
         public const float LowBattery = 0.20f;
         public const float LowSignal = 0.25f;
@@ -249,6 +269,7 @@ namespace Skyforge.Core
 
             _actors = new ActorState[definition.Actors.Count];
             for (int i = 0; i < _actors.Length; i++) _actors[i] = ActorAt(definition.Actors[i], 0f);
+            StartCombat();
             EnterObjective();
         }
 
@@ -271,6 +292,11 @@ namespace Skyforge.Core
         {
             if (!string.IsNullOrEmpty(objective.ActorId) && TryGetActor(objective.ActorId, out ActorState actor))
                 return actor.Position + Vector3.up * 2f;
+            if (objective.Type == ObjectiveType.Destroy)
+            {
+                int nearest = NearestTarget(objective, _dronePosition);
+                return nearest >= 0 ? _targets[nearest].Position + Vector3.up * 2f : _dronePosition;
+            }
             return objective.Position;
         }
 
@@ -301,15 +327,23 @@ namespace Skyforge.Core
         /// <param name="touchdownSpeed">Vertical speed of the touchdown when <paramref name="simEvent"/> is Landed.</param>
         /// <param name="action">True on the step the action button was pressed.</param>
         /// <param name="zoom">Camera magnification; it stretches the Photo and Observe range.</param>
+        /// <param name="secondary">True on the step the second weapon button was pressed: bombs.</param>
         public ActionResult Step(FlightState state, SimEvent simEvent, float load, float touchdownSpeed, float dt,
-            bool action = false, Vector3 wind = default, float zoom = 1f)
+            bool action = false, Vector3 wind = default, float zoom = 1f, bool secondary = false)
         {
             ShotLanded = false;
-            if (Status != MissionStatus.InProgress) return ActionResult.None;
+            _events.Clear();
+            if (Status != MissionStatus.InProgress || NeedsRespawn) return ActionResult.None;
             _lastWind = wind;
 
             if (simEvent == SimEvent.Crashed)
             {
+                if (Kamikaze)
+                {
+                    // Flying a strike drone into something is what it is for.
+                    DroneLost(state.Position, true);
+                    return ActionResult.None;
+                }
                 Hull = 0f;
                 Fail(FailReason.Destroyed);
                 return ActionResult.None;
@@ -318,6 +352,13 @@ namespace Skyforge.Core
             {
                 float severity = Mathf.InverseLerp(GentleTouchdownSpeed, _spec.SafeTouchdownSpeed, touchdownSpeed);
                 Hull = Mathf.Max(0.05f, Hull - (0.1f + 0.3f * severity) * _spec.DamageScale);
+            }
+            if (simEvent == SimEvent.Landed && IsCombat && !Kamikaze &&
+                HorizontalDistance(state.Position, Definition.BasePosition) <= RearmRadius &&
+                (Rockets < _spec.Rockets || Bombs < _spec.Bombs))
+            {
+                Resupply();
+                _events.Add(new CombatEvent { Type = CombatEventType.Rearmed, Position = state.Position, Target = -1 });
             }
 
             // The clock starts with the first take-off, so reading the HUD on the pad costs nothing.
@@ -347,11 +388,13 @@ namespace Skyforge.Core
             }
 
             MoveActors(dt);
+            if (!UpdateCombat(state, dt)) return ActionResult.None;
+            if (NeedsRespawn) return ActionResult.None;
             if (!UpdateDetection(state, dt)) return ActionResult.None;
             if (!CheckAmbush()) return ActionResult.None;
             if (!UpdateShot(dt)) return ActionResult.None;
 
-            return AdvanceObjective(state, dt, action, zoom);
+            return AdvanceObjective(state, dt, action, zoom, secondary);
         }
 
         // ---------------------------------------------------------------- actors and detection
@@ -366,10 +409,12 @@ namespace Skyforge.Core
             }
         }
 
-        ActorState ActorAt(ActorDefinition definition, float travelled)
+        ActorState ActorAt(ActorDefinition definition, float travelled) => AlongPath(definition.Path, travelled);
+
+        /// <summary>Where something that has gone a distance along a path is, on the ground.</summary>
+        ActorState AlongPath(List<Vector3> path, float travelled)
         {
             var state = new ActorState { Travelled = travelled, Forward = Vector3.forward };
-            List<Vector3> path = definition.Path;
             if (path.Count == 0) return state;
 
             float left = travelled;
@@ -494,12 +539,15 @@ namespace Skyforge.Core
             EnterObjective();
         }
 
-        ActionResult AdvanceObjective(FlightState state, float dt, bool action, float zoom)
+        ActionResult AdvanceObjective(FlightState state, float dt, bool action, float zoom, bool secondary)
         {
             ObjectiveDefinition objective = CurrentObjective;
             if (objective == null) return ActionResult.None;
 
             var result = ActionResult.None;
+            // Weapons are live for the whole of a combat mission, except while the button means something else.
+            if (objective.Type != ObjectiveType.Photo && objective.Type != ObjectiveType.Strike && (action || secondary))
+                result = FireWeapons(state, action, secondary);
             bool done = false;
             Vector3 target = TargetPosition(objective);
             TargetFramed = false;
@@ -595,6 +643,14 @@ namespace Skyforge.Core
 
                 case ObjectiveType.Arrive:
                     done = TryGetActor(objective.ActorId, out ActorState arriving) && arriving.Arrived;
+                    break;
+
+                case ObjectiveType.Destroy:
+                    int standing = Remaining(objective);
+                    ObjectiveProgress = objective.TargetIndices.Count > 0
+                        ? 1f - standing / (float)objective.TargetIndices.Count
+                        : 1f;
+                    done = standing == 0;
                     break;
             }
 
@@ -725,7 +781,7 @@ namespace Skyforge.Core
             if (!outcome.Succeeded) return outcome;
 
             outcome.TimeGoalMet = run.Elapsed <= run.Definition.TimeGoalSeconds;
-            outcome.NoDamage = !run.Damaged;
+            outcome.NoDamage = run.CleanFinish;
             outcome.Stars = 1 + (outcome.TimeGoalMet ? 1 : 0) + (outcome.NoDamage ? 1 : 0);
             return outcome;
         }

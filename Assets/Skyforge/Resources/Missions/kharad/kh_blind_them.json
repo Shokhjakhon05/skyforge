@@ -1,0 +1,79 @@
+{
+  "id": "kh_blind_them",
+  "region": "kharad",
+  "order": 8,
+  "template": "sead",
+  "weather": "dust",
+  "timeGoal": 180,
+  "baseReward": 480,
+  "starReward": 140,
+  "targets": [
+    {
+      "id": "radar",
+      "kind": "radar",
+      "at": {
+        "anchor": "poi3"
+      }
+    },
+    {
+      "id": "gun1",
+      "kind": "aagun",
+      "at": {
+        "anchor": "poi3",
+        "dx": -16,
+        "dz": 8
+      }
+    },
+    {
+      "id": "gun2",
+      "kind": "gatling",
+      "at": {
+        "anchor": "poi3",
+        "dx": 14,
+        "dz": -12
+      }
+    },
+    {
+      "id": "sam",
+      "kind": "sam",
+      "at": {
+        "anchor": "poi3",
+        "dx": 6,
+        "dz": 20
+      }
+    }
+  ],
+  "props": [
+    {
+      "id": "bags",
+      "kind": "sandbags",
+      "at": {
+        "anchor": "poi3",
+        "dx": -16,
+        "dz": 14
+      }
+    }
+  ],
+  "objectives": [
+    {
+      "type": "takeoff"
+    },
+    {
+      "type": "destroy",
+      "targets": [
+        "radar",
+        "gun1",
+        "gun2",
+        "sam"
+      ],
+      "text": "objective.destroy_airdefence"
+    },
+    {
+      "type": "land",
+      "at": {
+        "anchor": "pad"
+      },
+      "radius": 8
+    }
+  ]
+}

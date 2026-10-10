@@ -1,0 +1,81 @@
+{
+  "id": "nh_tank_hunt",
+  "region": "nordheim",
+  "order": 4,
+  "template": "hunt",
+  "weather": "snow",
+  "timeGoal": 340,
+  "baseReward": 530,
+  "starReward": 150,
+  "targets": [
+    {
+      "id": "tank1",
+      "kind": "tank_light",
+      "at": {
+        "anchor": "poi1",
+        "dx": -12,
+        "dz": 6
+      }
+    },
+    {
+      "id": "tank2",
+      "kind": "tank_heavy",
+      "at": {
+        "anchor": "poi1",
+        "dx": 10,
+        "dz": -8
+      }
+    },
+    {
+      "id": "tank3",
+      "kind": "tank",
+      "at": {
+        "anchor": "poi1",
+        "dx": 2,
+        "dz": 18
+      }
+    },
+    {
+      "id": "tank4",
+      "kind": "tank_heavy",
+      "at": {
+        "anchor": "poi1",
+        "dx": -18,
+        "dz": -14
+      }
+    }
+  ],
+  "props": [
+    {
+      "id": "bags",
+      "kind": "sandbags",
+      "at": {
+        "anchor": "poi1",
+        "dx": 18,
+        "dz": 10
+      }
+    }
+  ],
+  "objectives": [
+    {
+      "type": "takeoff"
+    },
+    {
+      "type": "destroy",
+      "targets": [
+        "tank1",
+        "tank2",
+        "tank3",
+        "tank4"
+      ],
+      "text": "objective.destroy_armour"
+    },
+    {
+      "type": "land",
+      "at": {
+        "anchor": "pad"
+      },
+      "radius": 8
+    }
+  ]
+}

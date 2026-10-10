@@ -1,11 +1,11 @@
 {
   "id": "coast_watch",
   "region": "arvelia",
-  "order": 2,
+  "order": 3,
   "template": "recon",
   "weather": "sunset",
   "timeGoal": 150,
-  "baseReward": 180,
+  "baseReward": 210,
   "starReward": 60,
   "props": [
     {
@@ -14,12 +14,23 @@
       "at": {
         "anchor": "poi10"
       }
-    },
+    }
+  ],
+  "targets": [
     {
-      "id": "boat",
+      "id": "boat1",
       "kind": "boat",
       "at": {
         "anchor": "sea3"
+      }
+    },
+    {
+      "id": "boat2",
+      "kind": "boat",
+      "at": {
+        "anchor": "sea3",
+        "dx": 34,
+        "dz": 22
       }
     }
   ],
@@ -30,14 +41,16 @@
     {
       "type": "observe",
       "target": "camp",
-      "range": 90,
+      "range": 100,
       "hold": 4
     },
     {
-      "type": "observe",
-      "target": "boat",
-      "range": 110,
-      "hold": 4
+      "type": "destroy",
+      "targets": [
+        "boat1",
+        "boat2"
+      ],
+      "text": "objective.destroy_boats"
     },
     {
       "type": "land",

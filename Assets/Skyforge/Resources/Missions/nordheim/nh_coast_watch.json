@@ -1,25 +1,54 @@
 {
   "id": "nh_coast_watch",
   "region": "nordheim",
-  "order": 2,
+  "order": 3,
   "template": "recon",
   "weather": "overcast",
-  "timeGoal": 190,
-  "baseReward": 400,
+  "timeGoal": 230,
+  "baseReward": 460,
   "starReward": 130,
   "props": [
     {
       "id": "camp",
       "kind": "camp",
       "at": {
-        "anchor": "poi0"
+        "anchor": "poi10"
       }
-    },
+    }
+  ],
+  "targets": [
     {
-      "id": "boat",
+      "id": "boat1",
       "kind": "boat",
       "at": {
         "anchor": "sea3"
+      }
+    },
+    {
+      "id": "boat2",
+      "kind": "boat",
+      "at": {
+        "anchor": "sea3",
+        "dx": 34,
+        "dz": 22
+      }
+    },
+    {
+      "id": "boat3",
+      "kind": "boat",
+      "at": {
+        "anchor": "sea3",
+        "dx": -30,
+        "dz": 30
+      }
+    },
+    {
+      "id": "squad",
+      "kind": "squad",
+      "at": {
+        "anchor": "poi10",
+        "dx": 12,
+        "dz": 8
       }
     }
   ],
@@ -30,14 +59,17 @@
     {
       "type": "observe",
       "target": "camp",
-      "range": 90,
+      "range": 100,
       "hold": 4
     },
     {
-      "type": "observe",
-      "target": "boat",
-      "range": 110,
-      "hold": 4
+      "type": "destroy",
+      "targets": [
+        "boat1",
+        "boat2",
+        "boat3"
+      ],
+      "text": "objective.destroy_boats"
     },
     {
       "type": "land",

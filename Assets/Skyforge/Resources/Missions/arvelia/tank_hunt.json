@@ -1,0 +1,61 @@
+{
+  "id": "tank_hunt",
+  "region": "arvelia",
+  "order": 4,
+  "template": "hunt",
+  "weather": "clear",
+  "timeGoal": 220,
+  "baseReward": 240,
+  "starReward": 70,
+  "targets": [
+    {
+      "id": "tank1",
+      "kind": "tank_light",
+      "at": {
+        "anchor": "poi1",
+        "dx": -12,
+        "dz": 6
+      }
+    },
+    {
+      "id": "tank2",
+      "kind": "tank",
+      "at": {
+        "anchor": "poi1",
+        "dx": 10,
+        "dz": -8
+      }
+    }
+  ],
+  "props": [
+    {
+      "id": "bags",
+      "kind": "sandbags",
+      "at": {
+        "anchor": "poi1",
+        "dx": 18,
+        "dz": 10
+      }
+    }
+  ],
+  "objectives": [
+    {
+      "type": "takeoff"
+    },
+    {
+      "type": "destroy",
+      "targets": [
+        "tank1",
+        "tank2"
+      ],
+      "text": "objective.destroy_armour"
+    },
+    {
+      "type": "land",
+      "at": {
+        "anchor": "pad"
+      },
+      "radius": 8
+    }
+  ]
+}

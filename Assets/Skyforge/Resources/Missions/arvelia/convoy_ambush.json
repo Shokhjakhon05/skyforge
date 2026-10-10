@@ -1,0 +1,117 @@
+{
+  "id": "convoy_ambush",
+  "region": "arvelia",
+  "order": 2,
+  "template": "convoy",
+  "weather": "overcast",
+  "timeGoal": 200,
+  "baseReward": 190,
+  "starReward": 60,
+  "targets": [
+    {
+      "id": "lead",
+      "kind": "jeep",
+      "path": [
+        {
+          "anchor": "coast6"
+        },
+        {
+          "anchor": "coast7"
+        },
+        {
+          "anchor": "coast0"
+        },
+        {
+          "anchor": "coast1"
+        }
+      ],
+      "speed": 4.5,
+      "startObjective": 1
+    },
+    {
+      "id": "truck1",
+      "kind": "truck",
+      "path": [
+        {
+          "anchor": "coast6"
+        },
+        {
+          "anchor": "coast7"
+        },
+        {
+          "anchor": "coast0"
+        },
+        {
+          "anchor": "coast1"
+        }
+      ],
+      "speed": 4.5,
+      "startObjective": 1,
+      "delay": 5
+    },
+    {
+      "id": "truck2",
+      "kind": "truck_cargo",
+      "path": [
+        {
+          "anchor": "coast6"
+        },
+        {
+          "anchor": "coast7"
+        },
+        {
+          "anchor": "coast0"
+        },
+        {
+          "anchor": "coast1"
+        }
+      ],
+      "speed": 4.5,
+      "startObjective": 1,
+      "delay": 10
+    },
+    {
+      "id": "fuel",
+      "kind": "truck_fuel",
+      "path": [
+        {
+          "anchor": "coast6"
+        },
+        {
+          "anchor": "coast7"
+        },
+        {
+          "anchor": "coast0"
+        },
+        {
+          "anchor": "coast1"
+        }
+      ],
+      "speed": 4.5,
+      "startObjective": 1,
+      "delay": 15
+    }
+  ],
+  "objectives": [
+    {
+      "type": "takeoff"
+    },
+    {
+      "type": "destroy",
+      "targets": [
+        "lead",
+        "truck1",
+        "truck2",
+        "fuel"
+      ],
+      "text": "objective.destroy_convoy"
+    },
+    {
+      "type": "land",
+      "at": {
+        "anchor": "pad"
+      },
+      "radius": 8
+    }
+  ]
+}

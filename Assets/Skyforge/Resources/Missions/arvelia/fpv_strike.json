@@ -1,0 +1,52 @@
+{
+  "id": "fpv_strike",
+  "region": "arvelia",
+  "order": 6,
+  "template": "kamikaze",
+  "weather": "dust",
+  "timeGoal": 130,
+  "baseReward": 270,
+  "starReward": 80,
+  "strikeDrones": 3,
+  "targets": [
+    {
+      "id": "heavy",
+      "kind": "tank_heavy",
+      "at": {
+        "anchor": "poi9",
+        "dx": -8
+      }
+    },
+    {
+      "id": "bunker",
+      "kind": "bunker",
+      "at": {
+        "anchor": "poi9",
+        "dx": 12,
+        "dz": 8
+      }
+    },
+    {
+      "id": "squad",
+      "kind": "squad",
+      "at": {
+        "anchor": "poi9",
+        "dx": 2,
+        "dz": 20
+      }
+    }
+  ],
+  "objectives": [
+    {
+      "type": "takeoff"
+    },
+    {
+      "type": "destroy",
+      "targets": [
+        "heavy",
+        "bunker"
+      ],
+      "text": "objective.destroy_kamikaze"
+    }
+  ]
+}

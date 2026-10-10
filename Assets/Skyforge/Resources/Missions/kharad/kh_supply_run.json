@@ -1,19 +1,28 @@
 {
   "id": "kh_supply_run",
   "region": "kharad",
-  "order": 5,
+  "order": 7,
   "template": "delivery",
   "weather": "clear",
-  "timeGoal": 240,
-  "baseReward": 360,
-  "starReward": 100,
+  "timeGoal": 270,
+  "baseReward": 420,
+  "starReward": 120,
   "payload": 0.7,
   "props": [
     {
       "id": "dropzone",
       "kind": "pad",
       "at": {
-        "anchor": "poi8"
+        "anchor": "poi4"
+      }
+    },
+    {
+      "id": "tent",
+      "kind": "tent",
+      "at": {
+        "anchor": "poi4",
+        "dx": 14,
+        "dz": 6
       }
     }
   ],

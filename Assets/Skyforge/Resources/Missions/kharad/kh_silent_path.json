@@ -1,32 +1,32 @@
 {
   "id": "kh_silent_path",
   "region": "kharad",
-  "order": 7,
+  "order": 9,
   "template": "stealth",
   "weather": "night",
-  "timeGoal": 300,
-  "baseReward": 450,
+  "timeGoal": 380,
+  "baseReward": 510,
   "starReward": 140,
   "props": [
     {
       "id": "relay",
       "kind": "antenna",
       "at": {
-        "anchor": "poi6"
+        "anchor": "poi5"
       }
     }
   ],
   "zones": [
     {
       "at": {
-        "anchor": "poi0"
+        "anchor": "poi3"
       },
       "radius": 170,
       "floor": 26
     },
     {
       "at": {
-        "anchor": "poi9"
+        "anchor": "poi6"
       },
       "radius": 170,
       "floor": 26
@@ -39,7 +39,7 @@
     {
       "type": "scan",
       "at": {
-        "anchor": "poi6",
+        "anchor": "poi5",
         "dy": 18
       },
       "radius": 12,

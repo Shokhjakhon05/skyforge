@@ -1,11 +1,11 @@
 {
   "id": "silent_path",
   "region": "arvelia",
-  "order": 7,
+  "order": 9,
   "template": "stealth",
   "weather": "sunset",
-  "timeGoal": 300,
-  "baseReward": 300,
+  "timeGoal": 340,
+  "baseReward": 340,
   "starReward": 90,
   "props": [
     {

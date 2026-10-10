@@ -1,0 +1,114 @@
+{
+  "id": "nh_headhunter",
+  "region": "nordheim",
+  "order": 13,
+  "template": "eliminate",
+  "weather": "overcast",
+  "timeGoal": 190,
+  "baseReward": 1060,
+  "starReward": 260,
+  "targets": [
+    {
+      "id": "commander",
+      "kind": "staff_car",
+      "path": [
+        {
+          "anchor": "coast1"
+        },
+        {
+          "anchor": "poi2"
+        },
+        {
+          "anchor": "poi1"
+        },
+        {
+          "anchor": "coast0"
+        }
+      ],
+      "speed": 7,
+      "startObjective": 1,
+      "delay": 5
+    },
+    {
+      "id": "escort1",
+      "kind": "humvee",
+      "path": [
+        {
+          "anchor": "coast1"
+        },
+        {
+          "anchor": "poi2"
+        },
+        {
+          "anchor": "poi1"
+        },
+        {
+          "anchor": "coast0"
+        }
+      ],
+      "speed": 7,
+      "startObjective": 1
+    },
+    {
+      "id": "escort2",
+      "kind": "apc",
+      "path": [
+        {
+          "anchor": "coast1"
+        },
+        {
+          "anchor": "poi2"
+        },
+        {
+          "anchor": "poi1"
+        },
+        {
+          "anchor": "coast0"
+        }
+      ],
+      "speed": 7,
+      "startObjective": 1,
+      "delay": 10
+    },
+    {
+      "id": "escort3",
+      "kind": "tank_light",
+      "path": [
+        {
+          "anchor": "coast1"
+        },
+        {
+          "anchor": "poi2"
+        },
+        {
+          "anchor": "poi1"
+        },
+        {
+          "anchor": "coast0"
+        }
+      ],
+      "speed": 7,
+      "startObjective": 1,
+      "delay": 15
+    }
+  ],
+  "objectives": [
+    {
+      "type": "takeoff"
+    },
+    {
+      "type": "destroy",
+      "targets": [
+        "commander"
+      ],
+      "text": "objective.eliminate"
+    },
+    {
+      "type": "land",
+      "at": {
+        "anchor": "pad"
+      },
+      "radius": 8
+    }
+  ]
+}

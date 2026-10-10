@@ -83,9 +83,33 @@ namespace Skyforge.Core
         /// <summary>Multiplier on how fast scans, observations and marks fill up.</summary>
         public float ScanSpeed = 1f;
 
+        // Weapons, carried in every combat mission. Landing on the pad reloads them.
+        public int Rockets = 8;
+        public int Bombs = 3;
+        public float RocketDamage = 50f;
+        public float BombDamage = 220f;
+        /// <summary>How far away a target can be locked for a rocket.</summary>
+        public float LockRange = 150f;
+        /// <summary>Seconds between rockets.</summary>
+        public float FireInterval = 0.7f;
+
         public static DroneSpec Sparrow() => new DroneSpec();
 
         public DroneSpec Clone() => (DroneSpec)MemberwiseClone();
+
+        /// <summary>
+        /// The one-way strike drone flown in missions that are fought with them: light, quick,
+        /// and able to dive, because it is not coming back.
+        /// </summary>
+        public DroneSpec AsStrikeDrone()
+        {
+            DroneSpec strike = Clone();
+            strike.MaxSpeed *= 1.3f;
+            strike.MaxDescent = Mathf.Max(MaxDescent, 14f);
+            strike.TiltResponse *= 1.2f;
+            strike.DamageScale *= 0.7f;
+            return strike;
+        }
 
         /// <summary>The same drone carrying cargo: slower, lazier to respond and weaker in the climb.</summary>
         /// <param name="payload">0 = empty, 1 = the heaviest load.</param>

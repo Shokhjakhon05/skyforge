@@ -15,17 +15,19 @@ namespace Skyforge.Core
         /// <summary>Trees do not grow above this height.</summary>
         public float TreeLine = 95f;
         public float TreeScale = 1f;
+        /// <summary>0..1: the share of inland points where a shelled village stands.</summary>
+        public float Ruined = 0.75f;
         /// <summary>Weather shown behind the menu and offered first in free flight.</summary>
         public string Weather = WeatherCatalog.Clear;
 
         public static readonly Biome Temperate = new Biome { Id = "temperate" };
         public static readonly Biome Desert = new Biome
         {
-            Id = "desert", Hills = 38f, Ridges = 150f, TreeCover = 0.12f, MaxTrees = 500, TreeLine = 60f, TreeScale = 0.7f,
+            Id = "desert", Hills = 38f, Ridges = 150f, TreeCover = 0.12f, MaxTrees = 500, TreeLine = 60f, TreeScale = 0.7f, Ruined = 1f,
         };
         public static readonly Biome Snow = new Biome
         {
-            Id = "snow", Hills = 85f, Ridges = 200f, TreeCover = 0.45f, MaxTrees = 1800, TreeLine = 120f, Weather = "snow",
+            Id = "snow", Hills = 85f, Ridges = 200f, TreeCover = 0.45f, MaxTrees = 1800, TreeLine = 120f, Weather = "snow", Ruined = 0.85f,
         };
     }
 

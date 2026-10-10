@@ -1,11 +1,11 @@
 {
   "id": "sprint",
   "region": "arvelia",
-  "order": 4,
+  "order": 5,
   "template": "race",
   "weather": "overcast",
-  "timeGoal": 210,
-  "baseReward": 220,
+  "timeGoal": 270,
+  "baseReward": 240,
   "starReward": 70,
   "objectives": [
     {

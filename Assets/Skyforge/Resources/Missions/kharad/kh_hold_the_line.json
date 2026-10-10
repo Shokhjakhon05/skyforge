@@ -1,0 +1,127 @@
+{
+  "id": "kh_hold_the_line",
+  "region": "kharad",
+  "order": 11,
+  "template": "defend",
+  "weather": "dust",
+  "timeGoal": 260,
+  "baseReward": 630,
+  "starReward": 160,
+  "targets": [
+    {
+      "id": "outpost",
+      "kind": "outpost",
+      "at": {
+        "anchor": "pad",
+        "dx": 62,
+        "dz": 34
+      },
+      "friendly": true
+    },
+    {
+      "id": "raider1",
+      "kind": "jeep",
+      "path": [
+        {
+          "anchor": "coast6"
+        },
+        {
+          "anchor": "poi10"
+        },
+        {
+          "anchor": "pad",
+          "dx": 100,
+          "dz": 70
+        }
+      ],
+      "speed": 7,
+      "startObjective": 1,
+      "attacks": "outpost"
+    },
+    {
+      "id": "raider2",
+      "kind": "humvee",
+      "path": [
+        {
+          "anchor": "coast6"
+        },
+        {
+          "anchor": "poi10"
+        },
+        {
+          "anchor": "pad",
+          "dx": 100,
+          "dz": 70
+        }
+      ],
+      "speed": 7,
+      "startObjective": 1,
+      "delay": 9,
+      "attacks": "outpost"
+    },
+    {
+      "id": "raider3",
+      "kind": "apc",
+      "path": [
+        {
+          "anchor": "coast6"
+        },
+        {
+          "anchor": "poi10"
+        },
+        {
+          "anchor": "pad",
+          "dx": 100,
+          "dz": 70
+        }
+      ],
+      "speed": 6,
+      "startObjective": 1,
+      "delay": 20,
+      "attacks": "outpost"
+    },
+    {
+      "id": "raider4",
+      "kind": "tank_light",
+      "path": [
+        {
+          "anchor": "coast6"
+        },
+        {
+          "anchor": "poi10"
+        },
+        {
+          "anchor": "pad",
+          "dx": 100,
+          "dz": 70
+        }
+      ],
+      "speed": 5.5,
+      "startObjective": 1,
+      "delay": 30,
+      "attacks": "outpost"
+    }
+  ],
+  "objectives": [
+    {
+      "type": "takeoff"
+    },
+    {
+      "type": "destroy",
+      "targets": [
+        "raider1",
+        "raider2",
+        "raider3",
+        "raider4"
+      ],
+      "text": "objective.defend"
+    },
+    {
+      "type": "land",
+      "at": {
+        "anchor": "pad"
+      },
+      "radius": 8
+    }
+  ]
+}

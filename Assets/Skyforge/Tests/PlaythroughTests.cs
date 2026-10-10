@@ -18,6 +18,8 @@ namespace Skyforge.Tests
     {
         const float Dt = 1f / 60f;
         const float TimeLimit = 900f;
+        /// <summary>Set SKYFORGE_TRACE to a mission id to log that flight twice a second.</summary>
+        static readonly string Trace = System.Environment.GetEnvironmentVariable("SKYFORGE_TRACE");
 
         sealed class Pilot
         {
@@ -28,14 +30,17 @@ namespace Skyforge.Tests
             readonly Weather _weather;
             readonly float _zoom;
             float _time;
+            float _noLock;
 
             public MissionRun Run => _run;
             public float Time => _time;
+            public string Where => _sim.State.Position + " pad " + _island.Spawn;
 
             public Pilot(Island island, MissionDefinition mission, DroneSpec spec)
             {
                 _island = island;
                 _mission = mission;
+                if (mission.StrikeDrones > 0) spec = spec.AsStrikeDrone();
                 _sim = new FlightSim(island, spec.WithPayload(mission.Payload));
                 _run = new MissionRun(mission, _sim.Spec, island.Map);
                 _weather = WeatherCatalog.Get(mission.WeatherId);
@@ -47,14 +52,27 @@ namespace Skyforge.Tests
                 while (_run.Status == MissionStatus.InProgress && _time < TimeLimit)
                 {
                     _sim.Wind = _weather.WindAt(_time);
-                    FlightInput input = Decide(out bool action);
+                    if (_run.NeedsRespawn)
+                    {
+                        // The next strike drone is on the pad.
+                        _sim.Reset();
+                        _run.Respawned();
+                    }
+                    FlightInput input = Decide(out bool action, out bool bomb);
                     SimEvent simEvent = _sim.Step(input, Dt);
                     FlightState state = _sim.State;
                     float load = state.Grounded
                         ? 0f
                         : Mathf.Clamp01(0.45f + state.TiltDeg.magnitude / _sim.Spec.MaxTiltDeg * 0.35f + state.Velocity.y / _sim.Spec.MaxClimb * 0.3f);
-                    _run.Step(state, simEvent, load, _sim.LastTouchdownSpeed, Dt, action, _sim.Wind, _zoom);
+                    _run.Step(state, simEvent, load, _sim.LastTouchdownSpeed, Dt, action, _sim.Wind, _zoom, bomb);
                     _time += Dt;
+                    if (Trace == _mission.Id && Mathf.FloorToInt(_time * 2f) != Mathf.FloorToInt((_time - Dt) * 2f))
+                    {
+                        string targets = "";
+                        for (int i = 0; i < _run.TargetCount; i++)
+                            targets += $" {_mission.Targets[i].Id}:{_run.Target(i).Health:0}@{Vector3.Distance(state.Position, _run.Target(i).Position):0}{(_run.Target(i).Firing ? "!" : "")}";
+                        Debug.Log($"trace {_time:0.0} pos {state.Position} agl {state.Position.y - Ground(state.Position.x, state.Position.z):0} lock {_run.LockedTarget} r{_run.Rockets} b{_run.Bombs} hull {_run.Hull:0.00} step {_run.ObjectiveIndex}{targets}");
+                    }
                 }
             }
 
@@ -101,9 +119,10 @@ namespace Skyforge.Tests
                 return new Vector3(Mathf.Cos(next) * ring, goal.y, Mathf.Sin(next) * ring);
             }
 
-            FlightInput Decide(out bool action)
+            FlightInput Decide(out bool action, out bool bomb)
             {
                 action = false;
+                bomb = false;
                 FlightState state = _sim.State;
                 ObjectiveDefinition objective = _run.CurrentObjective;
                 if (objective == null) return default;
@@ -164,6 +183,9 @@ namespace Skyforge.Tests
                         return Steer(target + back * middle, Ground(position.x, position.z) + 26f, target, false, cruise);
                     }
 
+                    case ObjectiveType.Destroy:
+                        return Attack(objective, state, low, cruise, out action, out bomb);
+
                     case ObjectiveType.Strike:
                     {
                         // Aim at where the target will be when the munition lands, then null out the predicted miss.
@@ -186,6 +208,117 @@ namespace Skyforge.Tests
                         // Arrive: wait where we are.
                         return Steer(position, Ground(position.x, position.z) + cruise, position + Vector3.forward, true, cruise);
                 }
+            }
+
+            /// <summary>
+            /// How a careful player fights: guns first, from as far as a rocket reaches; bombs for
+            /// what rockets barely scratch; back to the pad when the racks are empty.
+            /// </summary>
+            FlightInput Attack(ObjectiveDefinition objective, FlightState state, bool low, float cruise, out bool action, out bool bomb)
+            {
+                action = false;
+                bomb = false;
+                Vector3 position = state.Position;
+                if (state.Grounded) return new FlightInput { Throttle = 1f };
+
+                int index = _run.NearestTarget(objective, position);
+                if (index < 0) return default;
+
+                if (_run.Kamikaze)
+                {
+                    // Cruise over, then put the drone into the target.
+                    TargetState mark = _run.Target(index);
+                    float away = Flat(position, mark.Position);
+                    if (away > 70f) return Steer(mark.Position, Ground(mark.Position.x, mark.Position.z) + 24f, mark.Position, false, 24f);
+                    // Down a slope that ends in the target, aiming through it so the drone does not slow.
+                    Vector3 through = mark.Position - position;
+                    through.y = 0f;
+                    through = through.sqrMagnitude > 0.01f ? through.normalized : Vector3.forward;
+                    FlightInput dive = Steer(mark.Position + through * 25f, position.y, mark.Position, true, 24f);
+                    float slope = mark.Position.y + 1.5f + Mathf.Max(0f, away - 8f) * 0.45f;
+                    if (away > 15f) slope = Mathf.Max(slope, Ground(position.x, position.z) + 3f);
+                    dive.Throttle = Mathf.Clamp((slope - position.y) * 0.6f, -1f, 1f);
+                    return dive;
+                }
+
+                // Anything that shoots near the target goes first, a missile battery before a gun.
+                Vector3 centre = _run.Target(index).Position;
+                bool running = _mission.Targets[index].Path.Count >= 2 && _mission.Targets[index].Attacks < 0;
+                float bestScore = float.MaxValue;
+                bool sams = false, guarded = false;
+                for (int i = 0; i < _run.TargetCount; i++)
+                {
+                    TargetDefinition definition = _mission.Targets[i];
+                    TargetState guard = _run.Target(i);
+                    if (!guard.Alive || definition.Friendly || !definition.Kind.Armed) continue;
+                    if (Flat(guard.Position, centre) > 190f) continue;
+                    if (definition.Kind.MinAltitude > 0f) sams = true;
+                    guarded = true;
+                    // Concrete last: it needs a bombing run, and that is flown when the guns are quiet.
+                    float score = Flat(guard.Position, position) - (definition.Kind.MinAltitude > 0f ? 1000f : 0f) -
+                                  definition.Kind.GunRange + (definition.Kind.Structure ? 500f : 0f);
+                    if (score >= bestScore || _run.Rockets <= 0 || running) continue;
+                    bestScore = score;
+                    index = i;
+                }
+
+                TargetState target = _run.Target(index);
+                TargetKind kind = _mission.Targets[index].Kind;
+                bool useBombs = _run.Bombs > 0 && (kind.Structure || _run.Rockets <= 0);
+                if (_run.Rockets <= 0 && (guarded || !useBombs))
+                {
+                    // Out of everything: home to rearm.
+                    Vector3 pad = _mission.BasePosition;
+                    Vector3 round = Around(position, pad);
+                    if (round != pad) return Steer(round, round.y + 30f, round, false, cruise);
+                    if (Flat(position, pad) > 2.5f) return Steer(pad, Ground(pad.x, pad.z) + (low ? 11f : 20f), pad, false, cruise);
+                    FlightInput hold = Steer(pad, position.y, pad, true, cruise);
+                    hold.Throttle = -0.35f;
+                    return hold;
+                }
+
+                // Under a missile battery's floor while one is alive.
+                float height = sams ? 22f : 30f;
+                if (low) height = 11f;
+                if (useBombs)
+                {
+                    Vector3 impact = _run.PredictImpact(state, out float fall);
+                    Vector3 aim = target.Position;
+                    if (_mission.Targets[index].Path.Count >= 2 && !target.Arrived) aim += target.Forward * _mission.Targets[index].Speed * fall;
+                    Vector3 miss = aim - impact;
+                    miss.y = 0f;
+                    bomb = miss.magnitude < Mathf.Max(2f, kind.Radius * 0.45f) && position.y - Ground(position.x, position.z) > 12f;
+                    // Keeping pace with a mover takes a standing lead, or the drone trails it for ever.
+                    Vector3 pace = _mission.Targets[index].Path.Count >= 2 && !target.Arrived
+                        ? target.Forward * _mission.Targets[index].Speed * 2.86f
+                        : Vector3.zero;
+                    return Steer(position + miss + pace, Ground(aim.x, aim.z) + height + 6f, aim, true, cruise);
+                }
+
+                // Stand off at rocket range. If a hill hides the target, climb for a view of it; under a
+                // missile battery's floor there is no climbing, so there the pilot closes in instead.
+                float standoff = _sim.Spec.LockRange * 0.85f;
+                if (sams || low) standoff = Mathf.Max(45f, standoff - _noLock * 8f);
+                else height += Mathf.Min(70f, _noLock * 6f);
+                // The range is measured along the slant, so height eats into the distance over the ground.
+                float reach = _sim.Spec.LockRange * 0.9f;
+                float drop = Ground(target.Position.x, target.Position.z) + height - target.Position.y;
+                standoff = Mathf.Min(standoff, Mathf.Sqrt(Mathf.Max(900f, reach * reach - drop * drop)));
+                Vector3 back = position - target.Position;
+                back.y = 0f;
+                back = back.sqrMagnitude < 1f ? Vector3.back : back.normalized;
+                Vector3 post = target.Position + back * standoff;
+                bool locked = _run.LockedTarget == index;
+                if (Flat(position, post) < 20f && !locked) _noLock += Dt;
+                else if (locked) _noLock = Mathf.Max(0f, _noLock - Dt * 0.5f);
+                // No second rocket at something the first one is about to finish.
+                float coming = 0f;
+                foreach (Projectile projectile in _run.Projectiles)
+                    if (projectile.Type == ProjectileType.Rocket && projectile.Target == index) coming += projectile.Damage;
+                action = locked && coming < target.Health;
+                Vector3 via = Around(position, post);
+                if (via != post) return Steer(via, via.y, via, false, cruise);
+                return Steer(post, Ground(target.Position.x, target.Position.z) + height, target.Position, false, Mathf.Min(cruise, height));
             }
 
             Vector3 NextThreat(ObjectiveDefinition objective, Vector3 position)
@@ -274,7 +407,7 @@ namespace Skyforge.Tests
                               $"time {pilot.Time:0}/{mission.TimeGoalSeconds:0} s, stars {outcome.Stars}, " +
                               $"battery {run.Battery * 100f:0}%, hull {run.Hull * 100f:0}%, step {run.ObjectiveIndex}/{mission.Objectives.Count}";
                 Debug.Log(line);
-                if (run.Status != MissionStatus.Succeeded) problems.Add(line);
+                if (run.Status != MissionStatus.Succeeded) problems.Add(line + " at " + pilot.Where);
             }
             Assert.IsEmpty(problems, string.Join("\n", problems));
         }
