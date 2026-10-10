@@ -254,9 +254,7 @@ def main():
     for region, r in REGIONS.items():
         folder = os.path.join(OUT, region)
         os.makedirs(folder, exist_ok=True)
-        for name in os.listdir(folder):
-            if name.endswith(".json") or name.endswith(".json.meta"):
-                os.remove(os.path.join(folder, name))
+        written = set()
         for order, (pattern, name, template, goal, base, star) in enumerate(PATTERNS, start=1):
             mission = {
                 "id": r["prefix"] + name,
@@ -273,6 +271,13 @@ def main():
             with open(os.path.join(folder, mission["id"] + ".json"), "w") as handle:
                 handle.write(json.dumps(mission, indent=2) + "\n")
             count += 1
+            written.add(mission["id"] + ".json")
+        # A mission that is no longer in the table goes, with its .meta; the others keep theirs.
+        for name in os.listdir(folder):
+            if name.endswith(".json") and name not in written:
+                os.remove(os.path.join(folder, name))
+                if os.path.exists(os.path.join(folder, name + ".meta")):
+                    os.remove(os.path.join(folder, name + ".meta"))
     print("wrote", count, "missions")
 
 
