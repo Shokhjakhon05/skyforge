@@ -20,14 +20,21 @@ namespace Skyforge.Drone
         Renderer[] _renderers;
         float _rotorSpeed;
 
-        public static DroneView Create(Transform parent, DroneLook look)
+        /// <param name="paint">A skin's body colour instead of the factory one.</param>
+        /// <param name="glow">A faint light the paint gives off; black for none.</param>
+        public static DroneView Create(Transform parent, DroneLook look, Color? paint = null, Color glow = default)
         {
             var root = new GameObject("Drone");
             root.transform.SetParent(parent, false);
             var view = root.AddComponent<DroneView>();
+            view._paint = paint;
+            view._glow = glow;
             view.Build(look);
             return view;
         }
+
+        Color? _paint;
+        Color _glow;
 
         void Build(DroneLook look)
         {
@@ -127,7 +134,9 @@ namespace Skyforge.Drone
             if (model == null) return false;
 
             var parts = new Dictionary<string, Transform>();
-            Transform body = model.Spawn(_tilt, model.Tinted(Palette.Color(look.BodyColor)), true, parts);
+            Material skin = model.Tinted(_paint ?? Palette.Color(look.BodyColor));
+            if (_glow.maxColorComponent > 0.01f && skin.HasProperty("_Emission")) skin.SetColor("_Emission", _glow * 0.28f);
+            Transform body = model.Spawn(_tilt, skin, true, parts);
             body.localScale = Vector3.one * look.Scale;
             Length = Mathf.Max(model.Bounds.size.z, model.Bounds.size.x) * look.Scale;
             // The model's feet are at the depth the simulation rests on; scaling must not move them.

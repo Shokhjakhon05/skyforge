@@ -815,3 +815,12 @@ namespace Skyforge.Core
         }
     }
 }
+
+namespace Skyforge.Core
+{
+    /// <summary>The story is told in transmissions between operations; each waits for this many campaign missions.</summary>
+    public static class Story
+    {
+        public static readonly int[] Beats = { 0, 1, 3, 6, 10, 15, 24, 36, 50, 70, 90 };
+    }
+}

@@ -79,6 +79,7 @@ namespace Skyforge.Core
                 // Scout: sees far and reaches far, breaks easily.
                 Make("kestrel", 900, 0, new DroneLook { Scale = 0.9f, BodyColor = LightGrey, AccentColor = Green, BigCamera = true, Model = "drone_heli" }, s =>
                 {
+                    s.Cannon = 22f; s.CannonRange = 110f;
                     s.Rockets = 6; s.Bombs = 0; s.RocketDamage = 70f; s.LockRange = 210f;
                     s.MaxSpeed = 17f; s.TiltResponse = 7.5f; s.BatterySeconds = 420f; s.SignalRange = 1300f;
                     s.OpticsRange = 1.6f; s.MaxZoom = 8f; s.DamageScale = 1.5f;
@@ -87,6 +88,7 @@ namespace Skyforge.Core
                 // Racer: fast and sharp, drinks the battery.
                 Make("viper", 1400, 0, new DroneLook { Scale = 0.85f, BodyLength = 1.2f, ArmReach = 0.9f, BodyColor = Red, AccentColor = Graphite, Model = "drone_hover" }, s =>
                 {
+                    s.Cannon = 18f; s.CannonSeconds = 10f;
                     s.Rockets = 12; s.Bombs = 0; s.RocketDamage = 35f; s.FireInterval = 0.35f; s.LockRange = 130f;
                     s.MaxSpeed = 27f; s.MaxTiltDeg = 42f; s.TiltResponse = 9f; s.MaxClimb = 9f; s.MaxDescent = 7f;
                     s.YawRateDeg = 140f; s.BatterySeconds = 300f; s.SignalRange = 800f; s.MaxZoom = 2f;
@@ -103,6 +105,7 @@ namespace Skyforge.Core
                 // Hauler: shrugs off cargo and knocks, turns like a barge.
                 Make("mule", 1600, 4, new DroneLook { Arms = 6, Scale = 1.25f, BodyColor = DarkGrey, AccentColor = Orange, Rack = true, Model = "drone_lifter" }, s =>
                 {
+                    s.Cluster = true;
                     s.Rockets = 4; s.Bombs = 10; s.BombDamage = 240f;
                     s.MaxSpeed = 13f; s.TiltResponse = 4.5f; s.MaxClimb = 5f; s.YawRateDeg = 80f;
                     s.BatterySeconds = 560f; s.DamageScale = 0.6f; s.PayloadEase = 0.4f; s.MaxZoom = 2f;
@@ -111,6 +114,7 @@ namespace Skyforge.Core
                 // Stealth: hard to notice, in no hurry.
                 Make("ghost", 2400, 8, new DroneLook { Scale = 0.95f, BodyColor = Lens, AccentColor = DarkGrey, Model = "drone_delta" }, s =>
                 {
+                    s.Ability = Ability.Jammer;
                     s.Rockets = 6;
                     s.MaxSpeed = 13f; s.TiltResponse = 6.5f; s.BatterySeconds = 500f; s.SignalRange = 850f;
                     s.DetectScale = 0.45f;
@@ -119,6 +123,7 @@ namespace Skyforge.Core
                 // Mountain: holds its line in wind, climbs hard.
                 Make("ibex", 2800, 10, new DroneLook { Scale = 1.1f, ArmReach = 1.15f, BodyColor = LeafDark, AccentColor = LightGrey, Model = "drone_scout" }, s =>
                 {
+                    s.Ability = Ability.Flares; s.AbilityCharges = 3;
                     s.Bombs = 4;
                     s.MaxSpeed = 17f; s.MaxClimb = 9f; s.BatterySeconds = 520f; s.SignalRange = 1000f;
                     s.WindFactor = 0.4f;
@@ -127,12 +132,14 @@ namespace Skyforge.Core
                 // Maritime: weather does not drain it and it can set down on water.
                 Make("petrel", 3000, 12, new DroneLook { BodyColor = White, AccentColor = Orange, Floats = true, Model = "drone_prop" }, s =>
                 {
+                    s.Cluster = true; s.Ability = Ability.Flares;
                     s.BatterySeconds = 500f; s.SignalRange = 1100f; s.WeatherProof = true; s.WaterLanding = true;
                 }),
 
                 // Night recon: fog and darkness do not shorten its sight.
                 Make("owl", 3600, 15, new DroneLook { BodyColor = Graphite, AccentColor = Green, BigCamera = true, Model = "drone_heavy" }, s =>
                 {
+                    s.Ability = Ability.GuidedMissile; s.AbilityCharges = 3;
                     s.LockRange = 190f; s.Bombs = 2;
                     s.MaxSpeed = 15f; s.BatterySeconds = 520f; s.OpticsRange = 1.3f; s.Thermal = true; s.MaxZoom = 8f;
                 }),
@@ -140,6 +147,7 @@ namespace Skyforge.Core
                 // Signal specialist: huge range and it shrinks radar coverage, poor optics.
                 Make("relay", 4200, 18, new DroneLook { Arms = 6, BodyColor = LightGrey, AccentColor = Red, Dish = true, Model = "drone_wing" }, s =>
                 {
+                    s.Ability = Ability.Jammer; s.AbilityCharges = 4;
                     s.Rockets = 6; s.Bombs = 2;
                     s.MaxSpeed = 15f; s.BatterySeconds = 520f; s.SignalRange = 1900f; s.JamScale = 0.65f;
                     s.OpticsRange = 0.8f; s.MaxZoom = 2f;
@@ -148,6 +156,7 @@ namespace Skyforge.Core
                 // Long range wing: enormous endurance and reach, cannot hover.
                 Make("albatross", 5200, 21, new DroneLook { Arms = 2, Scale = 1.3f, BodyLength = 1.5f, BodyColor = White, AccentColor = DarkGrey, Wing = true, Model = "drone_jet" }, s =>
                 {
+                    s.Ability = Ability.Flares; s.AbilityCharges = 4;
                     s.Rockets = 14; s.Bombs = 6;
                     s.MaxSpeed = 30f; s.MinSpeed = 9f; s.TiltResponse = 3.5f; s.YawRateDeg = 55f; s.MaxClimb = 7f;
                     s.BatterySeconds = 1100f; s.SignalRange = 2400f;
@@ -156,6 +165,7 @@ namespace Skyforge.Core
                 // Strike: munition lands closer to the aim, but the drone is easy to notice.
                 Make("talon", 6500, 24, new DroneLook { Scale = 1.15f, BodyLength = 1.2f, BodyColor = DarkGrey, AccentColor = Red, Rack = true, Model = "drone_gunship" }, s =>
                 {
+                    s.Cannon = 42f; s.CannonSeconds = 18f; s.Ability = Ability.Flares;
                     s.Rockets = 12; s.RocketDamage = 65f; s.Bombs = 6; s.BombDamage = 280f;
                     s.MaxSpeed = 19f; s.BatterySeconds = 420f; s.StrikeBonus = 4f; s.WindCarry = 0.2f;
                     s.DetectScale = 1.4f;
@@ -164,6 +174,7 @@ namespace Skyforge.Core
                 // Prototype: good at everything, priced accordingly.
                 Make("aegis", 15000, 30, new DroneLook { Arms = 8, Scale = 1.1f, BodyColor = White, AccentColor = Lens, BigCamera = true, Model = "drone_fighter" }, s =>
                 {
+                    s.Cannon = 30f; s.Ability = Ability.GuidedMissile; s.AbilityCharges = 3;
                     s.Rockets = 16; s.RocketDamage = 60f; s.Bombs = 8; s.BombDamage = 260f; s.LockRange = 200f;
                     s.MaxSpeed = 24f; s.TiltResponse = 9f; s.MaxClimb = 9f; s.BatterySeconds = 700f; s.SignalRange = 1600f;
                     s.OpticsRange = 1.4f; s.MaxZoom = 8f; s.DetectScale = 0.7f; s.WindFactor = 0.6f;

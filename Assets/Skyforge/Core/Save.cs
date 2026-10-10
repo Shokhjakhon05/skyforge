@@ -404,5 +404,25 @@ namespace Skyforge.Core
             outcome.CreditsGranted = credits;
             return credits;
         }
+
+        /// <summary>Credits a survival run pays for each wave beaten off, whether or not it ended well.</summary>
+        public const int SurvivalPerWave = 70;
+
+        /// <summary>
+        /// Pays for a generated operation. Nothing is recorded per mission: a contract is flown
+        /// once and gone. Survival pays by the wave; the firing range pays nothing.
+        /// </summary>
+        public static int GrantOperation(SaveData save, MissionDefinition mission, MissionOutcome outcome, int waves)
+        {
+            if (outcome.Granted) return 0;
+            outcome.Granted = true;
+            int credits = 0;
+            if (mission.Mode == "survival") credits = waves * SurvivalPerWave;
+            else if (mission.Mode != "range" && outcome.Succeeded) credits = mission.BaseReward + outcome.Stars * mission.StarReward;
+            save.Credits += credits;
+            save.Stats.CreditsEarned += credits;
+            outcome.CreditsGranted = credits;
+            return credits;
+        }
     }
 }

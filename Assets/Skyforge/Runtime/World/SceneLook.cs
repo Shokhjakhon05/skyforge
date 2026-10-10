@@ -116,9 +116,56 @@ namespace Skyforge.World
             _particles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
         }
 
+        float _dusk, _flash, _nextFlash = 6f;
+        /// <summary>True on the frame a bolt of lightning struck; the game answers with thunder.</summary>
+        public bool Lightning { get; private set; }
+
+        /// <summary>
+        /// Evening coming on during a mission: 0 is the weather as set, 1 is last light. The sun
+        /// and the sky dim together; nothing else about the weather changes.
+        /// </summary>
+        public void Dusk(float share)
+        {
+            share = Mathf.Clamp01(share);
+            if (_weather == null || Mathf.Abs(share - _dusk) < 0.01f) return;
+            _dusk = share;
+            ApplyLight();
+        }
+
+        void ApplyLight()
+        {
+            float dim = Mathf.Lerp(1f, 0.32f, _dusk), flash = 1f + _flash * 3.5f;
+            _sun.intensity = _weather.SunIntensity * dim * flash;
+            RenderSettings.ambientSkyColor = _weather.AmbientSky * dim * flash;
+            RenderSettings.ambientEquatorColor = _weather.AmbientEquator * dim * flash;
+            RenderSettings.fogColor = _weather.Fog * Mathf.Lerp(1f, 0.45f, _dusk) * (1f + _flash * 0.8f);
+            if (_sky != null && _sky.HasProperty("_HorizonColor"))
+            {
+                _sky.SetFloat("_Exposure", _weather.SkyBrightness * Mathf.Lerp(1f, 0.4f, _dusk) * (1f + _flash * 1.6f));
+                _sky.SetColor("_HorizonColor", RenderSettings.fogColor);
+            }
+        }
+
         /// <summary>Call every frame: keeps the precipitation around wherever the camera is looking.</summary>
         public void Update()
         {
+            // A storm throws lightning every few seconds: the whole sky jumps and falls back.
+            Lightning = false;
+            if (_weather != null && _weather.Id == "storm")
+            {
+                _nextFlash -= Time.deltaTime;
+                if (_nextFlash <= 0f)
+                {
+                    _nextFlash = Random.Range(5f, 14f);
+                    _flash = 1f;
+                    Lightning = true;
+                }
+            }
+            if (_flash > 0f)
+            {
+                _flash = Mathf.MoveTowards(_flash, 0f, Time.deltaTime * 4.5f);
+                ApplyLight();
+            }
             Transform cam = _camera.transform;
             Vector3 ahead = cam.forward;
             ahead.y = 0f;
@@ -168,6 +215,8 @@ namespace Skyforge.World
         public void Apply(Weather weather)
         {
             _weather = weather;
+            _dusk = 0f;
+            _flash = 0f;
             RenderSettings.fog = true;
             _sun.transform.rotation = Quaternion.Euler(weather.SunPitchDeg, weather.SunYawDeg, 0f);
             _sun.color = weather.SunColor;

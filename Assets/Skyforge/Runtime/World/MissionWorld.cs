@@ -110,7 +110,27 @@ namespace Skyforge.World
             { "aagun", "aagun" }, { "gatling", "gatling" }, { "sam", "sam" },
             { "heli", "heli" }, { "heli_transport", "heli_transport" }, { "gunship", "heli" },
             { "boat", "boat" }, { "warship", "warship" }, { "ally_truck", "truck_army" },
+            { "hunter", "drone_heavy" }, { "fighter", "drone_fighter" }, { "ally_tank", "tank" }, { "turret", "aagun" },
+            { "launcher", "sam" }, { "ship_turret", "gatling" },
         };
+
+        /// <summary>Models that stand in for something of another size.</summary>
+        static readonly Dictionary<string, float> TargetScales = new Dictionary<string, float>
+        {
+            { "hunter", 1.5f }, { "fighter", 2.6f }, { "launcher", 1.7f }, { "ship_turret", 0.8f },
+        };
+
+        struct Debris
+        {
+            public Transform Body;
+            public Vector3 Velocity, Spin;
+            public float Left;
+        }
+
+        readonly List<Debris> _debris = new List<Debris>();
+        static readonly int EmissionId = Shader.PropertyToID("_Emission");
+        MaterialPropertyBlock _heat;
+        bool _thermal;
 
         public MissionWorld(Transform parent, HeightMap map, Effects effects)
         {
@@ -224,6 +244,8 @@ namespace Skyforge.World
             _targets.Clear();
             _rockets.Clear();
             _bombs.Clear();
+            _debris.Clear();
+            _thermal = false;
             _effects.ClearBattle();
             _mission = null;
         }
@@ -245,8 +267,13 @@ namespace Skyforge.World
                 {
                     var parts = new Dictionary<string, Transform>();
                     // The commander's car is the pale one in the column.
-                    Material paint = definition.Kind.Id == "staff_car" ? view.Model.Tinted(new Color(0.80f, 0.80f, 0.76f)) : view.Model.Plain;
-                    view.Model.Spawn(root.transform, paint, true, parts);
+                    string id = definition.Kind.Id;
+                    Material paint = id == "staff_car" ? view.Model.Tinted(new Color(0.80f, 0.80f, 0.76f))
+                        : definition.Friendly ? view.Model.Tinted(new Color(0.22f, 0.36f, 0.50f))
+                        : id == "hunter" || id == "fighter" ? view.Model.Tinted(new Color(0.16f, 0.15f, 0.15f))
+                        : view.Model.Plain;
+                    Transform body = view.Model.Spawn(root.transform, paint, true, parts);
+                    if (TargetScales.TryGetValue(id, out float scale)) body.localScale = Vector3.one * scale;
                     parts.TryGetValue("head", out view.Head);
                 }
                 else
@@ -340,7 +367,16 @@ namespace Skyforge.World
                     view.Dead = true;
                     bool structure = view.Model == null;
                     foreach (Renderer renderer in view.Renderers)
+                    {
                         renderer.sharedMaterial = view.Model != null ? view.Model.Burnt : GameMaterials.PaletteBurnt;
+                        renderer.SetPropertyBlock(null);
+                    }
+                    // A tank's turret is blown clean off; a building throws slabs of itself around.
+                    string dead = definition.Kind.Id;
+                    if (dead.StartsWith("tank") || dead == "ally_tank" || dead == "apc")
+                        Throw(view.Root.position + Vector3.up * 2f, new Vector3(2.2f, 0.8f, 2.6f), 1, 9f);
+                    else if (definition.Kind.Structure || dead == "depot" || dead.StartsWith("train"))
+                        Throw(view.Root.position + Vector3.up * 2f, new Vector3(1.6f, 0.5f, 2.2f), 5, 11f);
                     view.Root.localScale = structure ? new Vector3(1.04f, 0.42f, 1.04f) : new Vector3(1f, 0.9f, 1f);
                     if (afloat || definition.Altitude > 0f)
                     {
@@ -427,9 +463,75 @@ namespace Skyforge.World
         }
 
         /// <summary>Follows a running mission: moves actors, recolours rings, flies the munition.</summary>
+        /// <summary>Tosses blackened pieces up and out from a kill; they tumble, land and lie there.</summary>
+        void Throw(Vector3 from, Vector3 size, int count, float force)
+        {
+            for (int i = 0; i < count; i++)
+            {
+                var builder = new MeshBuilder();
+                float shrink = count == 1 ? 1f : Random.Range(0.5f, 1f);
+                builder.Box(Vector3.zero, size * shrink, Palette.Soot);
+                Transform piece = Spawn("Debris", builder.Build("Debris"), GameMaterials.PaletteBurnt, true).transform;
+                piece.position = from;
+                Vector2 out2 = Random.insideUnitCircle.normalized;
+                _debris.Add(new Debris
+                {
+                    Body = piece, Velocity = new Vector3(out2.x, 0f, out2.y) * Random.Range(force * 0.3f, force * 0.7f) + Vector3.up * Random.Range(force * 0.8f, force * 1.3f),
+                    Spin = Random.insideUnitSphere * 260f, Left = 6f,
+                });
+            }
+        }
+
+        void UpdateDebris(float deltaTime)
+        {
+            for (int i = _debris.Count - 1; i >= 0; i--)
+            {
+                Debris piece = _debris[i];
+                if (piece.Body == null || piece.Left <= 0f)
+                {
+                    _debris.RemoveAt(i);
+                    continue;
+                }
+                piece.Left -= deltaTime;
+                piece.Velocity.y -= 17f * deltaTime;
+                Vector3 next = piece.Body.position + piece.Velocity * deltaTime;
+                float ground = Mathf.Max(_map.Height(next.x, next.z), Island.WaterLevel) + 0.3f;
+                if (next.y <= ground)
+                {
+                    // Down: it stays where it fell.
+                    next.y = ground;
+                    piece.Body.position = next;
+                    _debris.RemoveAt(i);
+                    continue;
+                }
+                piece.Body.position = next;
+                piece.Body.Rotate(piece.Spin * deltaTime, Space.World);
+                _debris[i] = piece;
+            }
+        }
+
+        /// <summary>
+        /// The thermal sight: everything with a warm engine or a pulse glows white, the dead and
+        /// the landscape stay dark. Used by the gun camera at night.
+        /// </summary>
+        public void SetThermal(bool on)
+        {
+            if (on == _thermal) return;
+            _thermal = on;
+            if (_heat == null) _heat = new MaterialPropertyBlock();
+            _heat.SetColor(EmissionId, on ? new Color(1.5f, 1.4f, 1.2f) : Color.black);
+            foreach (TargetView view in _targets)
+            {
+                if (view.Dead || view.Renderers == null) continue;
+                foreach (Renderer renderer in view.Renderers)
+                    if (renderer != null) renderer.SetPropertyBlock(on ? _heat : null);
+            }
+        }
+
         public void Update(MissionRun run, FlightState drone, float deltaTime)
         {
             if (_mission == null) return;
+            UpdateDebris(deltaTime);
 
             for (int i = 0; i < _actors.Count; i++)
             {
@@ -625,7 +727,80 @@ namespace Skyforge.World
                     b.Cylinder(at + Vector3.up * 0.05f, 4.4f, 4.4f, 0.02f, 20, Palette.Orange);
                     b.Cylinder(at + Vector3.up * 0.05f, 3.6f, 3.6f, 0.03f, 20, Palette.White);
                     break;
+                case "pilot":
+                    // One man beside what is left of his parachute.
+                    b.Box(at + new Vector3(0f, 0.45f, 0f), new Vector3(0.42f, 0.9f, 0.3f), Palette.Orange);
+                    b.Box(at + new Vector3(0f, 1.25f, 0f), new Vector3(0.52f, 0.7f, 0.34f), Palette.Orange);
+                    b.Box(at + new Vector3(0f, 1.78f, 0f), new Vector3(0.3f, 0.3f, 0.3f), Palette.White);
+                    b.Cylinder(at + new Vector3(2.2f, 0f, 1.2f), 2.0f, 0.4f, 0.5f, 8, Palette.White);
+                    b.Cylinder(at + new Vector3(2.2f, 0.5f, 1.2f), 0.4f, 0f, 0.3f, 8, Palette.Orange);
+                    break;
+                case "dummy":
+                    // A plywood board with rings painted on it.
+                    b.Box(at + new Vector3(0f, 1.8f, 0f), new Vector3(3.4f, 3.4f, 0.2f), Palette.White);
+                    b.Box(at + new Vector3(0f, 1.8f, 0.12f), new Vector3(2.2f, 2.2f, 0.06f), Palette.Red);
+                    b.Box(at + new Vector3(0f, 1.8f, 0.16f), new Vector3(1.0f, 1.0f, 0.06f), Palette.White);
+                    b.Box(at + new Vector3(-1.3f, 0.1f, 0f), new Vector3(0.2f, 0.2f, 1.6f), Palette.Trunk);
+                    b.Box(at + new Vector3(1.3f, 0.1f, 0f), new Vector3(0.2f, 0.2f, 1.6f), Palette.Trunk);
+                    break;
+                case "train_engine":
+                    b.Box(at + new Vector3(0f, 0.7f, 0f), new Vector3(3.2f, 0.8f, 11f), Palette.Graphite);
+                    b.Box(at + new Vector3(0f, 2.3f, -0.6f), new Vector3(3.0f, 2.6f, 8.6f), Palette.Olive);
+                    b.Box(at + new Vector3(0f, 3.4f, -3.6f), new Vector3(3.1f, 1.5f, 2.6f), Palette.DarkGrey);
+                    b.Cylinder(at + new Vector3(0f, 3.6f, 2.4f), 0.5f, 0.6f, 1.2f, 8, Palette.Soot);
+                    b.Box(at + new Vector3(0f, 1.5f, 5.2f), new Vector3(2.8f, 1.2f, 0.8f), Palette.Rust);
+                    for (int i = 0; i < 4; i++)
+                    {
+                        b.Box(at + new Vector3(-1.5f, 0.5f, -3.6f + i * 2.4f), new Vector3(0.3f, 1f, 1f), Palette.Soot);
+                        b.Box(at + new Vector3(1.5f, 0.5f, -3.6f + i * 2.4f), new Vector3(0.3f, 1f, 1f), Palette.Soot);
+                    }
+                    break;
+                case "train_car":
+                case "train_gun":
+                    b.Box(at + new Vector3(0f, 0.7f, 0f), new Vector3(3.2f, 0.8f, 11f), Palette.Graphite);
+                    b.Box(at + new Vector3(0f, 2.2f, 0f), new Vector3(3.0f, 2.4f, 10f), kind == "train_gun" ? Palette.DarkGrey : Palette.Rust);
+                    for (int i = 0; i < 4; i++)
+                    {
+                        b.Box(at + new Vector3(-1.5f, 0.5f, -3.6f + i * 2.4f), new Vector3(0.3f, 1f, 1f), Palette.Soot);
+                        b.Box(at + new Vector3(1.5f, 0.5f, -3.6f + i * 2.4f), new Vector3(0.3f, 1f, 1f), Palette.Soot);
+                    }
+                    if (kind == "train_gun")
+                    {
+                        b.Cylinder(at + new Vector3(0f, 3.4f, 0f), 1.5f, 1.3f, 1.1f, 8, Palette.Olive);
+                        b.Box(at + new Vector3(0.4f, 4.4f, 1.6f), new Vector3(0.22f, 0.22f, 3.4f), Quaternion.Euler(-30f, 0f, 0f), Palette.Graphite);
+                        b.Box(at + new Vector3(-0.4f, 4.4f, 1.6f), new Vector3(0.22f, 0.22f, 3.4f), Quaternion.Euler(-30f, 0f, 0f), Palette.Graphite);
+                    }
+                    else
+                    {
+                        b.Box(at + new Vector3(0f, 3.5f, 0f), new Vector3(2.6f, 0.2f, 9.4f), Palette.Soot);
+                        b.Box(at + new Vector3(1.52f, 2.2f, 0f), new Vector3(0.06f, 1.2f, 1.2f), Palette.Yellow);
+                    }
+                    break;
+                case "bridge":
+                    // A deck on three piers, with a truss along each side.
+                    b.Box(at + new Vector3(0f, 4.6f, 0f), new Vector3(7f, 0.9f, 34f), Palette.Concrete);
+                    for (int i = -1; i <= 1; i++) b.Box(at + new Vector3(0f, 1.6f, i * 12f), new Vector3(4.6f, 5.4f, 2.4f), Palette.Rubble);
+                    foreach (float side in new[] { -3.3f, 3.3f })
+                    {
+                        b.Box(at + new Vector3(side, 7.6f, 0f), new Vector3(0.4f, 0.4f, 34f), Palette.Rust);
+                        for (int i = -4; i <= 4; i++) b.Box(at + new Vector3(side, 6.2f, i * 4f), new Vector3(0.3f, 2.6f, 0.3f), Palette.Rust);
+                    }
+                    break;
+                case "platform":
+                    // A deck on four legs out of the sea, a derrick, a flare stack and tanks.
+                    foreach (float x in new[] { -8f, 8f })
+                    foreach (float z in new[] { -8f, 8f })
+                        b.Cylinder(at + new Vector3(x, -6f, z), 1.2f, 1.2f, 16f, 8, Palette.Yellow);
+                    b.Box(at + new Vector3(0f, 10.6f, 0f), new Vector3(22f, 1.4f, 22f), Palette.DarkGrey);
+                    b.Box(at + new Vector3(-5f, 13.4f, -4f), new Vector3(8f, 4.2f, 9f), Palette.White);
+                    b.Cylinder(at + new Vector3(5f, 11.3f, 5f), 2.6f, 2.6f, 3.4f, 10, Palette.Rust);
+                    b.Cylinder(at + new Vector3(6f, 11.3f, -5f), 2.2f, 2.2f, 3.0f, 10, Palette.Orange);
+                    b.Cylinder(at + new Vector3(0f, 11.3f, 2f), 1.6f, 0.3f, 15f, 4, Palette.Graphite);
+                    b.Box(at + new Vector3(-10f, 14f, 9f), new Vector3(0.4f, 7f, 0.4f), Palette.Graphite);
+                    b.Box(at + new Vector3(-10f, 17.6f, 9f), new Vector3(0.8f, 0.5f, 0.8f), Palette.Red);
+                    break;
                 case "squad":
+                case "ally_squad":
                     // Five riflemen in a loose group.
                     for (int i = 0; i < 5; i++)
                     {

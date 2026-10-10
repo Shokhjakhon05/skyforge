@@ -16,6 +16,9 @@ namespace Skyforge.UI
     public sealed class MenuScreen
     {
         public event Action StartPressed, FreeFlightPressed, SettingsPressed, WeatherPressed, PreviousPressed, NextPressed, HangarPressed, GlobePressed, DailyPressed, AchievementsPressed;
+        public event Action VeteranPressed, OperationsPressed, CareerPressed, BasePressed, CollectionPressed;
+        Text _veteranLabel;
+        Image _veteranButton;
 
         const int MapMarks = 28;
         const float MapSize = 380f;
@@ -57,7 +60,8 @@ namespace Skyforge.UI
             tagline.color = UiKit.Cyan;
             UiKit.Place(tagline.rectTransform, topLeft, new Vector2(48f, -94f), new Vector2(700f, 30f));
             _credits = UiKit.Label(p, 24, TextAnchor.UpperRight);
-            _credits.lineSpacing = 1.1f;
+            _credits.lineSpacing = 1.05f;
+            _credits.fontSize = 22;
             _credits.color = new Color(1f, 1f, 1f, 0.85f);
             UiKit.Place(_credits.rectTransform, topRight, new Vector2(-40f, -26f), new Vector2(460f, 100f));
             UiKit.Rule(p, topLeft, new Vector2(44f, -134f), 992f);
@@ -91,7 +95,7 @@ namespace Skyforge.UI
             }
             _best = UiKit.Label(p, 24, TextAnchor.MiddleLeft);
             _best.color = new Color(1f, 1f, 1f, 0.7f);
-            UiKit.Place(_best.rectTransform, topLeft, new Vector2(204f, -266f), new Vector2(290f, 36f));
+            UiKit.Place(_best.rectTransform, topLeft, new Vector2(204f, -266f), new Vector2(280f, 36f));
             UiKit.FitWidth(_best, 15);
             UiKit.Rule(p, topLeft, new Vector2(44f, -318f), 992f, 0.3f);
 
@@ -163,6 +167,13 @@ namespace Skyforge.UI
             _stamp.alignment = TextAnchor.MiddleRight;
             UiKit.FitWidth(_stamp, 13);
 
+            // Veteran difficulty, offered once the mission has been flown the ordinary way.
+            _veteranLabel = UiKit.Button(p, "Veteran", UiKit.Quiet, 20, () => VeteranPressed?.Invoke());
+            UiKit.FitWidth(_veteranLabel, 13);
+            _veteranButton = _veteranLabel.transform.parent.GetComponent<Image>();
+            UiKit.Place(_veteranButton.rectTransform, topLeft, new Vector2(500f, -262f), new Vector2(220f, 42f));
+            _veteranButton.gameObject.SetActive(false);
+
             // Free flight has no mission to set the weather, so the player picks it here.
             UiKit.Rule(p, new Vector2(0f, 0f), new Vector2(44f, 176f), 992f, 0.3f);
             _weather = UiKit.Button(p, "Weather", UiKit.Quiet, 22, () => WeatherPressed?.Invoke());
@@ -187,11 +198,15 @@ namespace Skyforge.UI
                 Text label = UiKit.Button(safe, name, color, 28, pressed);
                 label.text = Loc.T(key);
                 UiKit.FitWidth(label, 18);
-                UiKit.Place((RectTransform)label.transform.parent, topRight, new Vector2(-36f, y), new Vector2(330f, 82f));
-                y -= 96f;
+                UiKit.Place((RectTransform)label.transform.parent, topRight, new Vector2(-36f, y), new Vector2(330f, 74f));
+                y -= 86f;
                 return label;
             }
             Side("Hangar", "menu.hangar", UiKit.Accent, () => HangarPressed?.Invoke()).color = new Color(0.08f, 0.06f, 0.02f);
+            Side("Operations", "menu.operations", UiKit.Lit, () => OperationsPressed?.Invoke());
+            Side("Career", "menu.career", UiKit.SolidPanelColor, () => CareerPressed?.Invoke());
+            Side("Base", "menu.base", UiKit.SolidPanelColor, () => BasePressed?.Invoke());
+            Side("Collection", "menu.collection", UiKit.SolidPanelColor, () => CollectionPressed?.Invoke());
             Side("Globe", "menu.globe", UiKit.SolidPanelColor, () => GlobePressed?.Invoke());
             Side("Daily", "menu.daily", UiKit.SolidPanelColor, () => DailyPressed?.Invoke());
             Side("Achievements", "menu.achievements", UiKit.SolidPanelColor, () => AchievementsPressed?.Invoke());
@@ -201,6 +216,21 @@ namespace Skyforge.UI
         public bool Visible
         {
             set => _root.SetActive(value);
+        }
+
+        /// <summary>The veteran switch: null hides it, <paramref name="on"/> lights it.</summary>
+        public void SetVeteran(string label, bool on)
+        {
+            bool show = !string.IsNullOrEmpty(label);
+            if (_veteranButton.gameObject.activeSelf != show) _veteranButton.gameObject.SetActive(show);
+            if (!show)
+            {
+                _stamp.gameObject.SetActive(true);
+                return;
+            }
+            _veteranLabel.text = label;
+            _veteranButton.color = on ? UiKit.Bad : UiKit.Quiet;
+            _stamp.gameObject.SetActive(false);
         }
 
         /// <summary>The picture of the region the missions are flown over, and how far it reaches from the middle.</summary>
@@ -222,8 +252,9 @@ namespace Skyforge.UI
         public void Show(MissionDefinition mission, SaveData save, int number, int total, bool locked, string regionName)
         {
             _credits.text = Loc.T("menu.credits", save.Credits) + "    " + Loc.T("menu.parts", save.Parts) + "\n" +
-                            Loc.T("menu.drone", Loc.T(Garage.Selected(save).NameKey));
-            _title.text = Loc.T(mission.TitleKey).ToUpperInvariant();
+                            Loc.T("menu.drone", Loc.T(Garage.Selected(save).NameKey)) + "\n" +
+                            Loc.T("title." + save.Career.Emblem) + " · " + Career.RankName(Career.Rank(save.Career.Xp));
+            _title.text = mission.TitleText.ToUpperInvariant();
             // The last three missions of a region are the stages of its major operation.
             string kind = number > total - 3 && total >= 3
                 ? Loc.T("menu.major", number - (total - 3))
@@ -267,7 +298,7 @@ namespace Skyforge.UI
             _stamp.text = locked ? Loc.T("brief.stamp.locked") : Loc.T("brief.stamp");
 
             // The orders are typed out once per mission, not again each time the screen refreshes.
-            string orders = Loc.T(mission.BriefKey);
+            string orders = mission.BriefText;
             if (_typedFor != mission.Id + Loc.Language)
             {
                 _typedFor = mission.Id + Loc.Language;
@@ -570,7 +601,7 @@ namespace Skyforge.UI
 
             if (outcome.Succeeded)
             {
-                _reason.text = Loc.T(mission.TitleKey);
+                _reason.text = mission.TitleText;
                 string time = Format.Time(outcome.Time), goal = Format.Time(mission.TimeGoalSeconds);
                 _lines.text =
                     Mark(true) + Loc.T("result.completed") + "\n" +
@@ -585,8 +616,10 @@ namespace Skyforge.UI
             else
             {
                 _reason.text = Loc.T("fail." + outcome.FailReason);
-                _lines.text = Loc.T("result.no_reward");
-                _reward.text = "";
+                _lines.text = string.IsNullOrEmpty(extra) ? Loc.T("result.no_reward") : "<color=" + UiKit.AccentHex + ">" + extra + "</color>";
+                _reward.text = outcome.CreditsGranted > 0
+                    ? Loc.T("result.reward", outcome.CreditsGranted) + "\n<size=32><color=#FFFFFFBF>" + Loc.T("menu.credits", save.Credits) + "</color></size>"
+                    : "";
             }
             Visible = true;
         }

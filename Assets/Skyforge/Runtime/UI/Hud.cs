@@ -72,7 +72,10 @@ namespace Skyforge.UI
             }
         }
 
-        public event Action LandPressed;
+        public event Action LandPressed, AbilityPressed, SupportPressed, PhotoPressed;
+        readonly GameObject _ability, _support, _photoExit;
+        readonly Text _abilityLabel, _supportLabel;
+        readonly Image _supportImage;
         readonly GameObject _land, _gunCamera, _cluster;
         readonly GameObject[] _letterbox, _flightOnly;
         readonly Text _radio;
@@ -177,6 +180,7 @@ namespace Skyforge.UI
             CreateButton(safe, 2, () => SticksPressed?.Invoke()).text = Loc.T("hud.sticks");
             CreateButton(safe, 3, () => MenuPressed?.Invoke()).text = Loc.T("hud.menu");
             _zoomLabel = CreateButton(safe, 4, () => ZoomPressed?.Invoke());
+            CreateButton(safe, 5, () => PhotoPressed?.Invoke()).text = Loc.T("hud.photo");
 
             // The scope sits at the bottom, between the thumbs.
             Image scope = UiKit.Box(safe, "Scope", new Color(0.03f, 0.05f, 0.07f, 0.45f), UiKit.Disc);
@@ -205,7 +209,7 @@ namespace Skyforge.UI
             _actionLabel = UiKit.Button(safe, "Action", UiKit.Accent, 44, () => ActionPressed?.Invoke());
             _actionLabel.color = new Color(0.08f, 0.06f, 0.02f);
             var actionRect = (RectTransform)_actionLabel.transform.parent;
-            UiKit.Place(actionRect, new Vector2(1f, 0.5f), new Vector2(-36f, 70f), new Vector2(300f, 140f));
+            UiKit.Place(actionRect, new Vector2(1f, 0.5f), new Vector2(-36f, 112f), new Vector2(270f, 124f));
             _action = actionRect.gameObject;
             _actionImage = actionRect.GetComponent<Image>();
             UiKit.FitWidth(_actionLabel, 26);
@@ -215,9 +219,34 @@ namespace Skyforge.UI
             _secondaryLabel = UiKit.Button(safe, "Secondary", UiKit.Bad, 38, () => BombPressed?.Invoke());
             UiKit.FitWidth(_secondaryLabel, 24);
             var secondaryRect = (RectTransform)_secondaryLabel.transform.parent;
-            UiKit.Place(secondaryRect, new Vector2(1f, 0.5f), new Vector2(-350f, 70f), new Vector2(260f, 140f));
+            UiKit.Place(secondaryRect, new Vector2(1f, 0.5f), new Vector2(-316f, 112f), new Vector2(240f, 124f));
             _secondary = secondaryRect.gameObject;
             _secondary.SetActive(false);
+
+            // Photo mode hides the whole HUD; its exit lives on a canvas of its own.
+            _canvas.gameObject.AddComponent<CanvasGroup>();
+            Canvas photoCanvas = UiKit.CreateCanvas(parent, "Toast", 40);
+            photoCanvas.name = "PhotoExit";
+            Text exit = UiKit.Button(UiKit.SafeArea(photoCanvas.transform), "Exit", UiKit.SolidPanelColor, 28, () => PhotoPressed?.Invoke());
+            exit.text = Loc.T("hud.photo.exit");
+            UiKit.Place((RectTransform)exit.transform.parent, new Vector2(1f, 1f), new Vector2(-36f, -26f), new Vector2(300f, 72f));
+            _photoExit = photoCanvas.gameObject;
+            _photoExit.SetActive(false);
+
+            // Under the weapons: the aircraft's special equipment, and the support a streak of kills has earned.
+            _abilityLabel = UiKit.Button(safe, "Ability", new Color(0.16f, 0.60f, 0.78f, 0.92f), 30, () => AbilityPressed?.Invoke());
+            UiKit.FitWidth(_abilityLabel, 18);
+            var abilityRect = (RectTransform)_abilityLabel.transform.parent;
+            UiKit.Place(abilityRect, new Vector2(1f, 0.5f), new Vector2(-36f, -14f), new Vector2(270f, 108f));
+            _ability = abilityRect.gameObject;
+            _ability.SetActive(false);
+            _supportLabel = UiKit.Button(safe, "Support", new Color(0.55f, 0.20f, 0.65f, 0.92f), 30, () => SupportPressed?.Invoke());
+            UiKit.FitWidth(_supportLabel, 18);
+            var supportRect = (RectTransform)_supportLabel.transform.parent;
+            UiKit.Place(supportRect, new Vector2(1f, 0.5f), new Vector2(-316f, -14f), new Vector2(240f, 108f));
+            _support = supportRect.gameObject;
+            _supportImage = supportRect.GetComponent<Image>();
+            _support.SetActive(false);
 
             // Automatic landing, over the left thumb; offered only near the pad.
             _landLabel = UiKit.Button(safe, "Land", new Color(0.10f, 0.42f, 0.52f, 0.92f), 34, () => LandPressed?.Invoke());
@@ -301,6 +330,34 @@ namespace Skyforge.UI
             if (_landLabel.text != label) _landLabel.text = label;
             Color wanted = engaged ? UiKit.Good : new Color(0.10f, 0.42f, 0.52f, 0.92f);
             if (_landImage.color != wanted) _landImage.color = wanted;
+        }
+
+        /// <summary>Photo mode puts everything away but the button that leaves it.</summary>
+        public void SetPhoto(bool on)
+        {
+            var group = _canvas.GetComponent<CanvasGroup>();
+            group.alpha = on ? 0f : 1f;
+            group.blocksRaycasts = !on;
+            _photoExit.SetActive(on);
+        }
+
+        /// <summary>The special equipment's button; null or empty hides it.</summary>
+        public void SetAbility(string label)
+        {
+            bool show = !string.IsNullOrEmpty(label);
+            if (_ability.activeSelf != show) _ability.SetActive(show);
+            if (show && _abilityLabel.text != label) _abilityLabel.text = label;
+        }
+
+        /// <summary>The support button: dull while the streak is building, lit when a strike can be called.</summary>
+        public void SetSupport(string label, bool ready)
+        {
+            bool show = !string.IsNullOrEmpty(label);
+            if (_support.activeSelf != show) _support.SetActive(show);
+            if (!show) return;
+            if (_supportLabel.text != label) _supportLabel.text = label;
+            Color wanted = ready ? new Color(0.80f, 0.25f, 0.95f, 0.95f) : new Color(0.30f, 0.24f, 0.36f, 0.75f);
+            if (_supportImage.color != wanted) _supportImage.color = wanted;
         }
 
         /// <summary>The gun camera's reticle and data line; null hides them.</summary>
@@ -576,7 +633,7 @@ namespace Skyforge.UI
         /// <summary>Buttons sit in two columns at the top right, in the band the sticks ignore.</summary>
         static Text CreateButton(RectTransform parent, int index, Action onClick)
         {
-            const float width = 300f, height = 84f, gap = 14f;
+            const float width = 300f, height = 72f, gap = 10f;
             Text label = UiKit.Button(parent, "Button" + index, UiKit.PanelColor, 30, onClick);
             UiKit.FitWidth(label, 20);
             var rect = (RectTransform)label.transform.parent;

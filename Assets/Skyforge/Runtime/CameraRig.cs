@@ -77,6 +77,36 @@ namespace Skyforge
             _snap = true;
         }
 
+        /// <summary>The view from the nose of a missile in flight.</summary>
+        public void Ride(Vector3 position, Vector3 direction)
+        {
+            Transform t = Camera.transform;
+            if (direction.sqrMagnitude < 0.001f) direction = Vector3.forward;
+            t.position = position + direction.normalized * 0.4f;
+            t.rotation = Quaternion.LookRotation(direction, Vector3.up);
+            _fieldOfView = 58f;
+            Camera.fieldOfView = _fieldOfView;
+            _snap = true;
+        }
+
+        /// <summary>A free look around a point for the photo mode: yaw and pitch in degrees, distance in metres.</summary>
+        public void Free(Vector3 center, float yawDeg, float pitchDeg, float distance)
+        {
+            Quaternion turn = Quaternion.Euler(Mathf.Clamp(pitchDeg, -10f, 80f), yawDeg, 0f);
+            Vector3 eye = center - turn * Vector3.forward * distance;
+            if (_map != null)
+            {
+                float floor = Mathf.Max(_map.Height(eye.x, eye.z), Island.WaterLevel) + 0.6f;
+                if (eye.y < floor) eye.y = floor;
+            }
+            Transform t = Camera.transform;
+            t.position = eye;
+            t.rotation = Quaternion.LookRotation(center - eye, Vector3.up);
+            _fieldOfView = 50f;
+            Camera.fieldOfView = _fieldOfView;
+            _snap = true;
+        }
+
         /// <summary>Rattles the picture: 1 is a blast right beside the drone.</summary>
         public void Shake(float amount) => _shake = Mathf.Max(_shake, Mathf.Clamp01(amount));
 

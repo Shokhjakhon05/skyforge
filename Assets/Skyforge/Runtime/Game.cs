@@ -13,7 +13,7 @@ namespace Skyforge
     /// The whole game loop: menu, a mission or free flight, the result, and back. Owns the
     /// simulation clock, the save file, and hands the drone's interpolated pose to everything visible.
     /// </summary>
-    public sealed class Game : MonoBehaviour
+    public sealed partial class Game : MonoBehaviour
     {
         enum Phase
         {
@@ -79,6 +79,22 @@ namespace Skyforge
         float _zoom = 1f;
         bool _actionPressed, _bombPressed;
         bool _autoLand;
+        bool _abilityPressed, _supportPressed;
+        Vector2 _guide;
+        /// <summary>The campaign is being flown at veteran difficulty.</summary>
+        bool _veteran;
+        /// <summary>The sector an operation is being fought for, or -1; the tower floor being climbed, or 0.</summary>
+        int _operationSector = -1, _towerFloor;
+        /// <summary>An aircraft being tried on the firing range without being owned, or null.</summary>
+        string _trialDrone;
+        /// <summary>Real seconds left of the camera's look at a decisive kill, and where it happened.</summary>
+        float _killCam;
+        Vector3 _killPoint;
+        bool _photo, _radioedScatter;
+        /// <summary>Closes whatever screens of the headquarters are open; set when they are built.</summary>
+        Action _hideOperations;
+        float _photoYaw, _photoPitch = 18f, _photoDistance = 9f, _hapticClock;
+        int _shownSpecialStamp = -1;
         /// <summary>Seconds left of the fly-past that opens a mission; the drone waits on the pad meanwhile.</summary>
         float _introTimer;
         Vector3 _introPoint;
@@ -151,6 +167,9 @@ namespace Skyforge
             _hud.ActionPressed += () => _actionPressed = true;
             _hud.BombPressed += () => _bombPressed = true;
             _hud.LandPressed += ToggleAutoLand;
+            _hud.AbilityPressed += () => _abilityPressed = true;
+            _hud.SupportPressed += () => _supportPressed = true;
+            _hud.PhotoPressed += TogglePhoto;
 
             _menu = new MenuScreen(transform);
             _menu.SetMap(TacticalMap.Build(_island), _island.Map.HalfSize);
@@ -161,6 +180,7 @@ namespace Skyforge
             _menu.PreviousPressed += () => SelectMission(_missionIndex - 1);
             _menu.NextPressed += () => SelectMission(_missionIndex + 1);
             _menu.HangarPressed += () => { Click(); ShowHangar(); };
+            _menu.VeteranPressed += () => { Click(); _veteran = !_veteran; ShowMenuScreen(); };
 
             _hangar = new HangarScreen(transform);
             _hangar.Viewed += ShowDroneModel;
@@ -236,8 +256,23 @@ namespace Skyforge
             _settings.ClosePressed += () => { Click(); _settings.Visible = false; };
             _settings.Visible = false;
 
+            BuildHeadquarters();
             RefreshLabels();
             ShowMenu();
+            // The mark and the name, once per launch; the story's next transmission waits behind them.
+            _splash = SplashScreen.Create(transform);
+            _splash.Finished = () => { _splash = null; _sfx.Play(Sound.Open, 0.6f); TellStory(); };
+        }
+
+        SplashScreen _splash;
+
+        /// <summary>The screenshot run has no time for the splash.</summary>
+        public void AutomationSkipSplash()
+        {
+            if (_splash == null) return;
+            _splash.Finished = null;
+            Destroy(_splash.gameObject);
+            _splash = null;
         }
 
         void OnApplicationPause(bool paused)
@@ -266,6 +301,7 @@ namespace Skyforge
             ApplyWeather(WeatherCatalog.Get(_mission.WeatherId));
             _music.Menu(RegionCatalog.IndexOf(_region.Id));
             ShowMenuScreen();
+            if (_splash == null) TellStory();
         }
 
         void ShowHangar()
@@ -280,7 +316,8 @@ namespace Skyforge
         {
             if (_shownDrone == drone && _drone != null) return;
             if (_drone != null) Destroy(_drone.gameObject);
-            _drone = DroneView.Create(transform, drone.Look);
+            SkinDefinition skin = Skins.Worn(_save, drone.Id);
+            _drone = skin != null ? DroneView.Create(transform, drone.Look, skin.Body, skin.Glow) : DroneView.Create(transform, drone.Look);
             _shownDrone = drone;
             _camera.Reach = Mathf.Clamp(_drone.Length / 1.5f, 1f, 2.2f);
         }
@@ -410,7 +447,9 @@ namespace Skyforge
 
         void ShowMenuScreen()
         {
-            _menu.Show(_mission, _save, _missionIndex + 1, _missions.Count, IsLocked(_missionIndex), Loc.T(_region.NameKey));
+            bool veteran = _veteran && CanFlyVeteran(_missionIndex);
+            _menu.SetVeteran(CanFlyVeteran(_missionIndex) ? Loc.T(veteran ? "menu.veteran.on" : "menu.veteran.off") : null, veteran);
+            _menu.Show(veteran ? Operations.Veteran(_mission) : _mission, _save, _missionIndex + 1, _missions.Count, IsLocked(_missionIndex), Loc.T(_region.NameKey));
         }
 
         // ---------------------------------------------------------------- regions
@@ -583,7 +622,8 @@ namespace Skyforge
         /// <param name="strike">The mission is flown with one-way strike drones.</param>
         FlightSim CreateSim(float payload, bool strike = false)
         {
-            DroneSpec spec = Garage.SelectedSpec(_save);
+            DroneSpec spec = _trialDrone != null ? DroneCatalog.Get(_trialDrone).Spec : Garage.SelectedSpec(_save);
+            spec = ArmouryRules.Outfit(spec, _save);
             if (strike) spec = spec.AsStrikeDrone();
             var sim = new FlightSim(_island, spec.WithPayload(payload));
             sim.Mode = (FlightMode)Mathf.Clamp(_save.FlightModeIndex, 0, 1);
@@ -605,9 +645,46 @@ namespace Skyforge
             _mission = _dailySlot >= 0 && _dailySlot < _dailyOps.Count
                 ? Daily.Apply(AppliedMission(), _dailyOps[_dailySlot].Modifier)
                 : AppliedMission();
+            MissionDefinition mission = _mission;
+            if (_veteran && CanFlyVeteran(_missionIndex)) mission = Operations.Veteran(mission);
+            _operationSector = -1;
+            _towerFloor = 0;
+            _trialDrone = null;
+            Launch(mission);
+        }
+
+        /// <summary>The aircraft that is flying: the selected one, or one being tried on the range.</summary>
+        DroneDefinition FlyingDrone() => _trialDrone != null ? DroneCatalog.Get(_trialDrone) : Garage.Selected(_save);
+
+        /// <summary>Veteran difficulty opens for a mission once it has been completed the ordinary way.</summary>
+        bool CanFlyVeteran(int index)
+        {
+            MissionRecord record = _save.Find(_missions[index].Id);
+            return record != null && record.Completions > 0 && _missions[index].Targets.Count > 0;
+        }
+
+        /// <summary>Starts a generated operation: a contract, a sector battle, survival, a raid, the range.</summary>
+        public void StartOperation(MissionDefinition operation, int sector = -1, int towerFloor = 0, string trialDrone = null)
+        {
+            if (operation == null)
+            {
+                _sfx.Play(Sound.Warning);
+                return;
+            }
+            _dailySlot = -1;
+            _operationSector = sector;
+            _towerFloor = towerFloor;
+            _trialDrone = trialDrone;
+            Launch(operation);
+        }
+
+        /// <summary>Puts a mission in the air: the aircraft, the run, the weather, the world, the music.</summary>
+        void Launch(MissionDefinition mission)
+        {
+            _mission = mission;
             // A one-way attack drone turns a mission of pure destruction into a kamikaze sortie;
             // anything that asks for a photograph, a delivery or a landing it cannot fly at all.
-            DroneSpec chosen = Garage.SelectedSpec(_save);
+            DroneSpec chosen = FlyingDrone().Spec;
             if (chosen.OneWay > 0 && _mission.StrikeDrones == 0)
             {
                 MissionDefinition sortie = MissionRun.AsOneWaySortie(_mission, chosen.OneWay);
@@ -619,6 +696,13 @@ namespace Skyforge
                 }
                 _mission = sortie;
             }
+            // The reserve hangar's spare aircraft stand by, except on the range and for one-way drones.
+            if (_mission.StrikeDrones == 0 && _mission.Targets.Count > 0 && _mission.Mode != "range" && BaseRules.Spares(_save) > 0)
+            {
+                _mission = _mission.Copy();
+                _mission.Spares = BaseRules.Spares(_save);
+            }
+            _hideOperations?.Invoke();
             _phase = Phase.Mission;
             _analytics.Event("mission_start", _mission.Id);
             _sim = CreateSim(_mission.Payload, _mission.StrikeDrones > 0);
@@ -650,7 +734,7 @@ namespace Skyforge
             _introPoint.y = Mathf.Max(_island.Map.Height(_introPoint.x, _introPoint.z), Island.WaterLevel);
             _introTimer = 4.2f;
             _hud.SetLetterbox(true);
-            _hud.SetMessage(Loc.T("brief.operation") + " «" + Loc.T(_mission.TitleKey).ToUpperInvariant() + "»");
+            _hud.SetMessage(Loc.T("brief.operation") + " «" + _mission.TitleText.ToUpperInvariant() + "»");
             _messageTimer = 0f;
             _sfx.Play(Sound.Open);
         }
@@ -683,7 +767,7 @@ namespace Skyforge
             _achievements.Visible = false;
             _save.Stats.Flights++;
             // Whatever model the hangar was showing, the drone that flies is the selected one.
-            ShowDroneModel(Garage.Selected(_save));
+            ShowDroneModel(FlyingDrone());
             _hud.Visible = true;
             _hud.GaugesVisible = gauges;
             _hud.SetMessage("");
@@ -706,8 +790,11 @@ namespace Skyforge
         {
             _phase = Phase.Result;
             MissionOutcome outcome = MissionOutcome.From(_run);
-            Progress.Grant(_save, _mission, outcome);
-            _advanceOnContinue = outcome.Succeeded && _save.Find(_mission.Id).Completions == 1 && _dailySlot < 0;
+            bool campaign = _mission.Mode == "campaign" || _mission.Mode == "veteran";
+            int waves = _mission.Mode == "survival" ? Mathf.Max(0, _run.ObjectiveIndex - 1) : 0;
+            if (campaign) Progress.Grant(_save, _mission, outcome);
+            else Progress.GrantOperation(_save, _mission, outcome, waves);
+            _advanceOnContinue = _mission.Mode == "campaign" && outcome.Succeeded && _save.Find(_mission.Id).Completions == 1 && _dailySlot < 0;
 
             // A daily operation pays on top, once, if its twist was honoured.
             string extra = null;
@@ -717,6 +804,22 @@ namespace Skyforge
                 if (!Daily.Satisfied(outcome, op.Modifier)) extra = Loc.T("daily.not_met");
                 else if (Daily.Complete(_save, _today, _dailySlot, op)) extra = Loc.T("daily.completed", op.Credits, op.Parts);
             }
+
+            // The career: experience, rank, season, tasks, mastery, the war over the map.
+            _today = Daily.Today(_save, DateTime.Now);
+            MissionReport report = MissionReport.From(_run, _mission, outcome, FlyingDrone().Id);
+            report.Sector = _operationSector;
+            if (_trialDrone != null) report.Mode = "range";
+            CareerGain gain = Career.Apply(_save, report, _today);
+            if (outcome.Succeeded && _towerFloor > _save.Career.TowerFloor) _save.Career.TowerFloor = _towerFloor;
+            var lines = new List<string>();
+            if (!string.IsNullOrEmpty(extra)) lines.Add(extra);
+            if (_mission.Mode == "survival") lines.Add(Loc.T("result.waves", waves, _save.Career.SurvivalBest));
+            if (gain.Xp > 0) lines.Add(Loc.T("reward.xp", gain.Xp) + "   " + Career.RankName(gain.RankAfter));
+            lines.AddRange(gain.News);
+            if (!gain.Rewards.Empty) lines.Add(gain.Rewards.Describe());
+            extra = lines.Count > 0 ? string.Join("\n", lines) : null;
+            _trialDrone = null;
             Announce(Achievements.Collect(_save));
             if (!_store.Save(_save)) Debug.LogError("[Skyforge] Progress could not be saved.");
 
@@ -807,6 +910,14 @@ namespace Skyforge
         void ResetFlight()
         {
             _freezeTimer = 0f;
+            _killCam = 0f;
+            _radioedScatter = false;
+            _shownSpecialStamp = -1;
+            if (_photo)
+            {
+                _photo = false;
+                if (_hud != null) _hud.SetPhoto(false);
+            }
             _introTimer = 0f;
             _slowMotion = 0f;
             Time.timeScale = 1f;
@@ -846,7 +957,11 @@ namespace Skyforge
             if (flying)
             {
                 _sticks.Update();
-                if (_freezeTimer > 0f)
+                if (_photo)
+                {
+                    UpdatePhoto();
+                }
+                else if (_freezeTimer > 0f)
                 {
                     _freezeTimer -= deltaTime;
                     if (_freezeTimer <= 0f) AfterFreeze();
@@ -876,13 +991,16 @@ namespace Skyforge
                 if (_toastTimer <= 0f) _toast.text = "";
             }
             _look.Update();
+            if (_look.Lightning) _sfx.Play(Sound.Explosion, 0.35f);
+            if (_phase == Phase.Mission && _weather != null && _weather.Id == "sunset" && _run != null)
+                _look.Dusk(_run.Elapsed / 420f);
             CountFrames();
         }
 
         /// <summary>A decisive kill is shown at a third of the speed for a moment, then time runs on.</summary>
         void UpdateSlowMotion()
         {
-            if (_slowMotion <= 0f) return;
+            if (_slowMotion <= 0f || _photo) return;
             _slowMotion -= Time.unscaledDeltaTime;
             if (_slowMotion <= 0f || _phase != Phase.Mission)
             {
@@ -949,9 +1067,12 @@ namespace Skyforge
                 if (_phase == Phase.Mission)
                 {
                     int before = _run.ObjectiveIndex;
+                    if (_abilityPressed) _run.UseAbility();
+                    if (_supportPressed) _run.CallSupport();
+                    _run.Guide(_guide);
                     ActionResult action = _run.Step(_sim.State, simEvent, _load, _sim.LastTouchdownSpeed, StepSeconds,
                         _actionPressed, _sim.Wind, _zoom, _bombPressed);
-                    _actionPressed = _bombPressed = false;
+                    _actionPressed = _bombPressed = _abilityPressed = _supportPressed = false;
                     ActionTaken(action);
                     CombatEvents();
                     if (_run.ShotLanded) ShotLanded();
@@ -963,10 +1084,10 @@ namespace Skyforge
                     }
                     if (_run.NeedsRespawn)
                     {
-                        // The strike drone is gone; show what it did, then hand over the next one.
+                        // The aircraft is gone; show what happened, then hand over the next one.
                         _drone.Visible = false;
                         _respawnAfterFreeze = true;
-                        Freeze(Loc.T("msg.next_drone", _run.DronesLeft), 1.5f);
+                        Freeze(_run.Kamikaze ? Loc.T("msg.next_drone", _run.DronesLeft) : Loc.T("msg.spare", _run.SparesLeft), 1.5f);
                         return;
                     }
                 }
@@ -999,6 +1120,13 @@ namespace Skyforge
         {
             Vector2 move = _save.SticksSwapped ? _sticks.Right.Value : _sticks.Left.Value;
             Vector2 lift = _save.SticksSwapped ? _sticks.Left.Value : _sticks.Right.Value;
+            // While a hand-flown missile is in the air the sticks fly it and the aircraft holds where it is.
+            if (_phase == Phase.Mission && _run != null && _run.GuidedActive)
+            {
+                _guide = new Vector2(move.x + lift.x, move.y + lift.y);
+                return default;
+            }
+            _guide = Vector2.zero;
             _sim.AutoLanding = _autoLand;
             if (_autoLand)
             {
@@ -1037,8 +1165,16 @@ namespace Skyforge
 
         void PresentGunCamera()
         {
-            bool gun = _camera.View == CameraView.Gun;
+            bool riding = _phase == Phase.Mission && _run.GuidedActive;
+            bool gun = (_camera.View == CameraView.Gun || riding) && !_photo && _killCam <= 0f;
             if (gun != _look.Scope) _look.SetScope(gun);
+            // At night the sight is thermal: what is warm glows.
+            _world.SetThermal(gun && _weather != null && _weather.Id == "night");
+            if (riding)
+            {
+                _hud.SetGunCamera(Loc.T("hud.gun.missile"));
+                return;
+            }
             if (!gun)
             {
                 _hud.SetGunCamera(null);
@@ -1126,7 +1262,12 @@ namespace Skyforge
             }
             UpdateSecondaries(deltaTime);
 
-            _camera.Update(position, yaw, tilt, speedShare, deltaTime);
+            bool riding = _phase == Phase.Mission && _run.GuidedActive;
+            if (_killCam > 0f) _killCam -= Time.unscaledDeltaTime;
+            if (_photo) _camera.Free(position + Vector3.up * 0.3f, _photoYaw, _photoPitch, _photoDistance);
+            else if (riding) _camera.Ride(_run.GuidedPosition, _run.GuidedDirection);
+            else if (_killCam > 0f) _camera.Orbit(_killPoint + Vector3.up * 3f, Time.unscaledTime * 3.5f, 0f, 30f, 0.34f);
+            else _camera.Update(position, yaw, tilt, speedShare, deltaTime);
             _hud.SetTelemetry(speed * 3.6f, _sim.AltitudeAboveGround);
             _hud.UpdateSticks(_sticks,
                 Loc.T(_save.SticksSwapped ? "hint.lift" : "hint.move"),
@@ -1202,6 +1343,19 @@ namespace Skyforge
                     _hud.SetSecondary(Loc.T("hud.bombs", _run.Bombs));
                 }
                 _hud.SetActionReady(_run.LockedTarget >= 0);
+                // The special equipment and the support, redrawn only when a number on them changes.
+                int tier = _run.SupportTier, cannon = Mathf.CeilToInt(_run.CannonSeconds);
+                int special = _run.AbilityCharges + tier * 10 + _run.Streak * 100 + cannon * 10000 + (_run.Jamming ? 1000000 : 0);
+                if (special != _shownSpecialStamp)
+                {
+                    _shownSpecialStamp = special;
+                    DroneSpec spec = _sim.Spec;
+                    string ability = spec.Ability != Ability.None
+                        ? Loc.T("hud.ability." + spec.Ability.ToString().ToLowerInvariant(), _run.AbilityCharges) : null;
+                    if (spec.Cannon > 0f) ability = (ability != null ? ability + "\n" : "") + Loc.T("hud.cannon", cannon);
+                    _hud.SetAbility(ability);
+                    _hud.SetSupport(tier > 0 ? Loc.T("hud.support." + tier) : Loc.T("hud.streak", _run.Streak, MissionRun.SupportStreak[0]), tier > 0);
+                }
                 if (_run.LockedTarget >= 0 && _lastLock < 0)
                 {
                     _sfx.Play(Sound.Lock, 0.6f);
@@ -1222,6 +1376,9 @@ namespace Skyforge
                 _hud.SetAction(action);
                 _hud.SetActionReady(true);
                 _hud.SetSecondary(null);
+                _hud.SetAbility(null);
+                _hud.SetSupport(null, false);
+                _shownSpecialStamp = -1;
                 _shownAmmoStamp = -1;
             }
             _hud.UpdateTargets(_camera.Camera, live && _run.IsCombat ? _run : null, _mission,
@@ -1357,8 +1514,15 @@ namespace Skyforge
                             if (last || definition.Kind.Structure)
                             {
                                 _slowMotion = last ? 1.5f : 0.9f;
-                                if (last) Radio("radio.target_down");
+                                if (last)
+                                {
+                                    // The camera leaves the aircraft for a look at what it has done.
+                                    _killCam = 1.3f;
+                                    _killPoint = e.Position;
+                                    Radio("radio.target_down");
+                                }
                             }
+                            if (distance < 90f) Buzz();
                         }
                         break;
                     }
@@ -1393,9 +1557,96 @@ namespace Skyforge
                         break;
                     case CombatEventType.Detonated:
                         _camera.Shake(1f);
+                        Buzz();
+                        break;
+                    case CombatEventType.CannonFire:
+                    {
+                        Vector3 at = _run.Target(e.Target).Position + Vector3.up * 1.2f + UnityEngine.Random.insideUnitSphere * 1.5f;
+                        _effects.MuzzleFlash(drone + Vector3.down * 0.3f, 0.7f);
+                        _effects.Tracer(drone, at);
+                        _effects.Impact(at);
+                        if (_gunSoundClock <= 0f)
+                        {
+                            _gunSoundClock = 0.3f;
+                            _sfx.Play(Sound.Gun, 0.8f);
+                        }
+                        break;
+                    }
+                    case CombatEventType.AllyFire:
+                    {
+                        Vector3 at = _run.Target(e.Target).Position + Vector3.up * 1.5f + UnityEngine.Random.insideUnitSphere * 2f;
+                        _effects.MuzzleFlash(e.Position, 1.1f);
+                        _effects.Tracer(e.Position, at);
+                        if (_gunSoundClock <= 0f)
+                        {
+                            _gunSoundClock = 0.36f;
+                            _sfx.Play(Sound.Gun, Mathf.Lerp(0.5f, 0.1f, distance / 400f));
+                        }
+                        break;
+                    }
+                    case CombatEventType.SupportCalled:
+                        Radio("radio.support." + Mathf.Clamp((int)e.Size, 1, 3));
+                        _sfx.Play(Sound.Lock);
+                        break;
+                    case CombatEventType.JammerOn:
+                        Radio("radio.jammer");
+                        break;
+                    case CombatEventType.FlaresOut:
+                        _effects.Flares(e.Position, _sim.State.Velocity);
+                        _sfx.Play(Sound.Release);
+                        break;
+                    case CombatEventType.GuidedLaunched:
+                        _sfx.Play(Sound.Rocket);
+                        break;
+                    case CombatEventType.SpareUsed:
+                        _effects.Explosion(e.Position, 5f);
+                        _sfx.Play(Sound.Explosion);
+                        _camera.Shake(0.9f);
+                        Buzz();
+                        break;
+                    case CombatEventType.Scattered:
+                        if (!_radioedScatter)
+                        {
+                            _radioedScatter = true;
+                            Radio("radio.scatter");
+                        }
                         break;
                 }
             }
+        }
+
+        /// <summary>A short buzz of the phone, if the player has not turned it off.</summary>
+        void Buzz()
+        {
+            if (!_save.Career.Haptics || Time.unscaledTime < _hapticClock) return;
+            _hapticClock = Time.unscaledTime + 0.35f;
+#if UNITY_ANDROID && !UNITY_EDITOR
+            Handheld.Vibrate();
+#endif
+        }
+
+        /// <summary>
+        /// Photo mode: time stops, the instruments go away and the sticks move the camera round
+        /// the aircraft. The phone's own screenshot takes the picture.
+        /// </summary>
+        void TogglePhoto()
+        {
+            if (_phase != Phase.Mission && _phase != Phase.FreeFlight) return;
+            Click();
+            _photo = !_photo;
+            Time.timeScale = _photo ? 0f : 1f;
+            _photoYaw = _sim.State.YawDeg + 150f;
+            _hud.SetPhoto(_photo);
+        }
+
+        void UpdatePhoto()
+        {
+            Vector2 look = _sticks.Left.Value, zoom = _sticks.Right.Value;
+            float dt = Time.unscaledDeltaTime;
+            _photoYaw += look.x * 90f * dt;
+            _photoPitch = Mathf.Clamp(_photoPitch + look.y * 60f * dt, -8f, 78f);
+            _photoDistance = Mathf.Clamp(_photoDistance - zoom.y * 14f * dt, 3f, 60f);
+            _photoYaw += zoom.x * 90f * dt;
         }
 
         /// <summary>Sets off the delayed blasts queued by a kill; x, y, z are the place and w the seconds left.</summary>

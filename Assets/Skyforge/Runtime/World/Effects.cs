@@ -357,6 +357,25 @@ namespace Skyforge.World
             });
         }
 
+        /// <summary>Decoy flares thrown out behind an aircraft: bright points that fall away trailing smoke.</summary>
+        public void Flares(Vector3 at, Vector3 velocity)
+        {
+            for (int i = 0; i < 10; i++)
+            {
+                Vector3 push = velocity * 0.4f + Scatter(9f, 2f) + Vector3.down * Range(2f, 6f);
+                Emit(new Puff
+                {
+                    Glow = true, Cell = CellGlow, Position = at, Velocity = push, Life = Range(1.6f, 2.6f), SizeFrom = 1.6f, SizeTo = 0.8f,
+                    Gravity = -5f, Drag = 0.8f, FadeFrom = 0.7f, From = new Color(1f, 0.95f, 0.75f), To = new Color(1f, 0.55f, 0.2f),
+                });
+                Emit(new Puff
+                {
+                    Position = at, Velocity = push * 0.7f, Life = Range(1.8f, 2.8f), SizeFrom = 0.5f, SizeTo = 2.4f, Alpha = 0.4f, Gravity = -3f, Drag = 0.8f,
+                    From = new Color(0.8f, 0.8f, 0.8f), To = new Color(0.6f, 0.6f, 0.62f),
+                });
+            }
+        }
+
         /// <summary>Dust blown off the ground, by rotor wash or by wheels.</summary>
         public void Dust(Vector3 at, float size, Vector3 push)
         {
