@@ -30,7 +30,7 @@ namespace Skyforge.UI
         }
 
         readonly GameObject _root;
-        readonly Text _wallet, _name, _role, _note, _mainLabel, _status;
+        readonly Text _wallet, _name, _role, _note, _mainLabel, _status, _weapons;
         readonly Image _mainButton;
         readonly RectTransform[] _statFills = new RectTransform[6];
         readonly Image[] _tabs = new Image[2];
@@ -74,7 +74,13 @@ namespace Skyforge.UI
             UiKit.Place(_name.rectTransform, topLeft, new Vector2(48f, -92f), new Vector2(520f, 72f));
             _role = UiKit.Label(p, 28, TextAnchor.UpperLeft);
             _role.color = UiKit.Accent;
-            UiKit.Place(_role.rectTransform, topLeft, new Vector2(52f, -166f), new Vector2(600f, 38f));
+            UiKit.Place(_role.rectTransform, topLeft, new Vector2(52f, -166f), new Vector2(380f, 38f));
+            UiKit.FitWidth(_role, 18);
+            _weapons = UiKit.Label(p, 24, TextAnchor.UpperLeft);
+            _weapons.fontStyle = FontStyle.Normal;
+            _weapons.color = new Color(1f, 1f, 1f, 0.85f);
+            UiKit.Place(_weapons.rectTransform, topLeft, new Vector2(440f, -168f), new Vector2(580f, 34f));
+            UiKit.FitWidth(_weapons, 16);
 
             Text previous = UiKit.Button(p, "Previous", UiKit.Faint, 44, () => Browse(-1));
             previous.text = "<";
@@ -303,6 +309,10 @@ namespace Skyforge.UI
             _name.text = Loc.T(drone.NameKey);
             _role.text = Loc.T(drone.RoleKey);
             _note.text = Loc.T(drone.NoteKey);
+            // What it fights with, straight from the numbers the game uses.
+            DroneSpec arms = drone.Spec;
+            _weapons.text = Loc.T("hangar.weapons", arms.Rockets, Mathf.RoundToInt(arms.RocketDamage), arms.Bombs,
+                Mathf.RoundToInt(arms.BombDamage), Mathf.RoundToInt(arms.LockRange));
             _status.text = "";
 
             float[] stats =

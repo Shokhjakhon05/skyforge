@@ -53,6 +53,41 @@
       }
     },
     {
+      "id": "patrol",
+      "kind": "gunship",
+      "path": [
+        {
+          "anchor": "poi2",
+          "dx": -70,
+          "dz": -70
+        },
+        {
+          "anchor": "poi2",
+          "dx": 70,
+          "dz": -70
+        },
+        {
+          "anchor": "poi2",
+          "dx": 70,
+          "dz": 70
+        },
+        {
+          "anchor": "poi2",
+          "dx": -70,
+          "dz": 70
+        },
+        {
+          "anchor": "poi2",
+          "dx": -70,
+          "dz": -70
+        }
+      ],
+      "speed": 9,
+      "startObjective": 0,
+      "loop": true,
+      "altitude": 38
+    },
+    {
       "id": "gun2",
       "kind": "aagun",
       "at": {

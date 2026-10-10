@@ -90,7 +90,7 @@ namespace Skyforge.World
         /// <summary>One target in the world: its model, the part that tracks the drone, and whether it has burnt yet.</summary>
         sealed class TargetView
         {
-            public Transform Root, Head;
+            public Transform Root, Head, Rotor;
             public Renderer[] Renderers;
             public Model Model;
             public bool Dead;
@@ -259,6 +259,17 @@ namespace Skyforge.World
                     var renderer = body.AddComponent<MeshRenderer>();
                     renderer.sharedMaterial = GameMaterials.PaletteLit;
                 }
+                // A helicopter in the air has its rotor turning; the blades in the model are the parked ones.
+                if (definition.Altitude > 0f && view.Model != null)
+                {
+                    var blades = new MeshBuilder();
+                    float span = view.Model.Bounds.size.z * 0.95f;
+                    blades.Box(Vector3.zero, new Vector3(span, 0.06f, 0.45f), Palette.Graphite);
+                    blades.Box(Vector3.zero, new Vector3(0.45f, 0.06f, span), Palette.Graphite);
+                    view.Rotor = Spawn("Rotor", blades.Build("Rotor"), GameMaterials.PaletteLit, false).transform;
+                    view.Rotor.SetParent(root.transform, false);
+                    view.Rotor.localPosition = new Vector3(0f, view.Model.Bounds.max.y + 0.15f, view.Model.Bounds.center.z * 0.3f);
+                }
                 view.Renderers = root.GetComponentsInChildren<Renderer>();
                 _targets.Add(view);
 
@@ -344,6 +355,7 @@ namespace Skyforge.World
                     _effects.Burn(view.Root.position + Vector3.up * 1.2f, Mathf.Clamp(definition.Kind.Radius * 0.55f, 1.6f, 5f));
                 }
                 if (view.Dead) continue;
+                if (view.Rotor != null) view.Rotor.Rotate(0f, 900f * deltaTime, 0f, Space.Self);
 
                 view.Root.SetPositionAndRotation(state.Position, Quaternion.LookRotation(forward.normalized, normal));
 

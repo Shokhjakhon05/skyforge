@@ -209,6 +209,10 @@ def build(pattern, r):
         if tier >= 1:
             parked.append(target("heli3", "heli", "poi2", dx=-6, dz=22))
         guards = [target("gun", "gatling", "poi2", dx=24, dz=-8)]
+        if tier >= 1:
+            # One of them is already up, circling the strip.
+            circuit = [("poi2", -70, 0, -70), ("poi2", 70, 0, -70), ("poi2", 70, 0, 70), ("poi2", -70, 0, 70), ("poi2", -70, 0, -70)]
+            guards.append(mover("patrol", "gunship", circuit, 9, loop=True, altitude=38, startObjective=0))
         if tier >= 2:
             guards.append(target("gun2", "aagun", "poi2", dx=-24, dz=-12))
         return dict(targets=parked + guards, objectives=[TAKEOFF, destroy(parked, "objective.destroy_airfield"), HOME])

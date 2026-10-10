@@ -1,6 +1,6 @@
 # Skyforge: Global Operations
 
-3D-игра про дроны для Android. Unity 6.3 LTS (6000.3.26f1) + URP.
+Боевая 3D-игра про ударные дроны для Android. Unity 6.3 LTS (6000.3.26f1) + URP.
 
 - Что за игра и план этапов: [docs/SPEC.md](docs/SPEC.md)
 - Где остановились и что дальше: [docs/STATE.md](docs/STATE.md)
@@ -13,6 +13,9 @@
 - `Assets/Skyforge/Runtime` — игра. Точка входа `Bootstrap.cs`, всё создаётся кодом при запуске.
 - `Assets/Skyforge/Editor/BuildScript.cs` — сборка. Создаёт пустую сцену, настройки URP и базовые материалы в `Assets/Generated` (в git не попадает) и собирает APK.
 - `tools/gen_meta.py` — создаёт `.meta` для новых файлов. Запускать после добавления файлов в `Assets`; CI падает, если `.meta` не хватает.
+
+- `tools/gen_missions.py` пишет миссии, `tools/gen_models.py` запекает 3D-модели из `tools/models/src` в формат игры, `tools/l10n/build.py` собирает узбекский.
+- `tools/check/check.sh` и `tools/check/test.sh` — компиляция и тесты на ноутбуке без Unity (нужен .NET 8 SDK).
 
 ## Сборка
 

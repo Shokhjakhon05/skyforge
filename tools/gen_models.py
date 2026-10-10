@@ -43,13 +43,13 @@ MODELS = {
     "truck_army": dict(src="3XAD5t0Djqv", size=7.6, yaw=0),
     "gatling": dict(src="T8ofhRSenf", size=4.6, yaw=0, parts={"head": r"Pipes|Gun1|Laser|AmmoBox|Middle"}),
     "heli_transport": dict(src="cTzINMr0WdS", size=13.0, yaw=180),
-    "warship": dict(src="cqV6mUkn7Ow", size=58.0, yaw=0),
-    "missile": dict(src="dPVCvXP-S58", size=1.5, yaw=90, lift=-0.15),
+    "warship": dict(src="cqV6mUkn7Ow", size=58.0, yaw=0, tris=7000),
+    "missile": dict(src="dPVCvXP-S58", size=1.5, yaw=90, lift=-0.15, tris=500),
     "boat": dict(src="wouBxOe3CD", size=11.0, yaw=0),
-    "sandbags": dict(src="LW3jwpPfiN", size=4.2, yaw=0, axis="x"),
+    "sandbags": dict(src="LW3jwpPfiN", size=4.2, yaw=0, axis="x", tris=1400),
     "barrel": dict(src="1orHe0kCc1", size=1.1, yaw=0, axis="y"),
     "drone_quad": dict(src="DNbUoMtG3H", size=1.25, yaw=0, lift=-0.38,
-                       parts={"rotor0": "Rotor_FL", "rotor1": "Rotor_FR", "rotor2": "Rotor_BL", "rotor3": "Rotor_BR"}),
+                       parts={"rotor0": "Rotor_FL", "rotor1": "Rotor_FR", "rotor2": "Rotor_BL", "rotor3": "Rotor_BR"}, tris=6000),
     "drone_scout": dict(src="3Ae_y67lzvd", size=1.3, yaw=0, lift=-0.38,
                         parts={"rotor0": "group1083488708", "rotor1": "group255131489",
                                "rotor2": "group1326258638", "rotor3": "group1301670615"}),
@@ -88,6 +88,45 @@ def load(name, cfg):
             for i, (x, y, z) in enumerate(tri):
                 tri[i] = ((x - cx) * scale, (y - base) * scale, (z - cz) * scale)
     return parts
+
+
+def decimate(parts, limit):
+    """Vertex clustering: snaps vertices to a grid that coarsens until the model fits the budget.
+
+    Crude, but these are low-poly models seen from a drone, and a phone draws dozens of them."""
+    def count(p):
+        return sum(len(tris) for tris in p.values())
+    if count(parts) <= limit:
+        return parts
+    every = [pt for tris in parts.values() for tri, _ in tris for pt in tri]
+    span = max(max(pt[k] for pt in every) - min(pt[k] for pt in every) for k in range(3))
+    cell = span / 160.0
+    while True:
+        result = {}
+        for name, tris in parts.items():
+            cells = {}
+            for tri, _ in tris:
+                for pt in tri:
+                    key = tuple(int(math.floor(pt[k] / cell)) for k in range(3))
+                    entry = cells.setdefault(key, [0.0, 0.0, 0.0, 0])
+                    for k in range(3):
+                        entry[k] += pt[k]
+                    entry[3] += 1
+            kept = []
+            seen = set()
+            for tri, rgb in tris:
+                keys = [tuple(int(math.floor(pt[k] / cell)) for k in range(3)) for pt in tri]
+                if keys[0] == keys[1] or keys[1] == keys[2] or keys[0] == keys[2]:
+                    continue
+                face = (frozenset(keys), tuple(round(c, 2) for c in rgb))
+                if face in seen:
+                    continue
+                seen.add(face)
+                kept.append(([tuple(cells[key][k] / cells[key][3] for k in range(3)) for key in keys], rgb))
+            result[name] = kept
+        if count(result) <= limit:
+            return result
+        cell *= 1.25
 
 
 def quantize(parts, limit=64):
@@ -212,7 +251,7 @@ def main():
     os.makedirs(OUT, exist_ok=True)
     loaded = {}
     for name, cfg in MODELS.items():
-        loaded[name] = load(name, cfg)
+        loaded[name] = decimate(load(name, cfg), cfg.get("tris", 4200))
         tris, colours, size = write(name, loaded[name])
         print("%-12s %5d tris %3d colours %7d bytes  parts: %s" % (name, tris, colours, size, ", ".join(sorted(loaded[name]))))
     credits()
