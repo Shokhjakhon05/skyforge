@@ -39,6 +39,7 @@ namespace Skyforge.Core
             Make("ts_broken_arrow", "tessara"),
             Make("vk_broken_arrow", "vulkar"),
             Make("rd_broken_arrow", "redrock"),
+            Make("md_broken_arrow", "meridian"),
         };
 
         /// <summary>

@@ -470,6 +470,9 @@ namespace Skyforge.Tests
         public void RedrockCanBeFlownThrough() => PlayRegion(RegionCatalog.Get("redrock"));
 
         [Test]
+        public void MeridianCanBeFlownThrough() => PlayRegion(RegionCatalog.Get("meridian"));
+
+        [Test]
         public void EveryKindOfOperationBuildsAtEveryLevelAndTheFirstLevelCanBeWonWithTheStarter()
         {
             var problems = new List<string>();

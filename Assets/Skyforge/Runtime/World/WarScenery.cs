@@ -54,8 +54,39 @@ namespace Skyforge.World
         /// A house after the shelling: walls that stand tall on one side and fall away towards the
         /// corner that was hit, empty window openings, a floor of rubble and what is left of the roof.
         /// </summary>
+        /// <summary>A high-rise that has been shelled: floors of dark windows, a bitten-off top, a hole or two.</summary>
+        static void AddTower(MeshBuilder b, RuinSpec ruin)
+        {
+            var random = new System.Random(ruin.Seed);
+            float Next(float min, float max) => min + (float)random.NextDouble() * (max - min);
+            int wall = random.Next(3) == 0 ? Palette.Plaster : random.Next(2) == 0 ? Palette.Concrete : Palette.Rubble;
+            float w = ruin.Width, h = ruin.Height;
+            Vector3 foot = ruin.Base + Vector3.down * 1.5f;
+            b.Box(foot + Vector3.up * (h + 1.5f) * 0.5f, new Vector3(w, h + 1.5f, w), wall);
+            // Window bands on every floor, a hand's breadth proud of the wall so they read from the air.
+            for (float y = 2.2f; y < h - 1.2f; y += 3.1f)
+            {
+                b.Box(ruin.Base + Vector3.up * y, new Vector3(w + 0.16f, 1.25f, w * 0.86f), Palette.Lens);
+                b.Box(ruin.Base + Vector3.up * y, new Vector3(w * 0.86f, 1.25f, w + 0.16f), Palette.Lens);
+            }
+            // The top floors are gone on one corner, and soot runs down from the breach.
+            float bite = Next(0.3f, 0.5f) * w, sx = random.Next(2) == 0 ? -1f : 1f, sz = random.Next(2) == 0 ? -1f : 1f;
+            b.Box(ruin.Base + new Vector3(sx * (w - bite) * 0.5f, h - bite * 0.4f, sz * (w - bite) * 0.5f), new Vector3(bite + 0.3f, bite * 0.9f, bite + 0.3f), Palette.Soot);
+            b.Box(ruin.Base + new Vector3(-sx * w * 0.2f, h + 0.9f, -sz * w * 0.2f), new Vector3(w * 0.34f, 1.8f, w * 0.3f), Palette.DarkGrey);
+            b.Box(ruin.Base + new Vector3(sx * (w * 0.5f + 0.1f), h * Next(0.35f, 0.6f), sz * w * 0.12f), new Vector3(0.3f, 3.4f, 3.2f), Palette.Soot);
+            // What fell off lies at its feet.
+            for (int i = 0; i < 4; i++)
+                b.Box(ruin.Base + new Vector3(sx * (w * 0.5f + Next(1f, 4f)), Next(0.2f, 0.7f), sz * Next(-w * 0.4f, w * 0.5f)),
+                    new Vector3(Next(1.2f, 2.8f), Next(0.6f, 1.4f), Next(1.2f, 2.8f)), Quaternion.Euler(Next(-18f, 18f), Next(0f, 90f), Next(-18f, 18f)), Palette.Rubble);
+        }
+
         public static void AddRuin(MeshBuilder b, RuinSpec ruin)
         {
+            if (ruin.Height > Island.RuinMaxHeight + 0.5f)
+            {
+                AddTower(b, ruin);
+                return;
+            }
             var random = new System.Random(ruin.Seed);
             float Next(float min, float max) => min + (float)random.NextDouble() * (max - min);
 

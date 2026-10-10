@@ -1,0 +1,100 @@
+{
+  "id": "md_broken_arrow",
+  "region": "meridian",
+  "order": 15,
+  "template": "special",
+  "weather": "night",
+  "timeGoal": 520,
+  "baseReward": 1360,
+  "starReward": 300,
+  "props": [
+    {
+      "id": "papers",
+      "kind": "crates",
+      "at": {
+        "anchor": "poi3",
+        "dx": 12,
+        "dz": -8
+      }
+    }
+  ],
+  "zones": [
+    {
+      "at": {
+        "anchor": "poi3"
+      },
+      "radius": 150,
+      "floor": 26
+    },
+    {
+      "at": {
+        "anchor": "poi6"
+      },
+      "radius": 150,
+      "floor": 26
+    }
+  ],
+  "targets": [
+    {
+      "id": "gun",
+      "kind": "aagun",
+      "at": {
+        "anchor": "poi2",
+        "dx": 14,
+        "dz": 12
+      }
+    },
+    {
+      "id": "hq",
+      "kind": "hq",
+      "at": {
+        "anchor": "poi2",
+        "dx": -6
+      }
+    },
+    {
+      "id": "tank",
+      "kind": "tank",
+      "at": {
+        "anchor": "poi2",
+        "dx": 4,
+        "dz": -20
+      }
+    },
+    {
+      "id": "gun2",
+      "kind": "gatling",
+      "at": {
+        "anchor": "poi2",
+        "dx": 22,
+        "dz": -10
+      }
+    }
+  ],
+  "objectives": [
+    {
+      "type": "takeoff"
+    },
+    {
+      "type": "photo",
+      "target": "papers",
+      "range": 45
+    },
+    {
+      "type": "destroy",
+      "targets": [
+        "gun",
+        "hq",
+        "tank"
+      ],
+      "text": "objective.destroy_final"
+    },
+    {
+      "type": "land",
+      "at": {
+        "anchor": "pad"
+      },
+      "radius": 8
+    }
+  ]
+}

@@ -1,0 +1,93 @@
+{
+  "id": "md_headhunter",
+  "region": "meridian",
+  "order": 13,
+  "template": "eliminate",
+  "weather": "sunset",
+  "timeGoal": 170,
+  "baseReward": 960,
+  "starReward": 240,
+  "targets": [
+    {
+      "id": "commander",
+      "kind": "staff_car",
+      "path": [
+        {
+          "anchor": "coast1"
+        },
+        {
+          "anchor": "poi2"
+        },
+        {
+          "anchor": "poi1"
+        },
+        {
+          "anchor": "coast0"
+        }
+      ],
+      "speed": 7,
+      "startObjective": 1,
+      "delay": 5
+    },
+    {
+      "id": "escort1",
+      "kind": "humvee",
+      "path": [
+        {
+          "anchor": "coast1"
+        },
+        {
+          "anchor": "poi2"
+        },
+        {
+          "anchor": "poi1"
+        },
+        {
+          "anchor": "coast0"
+        }
+      ],
+      "speed": 7,
+      "startObjective": 1
+    },
+    {
+      "id": "escort2",
+      "kind": "apc",
+      "path": [
+        {
+          "anchor": "coast1"
+        },
+        {
+          "anchor": "poi2"
+        },
+        {
+          "anchor": "poi1"
+        },
+        {
+          "anchor": "coast0"
+        }
+      ],
+      "speed": 7,
+      "startObjective": 1,
+      "delay": 10
+    }
+  ],
+  "objectives": [
+    {
+      "type": "takeoff"
+    },
+    {
+      "type": "destroy",
+      "targets": [
+        "commander"
+      ],
+      "text": "objective.eliminate"
+    },
+    {
+      "type": "land",
+      "at": {
+        "anchor": "pad"
+      },
+      "radius": 8
+    }
+  ]
+}

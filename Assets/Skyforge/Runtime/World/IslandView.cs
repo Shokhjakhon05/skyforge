@@ -49,8 +49,16 @@ namespace Skyforge.World
             Rock = new Color(0.56f, 0.28f, 0.19f), RockFrom = 60f, SnowFrom = 9999f,
         };
 
+        static readonly TerrainPaint City = new TerrainPaint
+        {
+            SandWet = new Color(0.36f, 0.36f, 0.35f), Sand = new Color(0.50f, 0.49f, 0.46f),
+            Ground = new Color(0.38f, 0.40f, 0.36f), GroundDry = new Color(0.44f, 0.43f, 0.40f),
+            Rock = new Color(0.42f, 0.42f, 0.42f), RockFrom = 60f, SnowFrom = 9999f,
+        };
+
         public static TerrainPaint For(Biome biome)
         {
+            if (biome == Biome.Urban) return City;
             if (biome == Biome.Tropic) return Tropical;
             if (biome == Biome.Ash) return Volcanic;
             if (biome == Biome.Mesa) return Tableland;

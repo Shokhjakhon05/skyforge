@@ -310,7 +310,13 @@ namespace Skyforge.UI
             _wallet.text = Loc.T("menu.credits", _save.Credits) + "     " + Loc.T("menu.parts", _save.Parts);
             _name.text = Loc.T(drone.NameKey);
             _role.text = Loc.T(drone.RoleKey);
-            _note.text = Loc.T(drone.NoteKey);
+            // What it carries besides rockets and bombs, said in words after the note.
+            var gear = new System.Collections.Generic.List<string>();
+            if (drone.Spec.Cannon > 0f) gear.Add(Loc.T("gear.cannon"));
+            if (drone.Spec.Cluster) gear.Add(Loc.T("gear.cluster"));
+            if (drone.Spec.Ability != Ability.None) gear.Add(Loc.T("gear." + drone.Spec.Ability.ToString().ToLowerInvariant()));
+            _note.text = Loc.T(drone.NoteKey) + (gear.Count > 0 ? " <color=" + UiKit.CyanHex + ">" + Loc.T("gear.fitted", string.Join(", ", gear)) + "</color>" : "");
+            _note.supportRichText = true;
             // What it fights with, straight from the numbers the game uses.
             DroneSpec arms = drone.Spec;
             _weapons.text = arms.OneWay > 0

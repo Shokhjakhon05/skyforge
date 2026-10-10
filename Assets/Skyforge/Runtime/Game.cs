@@ -80,6 +80,9 @@ namespace Skyforge
         bool _actionPressed, _bombPressed;
         bool _autoLand;
         bool _abilityPressed, _supportPressed;
+        /// <summary>Seconds flown fast and close to the ground in this mission, and the best landing made in it (0..3).</summary>
+        float _lowSeconds;
+        int _landingGrade;
         Vector2 _guide;
         /// <summary>The campaign is being flown at veteran difficulty.</summary>
         bool _veteran;
@@ -815,6 +818,14 @@ namespace Skyforge
             var lines = new List<string>();
             if (!string.IsNullOrEmpty(extra)) lines.Add(extra);
             if (_mission.Mode == "survival") lines.Add(Loc.T("result.waves", waves, _save.Career.SurvivalBest));
+            // Flying it well pays a little on top: time spent fast and low, and a landing put down on the mark.
+            int flair = outcome.Succeeded && _mission.Mode != "range" ? Mathf.Min(150, Mathf.RoundToInt(_lowSeconds * 3f)) + _landingGrade * 20 : 0;
+            if (flair > 0)
+            {
+                _save.Credits += flair;
+                _save.Stats.CreditsEarned += flair;
+                lines.Add(Loc.T("result.flair", flair));
+            }
             if (gain.Xp > 0) lines.Add(Loc.T("reward.xp", gain.Xp) + "   " + Career.RankName(gain.RankAfter));
             lines.AddRange(gain.News);
             if (!gain.Rewards.Empty) lines.Add(gain.Rewards.Describe());
@@ -910,6 +921,8 @@ namespace Skyforge
         void ResetFlight()
         {
             _freezeTimer = 0f;
+            _lowSeconds = 0f;
+            _landingGrade = 0;
             _killCam = 0f;
             _radioedScatter = false;
             _shownSpecialStamp = -1;
@@ -1050,6 +1063,11 @@ namespace Skyforge
                 _previous = _sim.State;
                 SimEvent simEvent = _sim.Step(input, StepSeconds);
                 if (simEvent == SimEvent.TookOff) _hasFlown = true;
+                if (simEvent == SimEvent.Landed) GradeLanding();
+                // Flying fast and low is worth something at the end of a fight.
+                if (_phase == Phase.Mission && !_sim.State.Grounded && _sim.AltitudeAboveGround < 6f &&
+                    new Vector2(_sim.State.Velocity.x, _sim.State.Velocity.z).magnitude > _sim.Spec.MaxSpeed * 0.55f)
+                    _lowSeconds += StepSeconds;
                 if (simEvent == SimEvent.Crashed && (_phase != Phase.Mission || !_run.Kamikaze)) _save.Stats.Crashes++;
                 _load = ComputeLoad(_sim.State);
                 _save.Stats.DistanceMeters += new Vector2(_sim.State.Velocity.x, _sim.State.Velocity.z).magnitude * StepSeconds;
@@ -1613,6 +1631,21 @@ namespace Skyforge
                         break;
                 }
             }
+        }
+
+        /// <summary>
+        /// Marks a touchdown on the pad for how near the middle and how softly it was made; the
+        /// automatic landing earns no mark.
+        /// </summary>
+        void GradeLanding()
+        {
+            Vector3 offset = _sim.State.Position - _island.Spawn;
+            float miss = new Vector2(offset.x, offset.z).magnitude;
+            if (miss > 14f || !_hasFlown || _sim.AutoLanding) return;
+            float speed = _sim.LastTouchdownSpeed;
+            int grade = miss < 2.5f && speed < 1.2f ? 3 : miss < 6f && speed < 1.8f ? 2 : 1;
+            _landingGrade = Mathf.Max(_landingGrade, grade);
+            ShowMessage(Loc.T("msg.landing." + grade), 1.6f);
         }
 
         /// <summary>A short buzz of the phone, if the player has not turned it off.</summary>

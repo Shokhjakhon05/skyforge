@@ -23,6 +23,9 @@ namespace Skyforge.Core
         public float Channels;
         /// <summary>Height in metres of a volcano standing in the middle; zero for none.</summary>
         public float Cone;
+        /// <summary>Tall buildings standing around each village, and how tall they may be: a city.</summary>
+        public int Towers;
+        public float TowerHeight = 30f;
         /// <summary>Weather shown behind the menu and offered first in free flight.</summary>
         public string Weather = WeatherCatalog.Clear;
 
@@ -46,6 +49,12 @@ namespace Skyforge.Core
         {
             Id = "ash", Hills = 42f, Ridges = 120f, TreeCover = 0.2f, MaxTrees = 600, TreeLine = 70f, TreeScale = 0.8f, Ruined = 0.9f,
             Cone = 160f, Weather = "sunset",
+        };
+        /// <summary>A city on flat ground: blocks of shelled high-rises around every crossroads.</summary>
+        public static readonly Biome Urban = new Biome
+        {
+            Id = "urban", Hills = 14f, Ridges = 12f, TreeCover = 0.14f, MaxTrees = 500, TreeLine = 60f, Ruined = 1f,
+            Towers = 9, TowerHeight = 19f, Weather = "overcast",
         };
         /// <summary>Red tablelands cut by cliffs.</summary>
         public static readonly Biome Mesa = new Biome
@@ -79,6 +88,7 @@ namespace Skyforge.Core
             new RegionDefinition { Id = "tessara", Seed = 58, Biome = Biome.Tropic, StarsRequired = 7, Latitude = -6f, Longitude = 128f },
             new RegionDefinition { Id = "vulkar", Seed = 79, Biome = Biome.Ash, StarsRequired = 10, Latitude = -38f, Longitude = -72f },
             new RegionDefinition { Id = "redrock", Seed = 97, Biome = Biome.Mesa, StarsRequired = 13, Latitude = 30f, Longitude = -108f },
+            new RegionDefinition { Id = "meridian", Seed = 127, Biome = Biome.Urban, StarsRequired = 16, Latitude = 48f, Longitude = 22f },
         };
 
         public static IReadOnlyList<RegionDefinition> All => List;

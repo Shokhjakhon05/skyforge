@@ -352,6 +352,31 @@ namespace Skyforge.Core
                     wanted--;
                 }
 
+                // A city: high-rises on a loose grid around the crossroads, well clear of its middle and its roads.
+                int towers = Biome.Towers;
+                for (int attempt = 0; attempt < 60 && towers > 0; attempt++)
+                {
+                    float gx = Mathf.Round(Next(-5f, 5f)) * 26f, gz = Mathf.Round(Next(-5f, 5f)) * 26f;
+                    float away = Mathf.Sqrt(gx * gx + gz * gz);
+                    if (away < 62f || away > 140f) continue;
+                    float x = centre.x + gx, z = centre.z + gz;
+                    float ground = Map.Height(x, z);
+                    float side = Next(12f, 17f);
+                    if (ground < 4f || Map.Steepness(x, z) > 0.16f) continue;
+                    if (TooCloseForRuin(x, z, side + 6f) || NearRoad(x, z, 12f) || NearAnchor(x, z, 50f)) continue;
+                    // The two points where missions put their radars are flown at rooftop height: no high-rises there.
+                    if (Flat(x, z, Anchors["poi3"]) < 210f || Flat(x, z, Anchors["poi6"]) < 210f) continue;
+                    var tower = new RuinSpec
+                    {
+                        Base = new Vector3(x, ground, z), YawDeg = 0f, Width = side, Depth = side,
+                        Height = Next(12.5f, Biome.TowerHeight), Seed = random.Next(),
+                    };
+                    Ruins.Add(tower);
+                    AddRuinObstacles(tower);
+                    if (random.NextDouble() < 0.08) Fires.Add(tower.Base + Vector3.up * tower.Height);
+                    towers--;
+                }
+
                 int wrecks = random.Next(1, 4);
                 for (int w = 0; w < wrecks; w++)
                 {
@@ -389,6 +414,8 @@ namespace Skyforge.Core
             Roads.Add(new RoadSpec { From = Spawn, To = Anchors["poi0"] });
             Roads.Add(new RoadSpec { From = Spawn, To = Anchors["poi11"] });
         }
+
+        static float Flat(float x, float z, Vector3 to) => Mathf.Sqrt((x - to.x) * (x - to.x) + (z - to.z) * (z - to.z));
 
         bool TooCloseForRuin(float x, float z, float size)
         {

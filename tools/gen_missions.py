@@ -87,6 +87,12 @@ REGIONS = {
                      kamikaze="dust", delivery="overcast", sead="sunset", stealth="night", demolition="dust",
                      defend="storm", airfield="night", eliminate="sunset", naval="overcast", special="night"),
     ),
+    "meridian": dict(
+        prefix="md_", tier=1, pay=2.0, clock=1.1,
+        weather=dict(first_strike="overcast", convoy="rain", recon="sunset", hunt="overcast", race="clear",
+                     kamikaze="overcast", delivery="rain", sead="fog", stealth="night", demolition="overcast",
+                     defend="rain", airfield="night", eliminate="sunset", naval="storm", special="night"),
+    ),
     "redrock": dict(
         prefix="rd_", tier=2, pay=3.0, clock=1.25, floor=38,
         weather=dict(first_strike="clear", convoy="dust", recon="sunset", hunt="clear", race="sunset",
