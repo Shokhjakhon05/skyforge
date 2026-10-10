@@ -1,0 +1,68 @@
+{
+  "id": "rd_iron_tide",
+  "region": "redrock",
+  "order": 14,
+  "template": "naval",
+  "weather": "sunset",
+  "timeGoal": 280,
+  "baseReward": 1560,
+  "starReward": 360,
+  "targets": [
+    {
+      "id": "ship",
+      "kind": "warship",
+      "at": {
+        "anchor": "sea0"
+      }
+    },
+    {
+      "id": "boat1",
+      "kind": "boat",
+      "at": {
+        "anchor": "sea0",
+        "dx": -46,
+        "dz": 30
+      }
+    },
+    {
+      "id": "boat2",
+      "kind": "boat",
+      "at": {
+        "anchor": "sea0",
+        "dx": 44,
+        "dz": -34
+      }
+    },
+    {
+      "id": "boat3",
+      "kind": "boat",
+      "at": {
+        "anchor": "sea0",
+        "dx": 10,
+        "dz": 60
+      }
+    }
+  ],
+  "objectives": [
+    {
+      "type": "takeoff"
+    },
+    {
+      "type": "destroy",
+      "targets": [
+        "ship",
+        "boat1",
+        "boat2",
+        "boat3"
+      ],
+      "text": "objective.destroy_fleet"
+    },
+    {
+      "type": "land",
+      "at": {
+        "anchor": "pad"
+      },
+      "radius": 8
+    }
+  ]
+}

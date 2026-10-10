@@ -1,0 +1,122 @@
+{
+  "id": "rd_night_raid",
+  "region": "redrock",
+  "order": 12,
+  "template": "airfield",
+  "weather": "night",
+  "timeGoal": 370,
+  "baseReward": 1350,
+  "starReward": 330,
+  "targets": [
+    {
+      "id": "heli1",
+      "kind": "heli",
+      "at": {
+        "anchor": "poi2",
+        "dx": -14
+      }
+    },
+    {
+      "id": "heli2",
+      "kind": "heli_transport",
+      "at": {
+        "anchor": "poi2",
+        "dx": 12,
+        "dz": 10
+      }
+    },
+    {
+      "id": "fuel",
+      "kind": "truck_fuel",
+      "at": {
+        "anchor": "poi2",
+        "dx": 2,
+        "dz": -18
+      }
+    },
+    {
+      "id": "heli3",
+      "kind": "heli",
+      "at": {
+        "anchor": "poi2",
+        "dx": -6,
+        "dz": 22
+      }
+    },
+    {
+      "id": "gun",
+      "kind": "gatling",
+      "at": {
+        "anchor": "poi2",
+        "dx": 24,
+        "dz": -8
+      }
+    },
+    {
+      "id": "patrol",
+      "kind": "gunship",
+      "path": [
+        {
+          "anchor": "poi2",
+          "dx": -70,
+          "dz": -70
+        },
+        {
+          "anchor": "poi2",
+          "dx": 70,
+          "dz": -70
+        },
+        {
+          "anchor": "poi2",
+          "dx": 70,
+          "dz": 70
+        },
+        {
+          "anchor": "poi2",
+          "dx": -70,
+          "dz": 70
+        },
+        {
+          "anchor": "poi2",
+          "dx": -70,
+          "dz": -70
+        }
+      ],
+      "speed": 9,
+      "startObjective": 0,
+      "loop": true,
+      "altitude": 38
+    },
+    {
+      "id": "gun2",
+      "kind": "aagun",
+      "at": {
+        "anchor": "poi2",
+        "dx": -24,
+        "dz": -12
+      }
+    }
+  ],
+  "objectives": [
+    {
+      "type": "takeoff"
+    },
+    {
+      "type": "destroy",
+      "targets": [
+        "heli1",
+        "heli2",
+        "fuel",
+        "heli3"
+      ],
+      "text": "objective.destroy_airfield"
+    },
+    {
+      "type": "land",
+      "at": {
+        "anchor": "pad"
+      },
+      "radius": 8
+    }
+  ]
+}

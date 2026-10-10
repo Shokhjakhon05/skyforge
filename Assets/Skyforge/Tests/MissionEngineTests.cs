@@ -48,7 +48,7 @@ namespace Skyforge.Tests
                 foreach (MissionDefinition mission in missions)
                     Assert.IsTrue(ids.Add(mission.Id), "mission id used twice: " + mission.Id);
             }
-            Assert.AreEqual(45, ids.Count);
+            Assert.AreEqual(RegionCatalog.All.Count * 15, ids.Count);
         }
 
         [Test]

@@ -131,7 +131,8 @@ namespace Skyforge.World
         {
             int memory = SystemInfo.systemMemorySize;
             if (memory < 3500) return GraphicsTier.Low;
-            if (memory < 5500) return GraphicsTier.Medium;
+            // Phones with a mid-range chip often carry 6 GB; they get the middle tier too.
+            if (memory < 7200) return GraphicsTier.Medium;
             return GraphicsTier.High;
         }
 
@@ -155,6 +156,9 @@ namespace Skyforge.World
             // The cheapest tier draws surfaces without their grain.
             if (quality == GraphicsTier.Low) Shader.EnableKeyword("SKYFORGE_FLAT");
             else Shader.DisableKeyword("SKYFORGE_FLAT");
+            // The middle tier looks at the grain from one side only: a third of the texture reads.
+            if (quality == GraphicsTier.Medium) Shader.EnableKeyword("SKYFORGE_LITE");
+            else Shader.DisableKeyword("SKYFORGE_LITE");
             UniversalAdditionalCameraData cameraData = _camera.GetUniversalAdditionalCameraData();
             if (cameraData != null) cameraData.renderPostProcessing = effects;
 

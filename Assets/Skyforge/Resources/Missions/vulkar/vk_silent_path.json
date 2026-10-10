@@ -1,0 +1,58 @@
+{
+  "id": "vk_silent_path",
+  "region": "vulkar",
+  "order": 9,
+  "template": "stealth",
+  "weather": "night",
+  "timeGoal": 510,
+  "baseReward": 880,
+  "starReward": 230,
+  "props": [
+    {
+      "id": "relay",
+      "kind": "antenna",
+      "at": {
+        "anchor": "poi5"
+      }
+    }
+  ],
+  "zones": [
+    {
+      "at": {
+        "anchor": "poi3"
+      },
+      "radius": 170,
+      "floor": 38
+    },
+    {
+      "at": {
+        "anchor": "poi6"
+      },
+      "radius": 170,
+      "floor": 38
+    }
+  ],
+  "objectives": [
+    {
+      "type": "takeoff"
+    },
+    {
+      "type": "scan",
+      "at": {
+        "anchor": "poi5",
+        "dy": 18
+      },
+      "radius": 12,
+      "height": 14,
+      "hold": 4,
+      "text": "objective.scan_relay"
+    },
+    {
+      "type": "land",
+      "at": {
+        "anchor": "pad"
+      },
+      "radius": 8
+    }
+  ]
+}

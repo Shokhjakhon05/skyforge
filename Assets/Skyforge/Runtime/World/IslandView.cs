@@ -30,8 +30,30 @@ namespace Skyforge.World
             Rock = new Color(0.40f, 0.41f, 0.45f), RockFrom = 140f, SnowFrom = 40f,
         };
 
+        static readonly TerrainPaint Tropical = new TerrainPaint
+        {
+            SandWet = new Color(0.66f, 0.60f, 0.42f), Sand = new Color(0.90f, 0.84f, 0.62f),
+            Ground = new Color(0.24f, 0.50f, 0.20f), GroundDry = new Color(0.36f, 0.56f, 0.24f),
+            Rock = new Color(0.44f, 0.44f, 0.38f), RockFrom = 70f, SnowFrom = 9999f,
+        };
+        static readonly TerrainPaint Volcanic = new TerrainPaint
+        {
+            SandWet = new Color(0.10f, 0.10f, 0.11f), Sand = new Color(0.17f, 0.16f, 0.16f),
+            Ground = new Color(0.25f, 0.23f, 0.21f), GroundDry = new Color(0.33f, 0.27f, 0.22f),
+            Rock = new Color(0.21f, 0.18f, 0.17f), Snow = new Color(0.50f, 0.17f, 0.08f), RockFrom = 50f, SnowFrom = 200f,
+        };
+        static readonly TerrainPaint Tableland = new TerrainPaint
+        {
+            SandWet = new Color(0.58f, 0.42f, 0.30f), Sand = new Color(0.82f, 0.62f, 0.42f),
+            Ground = new Color(0.76f, 0.47f, 0.30f), GroundDry = new Color(0.68f, 0.38f, 0.24f),
+            Rock = new Color(0.56f, 0.28f, 0.19f), RockFrom = 60f, SnowFrom = 9999f,
+        };
+
         public static TerrainPaint For(Biome biome)
         {
+            if (biome == Biome.Tropic) return Tropical;
+            if (biome == Biome.Ash) return Volcanic;
+            if (biome == Biome.Mesa) return Tableland;
             if (biome == Biome.Desert) return Desert;
             if (biome == Biome.Snow) return Snowy;
             return Temperate;
@@ -47,7 +69,7 @@ namespace Skyforge.World
             Material sea = GameMaterials.Water;
             CreateObject("Terrain", parent, BuildTerrainMesh(island.Map),
                 GameMaterials.Surface(BuildTerrainTexture(island, TerrainPaint.For(island.Biome)),
-                    island.Biome == Biome.Desert ? GameMaterials.Matter.Sand
+                    island.Biome == Biome.Desert || island.Biome == Biome.Mesa ? GameMaterials.Matter.Sand
                     : island.Biome == Biome.Snow ? GameMaterials.Matter.Snow : GameMaterials.Matter.Ground), true);
             CreateObject("Sea", parent, BuildSeaMesh(), sea, false);
             CreateObject("Trees", parent, BuildTreesMesh(island), GameMaterials.PaletteLit, true);

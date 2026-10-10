@@ -56,7 +56,7 @@ Shader "Skyforge/Surface"
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
             #pragma multi_compile_fragment _ _SHADOWS_SOFT
             #pragma multi_compile_fog
-            #pragma multi_compile _ SKYFORGE_FLAT
+            #pragma multi_compile _ SKYFORGE_FLAT SKYFORGE_LITE
             #pragma shader_feature_local _ _TERRAIN
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
@@ -113,6 +113,17 @@ Shader "Skyforge/Surface"
                 weight /= (weight.x + weight.y + weight.z);
                 float3 p = input.detailPosition;
 
+            #ifdef SKYFORGE_LITE
+                // The middle tier looks at the detail once, from whichever side the face mostly shows.
+                bool alongX = weight.x > max(weight.y, weight.z);
+                bool alongY = !alongX && weight.y >= weight.z;
+                float2 uv = alongX ? p.zy : (alongY ? p.xz : p.xy);
+                half4 detail = SAMPLE_TEXTURE2D(_Detail, sampler_Detail, uv);
+                light = lerp(1.0, detail.b * 2.0, _DetailStrength);
+                roughness = detail.a;
+                float2 tilt = detail.rg * 2.0 - 1.0;
+                float3 bend = alongX ? float3(0.0, tilt.y, tilt.x) : (alongY ? float3(tilt.x, 0.0, tilt.y) : float3(tilt.x, tilt.y, 0.0));
+            #else
                 half4 sideX = SAMPLE_TEXTURE2D(_Detail, sampler_Detail, p.zy);
                 half4 top = SAMPLE_TEXTURE2D(_Detail, sampler_Detail, p.xz);
                 half4 sideZ = SAMPLE_TEXTURE2D(_Detail, sampler_Detail, p.xy);
@@ -137,6 +148,7 @@ Shader "Skyforge/Surface"
                 float3 bendY = float3(top.r * 2.0 - 1.0, 0.0, top.g * 2.0 - 1.0);
                 float3 bendZ = float3(sideZ.r * 2.0 - 1.0, sideZ.g * 2.0 - 1.0, 0.0);
                 float3 bend = bendX * weight.x + bendY * weight.y + bendZ * weight.z;
+            #endif
                 normalWS = normalize(TransformObjectToWorldNormal(normalize(n + bend * _NormalStrength)));
             #endif
 

@@ -25,6 +25,7 @@ namespace Skyforge
         IEnumerator Start()
         {
             _game = GetComponent<Game>();
+            _game.SkipIntro = true;
             yield return Frames(40);
 
             if (Stage > 0)
@@ -172,14 +173,27 @@ namespace Skyforge
             yield return Shot("13c_hangar_albatross");
             _game.AutomationShowHangar("aegis", 0, 2500);
             yield return Shot("13d_hangar_aegis");
+            _game.AutomationShowHangar("wasp", 0, 2500);
+            yield return Shot("13e_hangar_wasp");
+            _game.AutomationShowHangar("talon", 0, 2500);
+            yield return Shot("13f_hangar_talon");
+            _game.AutomationShowHangar("mule", 0, 2500);
+            yield return Shot("13g_hangar_mule");
             int drone = 0;
-            foreach (string id in new[] { "kestrel", "viper", "mule", "ghost", "petrel", "albatross", "talon", "aegis" })
+            foreach (string id in new[] { "kestrel", "viper", "wasp", "mule", "ghost", "ibex", "petrel", "owl", "relay", "albatross", "talon", "aegis" })
             {
                 _game.AutomationUseDrone(id);
                 _game.AutomationFreeFlight(WeatherCatalog.Clear);
                 _game.AutomationPlace(overview, 0f);
                 yield return Shot("14" + (char)('a' + drone++) + "_drone_" + id);
             }
+            _game.AutomationUseDrone("sparrow");
+
+            // The gun camera over a target, and a kamikaze class drone on a strike mission.
+            yield return MissionShot("14m", "tank_hunt", island.Anchors["poi1"] + new Vector3(0f, 40f, -110f), 0f, CameraView.Gun);
+            _game.AutomationSetCamera(CameraView.Chase);
+            _game.AutomationUseDrone("wasp");
+            yield return MissionShot("14n", "first_strike", island.Anchors["poi0"] + new Vector3(0f, 24f, -70f), 0f, CameraView.Chase);
             _game.AutomationUseDrone("sparrow");
 
             _game.AutomationSelectMission("broken_arrow");
@@ -202,7 +216,7 @@ namespace Skyforge
                 yield return Shot("15" + (char)('a' + region) + "_globe_" + RegionCatalog.All[region].Id);
             }
             int shot = 0;
-            foreach (string regionId in new[] { "kharad", "nordheim" })
+            foreach (string regionId in new[] { "kharad", "nordheim", "tessara", "vulkar", "redrock" })
             {
                 _game.AutomationLoadRegion(regionId);
                 yield return Shot("16" + (char)('a' + shot++) + "_" + regionId + "_menu");

@@ -73,7 +73,10 @@ namespace Skyforge.UI
         }
 
         public event Action LandPressed;
-        readonly GameObject _land, _gunCamera;
+        readonly GameObject _land, _gunCamera, _cluster;
+        readonly GameObject[] _letterbox, _flightOnly;
+        readonly Text _radio;
+        bool _letterboxOn;
         readonly Text _landLabel, _gunText;
         readonly Image _landImage;
 
@@ -126,6 +129,15 @@ namespace Skyforge.UI
             var topLeft = new Vector2(0f, 1f);
             var topCenter = new Vector2(0.5f, 1f);
             var middle = new Vector2(0.5f, 0.5f);
+
+            // The instrument cluster sits on a dark plate with a lit edge, so it reads over any sky.
+            Image cluster = UiKit.Box(safe, "Cluster", new Color(0.02f, 0.05f, 0.08f, 0.42f), UiKit.Chamfer);
+            cluster.type = Image.Type.Sliced;
+            UiKit.Place(cluster.rectTransform, topLeft, new Vector2(20f, -14f), new Vector2(390f, 150f));
+            Image clusterEdge = UiKit.Box(cluster.transform, "Edge", new Color(UiKit.Cyan.r, UiKit.Cyan.g, UiKit.Cyan.b, 0.45f), UiKit.ChamferFrame);
+            clusterEdge.type = Image.Type.Sliced;
+            UiKit.Stretch(clusterEdge.rectTransform);
+            _cluster = cluster.gameObject;
 
             _speed = UiKit.Label(safe, 64, TextAnchor.UpperLeft);
             UiKit.Place(_speed.rectTransform, topLeft, new Vector2(40f, -28f), new Vector2(420f, 76f));
@@ -243,6 +255,41 @@ namespace Skyforge.UI
             _gunText.rectTransform.anchoredPosition = new Vector2(16f, 12f);
             _gunText.rectTransform.sizeDelta = new Vector2(900f, 70f);
             _gunCamera.SetActive(false);
+
+            // The operator's voice, as a caption under the objective.
+            _radio = UiKit.Label(safe, 30, TextAnchor.UpperCenter);
+            _radio.color = UiKit.Cyan;
+            UiKit.Place(_radio.rectTransform, topCenter, new Vector2(0f, -158f), new Vector2(1100f, 80f));
+            UiKit.FitWidth(_radio, 20);
+            _radio.text = "";
+
+            // Black bars for the fly-past that opens a mission.
+            _letterbox = new GameObject[2];
+            for (int i = 0; i < 2; i++)
+            {
+                Image bar = UiKit.Box(screen, "Letterbox", Color.black);
+                bar.rectTransform.anchorMin = new Vector2(0f, i == 0 ? 0f : 0.88f);
+                bar.rectTransform.anchorMax = new Vector2(1f, i == 0 ? 0.12f : 1f);
+                bar.rectTransform.offsetMin = bar.rectTransform.offsetMax = Vector2.zero;
+                _letterbox[i] = bar.gameObject;
+                bar.gameObject.SetActive(false);
+            }
+            _flightOnly = new[] { _cluster, _gauges, _speed.gameObject, _altitude.gameObject, _wind.gameObject, _left.Base.gameObject, _right.Base.gameObject,
+                _left.Knob.gameObject, _right.Knob.gameObject, _headline.gameObject, _subline.gameObject };
+        }
+
+        /// <summary>A line from the operator; null clears it.</summary>
+        public void SetRadio(string text) => _radio.text = text ?? "";
+
+        /// <summary>The cinema bars; while they are up the instruments and the sticks are put away.</summary>
+        public void SetLetterbox(bool on)
+        {
+            if (on == _letterboxOn) return;
+            _letterboxOn = on;
+            foreach (GameObject bar in _letterbox)
+                if (bar.activeSelf != on) bar.SetActive(on);
+            foreach (GameObject item in _flightOnly)
+                if (item.activeSelf == on) item.SetActive(!on);
         }
 
         /// <summary>Shows or hides the automatic-landing button; <paramref name="engaged"/> lights it while it is flying the drone.</summary>

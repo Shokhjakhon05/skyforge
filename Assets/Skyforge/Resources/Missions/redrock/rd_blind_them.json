@@ -1,0 +1,79 @@
+{
+  "id": "rd_blind_them",
+  "region": "redrock",
+  "order": 8,
+  "template": "sead",
+  "weather": "dust",
+  "timeGoal": 250,
+  "baseReward": 960,
+  "starReward": 270,
+  "targets": [
+    {
+      "id": "radar",
+      "kind": "radar",
+      "at": {
+        "anchor": "poi3"
+      }
+    },
+    {
+      "id": "gun1",
+      "kind": "aagun",
+      "at": {
+        "anchor": "poi3",
+        "dx": -16,
+        "dz": 8
+      }
+    },
+    {
+      "id": "gun2",
+      "kind": "gatling",
+      "at": {
+        "anchor": "poi3",
+        "dx": 14,
+        "dz": -12
+      }
+    },
+    {
+      "id": "gun3",
+      "kind": "aagun",
+      "at": {
+        "anchor": "poi3",
+        "dx": -10,
+        "dz": -22
+      }
+    }
+  ],
+  "props": [
+    {
+      "id": "bags",
+      "kind": "sandbags",
+      "at": {
+        "anchor": "poi3",
+        "dx": -16,
+        "dz": 14
+      }
+    }
+  ],
+  "objectives": [
+    {
+      "type": "takeoff"
+    },
+    {
+      "type": "destroy",
+      "targets": [
+        "radar",
+        "gun1",
+        "gun2",
+        "gun3"
+      ],
+      "text": "objective.destroy_airdefence"
+    },
+    {
+      "type": "land",
+      "at": {
+        "anchor": "pad"
+      },
+      "radius": 8
+    }
+  ]
+}

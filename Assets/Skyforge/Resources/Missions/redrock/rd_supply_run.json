@@ -1,0 +1,51 @@
+{
+  "id": "rd_supply_run",
+  "region": "redrock",
+  "order": 7,
+  "template": "delivery",
+  "weather": "clear",
+  "timeGoal": 370,
+  "baseReward": 840,
+  "starReward": 240,
+  "payload": 0.7,
+  "props": [
+    {
+      "id": "dropzone",
+      "kind": "pad",
+      "at": {
+        "anchor": "poi4"
+      }
+    },
+    {
+      "id": "tent",
+      "kind": "tent",
+      "at": {
+        "anchor": "poi4",
+        "dx": 14,
+        "dz": 6
+      }
+    }
+  ],
+  "objectives": [
+    {
+      "type": "takeoff"
+    },
+    {
+      "type": "land",
+      "text": "objective.deliver",
+      "target": "dropzone",
+      "radius": 6
+    },
+    {
+      "type": "takeoff",
+      "text": "objective.takeoff_again"
+    },
+    {
+      "type": "land",
+      "at": {
+        "anchor": "pad"
+      },
+      "radius": 8
+    }
+  ]
+}

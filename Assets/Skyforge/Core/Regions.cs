@@ -17,6 +17,12 @@ namespace Skyforge.Core
         public float TreeScale = 1f;
         /// <summary>0..1: the share of inland points where a shelled village stands.</summary>
         public float Ruined = 0.75f;
+        /// <summary>Above zero the land rises in steps this many metres tall: mesas and cliffs instead of slopes.</summary>
+        public float Terrace;
+        /// <summary>0..1: how deeply the sea cuts channels through the land, breaking it into islands.</summary>
+        public float Channels;
+        /// <summary>Height in metres of a volcano standing in the middle; zero for none.</summary>
+        public float Cone;
         /// <summary>Weather shown behind the menu and offered first in free flight.</summary>
         public string Weather = WeatherCatalog.Clear;
 
@@ -28,6 +34,24 @@ namespace Skyforge.Core
         public static readonly Biome Snow = new Biome
         {
             Id = "snow", Hills = 85f, Ridges = 200f, TreeCover = 0.45f, MaxTrees = 1800, TreeLine = 120f, Weather = "snow", Ruined = 0.85f,
+        };
+        /// <summary>A scatter of low green islands in shallow water.</summary>
+        public static readonly Biome Tropic = new Biome
+        {
+            Id = "tropic", Hills = 34f, Ridges = 55f, TreeCover = 0.7f, MaxTrees = 2400, TreeLine = 70f, TreeScale = 1.1f, Ruined = 0.8f,
+            Channels = 0.85f,
+        };
+        /// <summary>Black sand and ash around a volcano.</summary>
+        public static readonly Biome Ash = new Biome
+        {
+            Id = "ash", Hills = 42f, Ridges = 120f, TreeCover = 0.2f, MaxTrees = 600, TreeLine = 70f, TreeScale = 0.8f, Ruined = 0.9f,
+            Cone = 160f, Weather = "sunset",
+        };
+        /// <summary>Red tablelands cut by cliffs.</summary>
+        public static readonly Biome Mesa = new Biome
+        {
+            Id = "mesa", Hills = 70f, Ridges = 60f, TreeCover = 0.1f, MaxTrees = 400, TreeLine = 80f, TreeScale = 0.7f, Ruined = 1f,
+            Terrace = 26f, Weather = "dust",
         };
     }
 
@@ -52,6 +76,9 @@ namespace Skyforge.Core
             new RegionDefinition { Id = "arvelia", Seed = 7, Biome = Biome.Temperate, StarsRequired = 0, Latitude = 38f, Longitude = -20f },
             new RegionDefinition { Id = "kharad", Seed = 23, Biome = Biome.Desert, StarsRequired = 2, Latitude = 14f, Longitude = 48f },
             new RegionDefinition { Id = "nordheim", Seed = 41, Biome = Biome.Snow, StarsRequired = 4, Latitude = 64f, Longitude = 105f },
+            new RegionDefinition { Id = "tessara", Seed = 58, Biome = Biome.Tropic, StarsRequired = 7, Latitude = -6f, Longitude = 128f },
+            new RegionDefinition { Id = "vulkar", Seed = 79, Biome = Biome.Ash, StarsRequired = 10, Latitude = -38f, Longitude = -72f },
+            new RegionDefinition { Id = "redrock", Seed = 97, Biome = Biome.Mesa, StarsRequired = 13, Latitude = 30f, Longitude = -108f },
         };
 
         public static IReadOnlyList<RegionDefinition> All => List;

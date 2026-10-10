@@ -37,3 +37,17 @@
 | drone_gunship | Helicopter | Zsky | CC-BY 3.0 | https://poly.pizza/m/hG2Qr0A3zR |
 | drone_lifter | Helicopter | Poly by Google | CC-BY 3.0 | https://poly.pizza/m/cTzINMr0WdS |
 | drone_hover | Hover Battler: Sparrow | Aaron Clifford | CC-BY 3.0 | https://poly.pizza/m/eGrzfhSGpOg |
+
+## Небо, текстуры, шрифты, музыка
+
+| Что | Источник | Автор | Лицензия |
+|---|---|---|---|
+| Sky panoramas | polyhaven.com | Greg Zaal, Jarod Guest, Sergej Majboroda, Dimitrios Savva and others | CC0 1.0 |
+| Surface textures | ambientcg.com | Lennart Demes | CC0 1.0 |
+| Font Play | fonts.google.com | Jonas Hecksher, Playtype | SIL OFL 1.1 |
+| Font Russo One | fonts.google.com | Jovanny Lemonad | SIL OFL 1.1 |
+| Music: War Theme | opengameart.org | Spring Spring | CC0 1.0 |
+| Music: Dramatic Boss Encounter, Epic Endgame Cinematic | opengameart.org | cynicmusic | CC0 1.0 |
+| Music: Hunter-class Lifeform | opengameart.org | Tsorthan Grove | CC0 1.0 |
+| Music: Tragic ambient main menu | opengameart.org | Pompei2 | CC0 1.0 |
+| Music: Main Menu - Dark | opengameart.org | Bubble5297 | CC0 1.0 |

@@ -75,6 +75,24 @@ REGIONS = {
                      kamikaze="overcast", delivery="snow", sead="fog", stealth="night", demolition="snow",
                      defend="storm", airfield="night", eliminate="overcast", naval="storm", special="night"),
     ),
+    "tessara": dict(
+        prefix="ts_", tier=1, pay=1.8,
+        weather=dict(first_strike="clear", convoy="clear", recon="sunset", hunt="rain", race="clear",
+                     kamikaze="overcast", delivery="rain", sead="clear", stealth="night", demolition="storm",
+                     defend="sunset", airfield="night", eliminate="clear", naval="storm", special="sunset"),
+    ),
+    "vulkar": dict(
+        prefix="vk_", tier=2, pay=2.6, clock=1.2, floor=38,
+        weather=dict(first_strike="sunset", convoy="dust", recon="overcast", hunt="sunset", race="overcast",
+                     kamikaze="dust", delivery="overcast", sead="sunset", stealth="night", demolition="dust",
+                     defend="storm", airfield="night", eliminate="sunset", naval="overcast", special="night"),
+    ),
+    "redrock": dict(
+        prefix="rd_", tier=2, pay=3.0, clock=1.25, floor=38,
+        weather=dict(first_strike="clear", convoy="dust", recon="sunset", hunt="clear", race="sunset",
+                     kamikaze="dust", delivery="clear", sead="dust", stealth="night", demolition="sunset",
+                     defend="dust", airfield="night", eliminate="clear", naval="sunset", special="night"),
+    ),
 }
 
 # (pattern, id, template, time goal, base reward, star reward)

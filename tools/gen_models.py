@@ -196,6 +196,20 @@ def write(name, parts):
     return total, len(palette), len(out)
 
 
+# Everything else that was not made for this game: what it is, where from, whose, and the licence.
+OTHER = [
+    ("Sky panoramas", "polyhaven.com", "Greg Zaal, Jarod Guest, Sergej Majboroda, Dimitrios Savva and others", "CC0 1.0"),
+    ("Surface textures", "ambientcg.com", "Lennart Demes", "CC0 1.0"),
+    ("Font Play", "fonts.google.com", "Jonas Hecksher, Playtype", "SIL OFL 1.1"),
+    ("Font Russo One", "fonts.google.com", "Jovanny Lemonad", "SIL OFL 1.1"),
+    ("Music: War Theme", "opengameart.org", "Spring Spring", "CC0 1.0"),
+    ("Music: Dramatic Boss Encounter, Epic Endgame Cinematic", "opengameart.org", "cynicmusic", "CC0 1.0"),
+    ("Music: Hunter-class Lifeform", "opengameart.org", "Tsorthan Grove", "CC0 1.0"),
+    ("Music: Tragic ambient main menu", "opengameart.org", "Pompei2", "CC0 1.0"),
+    ("Music: Main Menu - Dark", "opengameart.org", "Bubble5297", "CC0 1.0"),
+]
+
+
 def credits():
     lines = ["# Сторонние материалы", "",
              "3D-модели взяты с [poly.pizza](https://poly.pizza) и запечены в формат игры скриптом `tools/gen_models.py`.",
@@ -206,6 +220,10 @@ def credits():
         meta = json.load(open(os.path.join(SRC, cfg["src"] + ".json")))
         lines.append("| %s | %s | %s | %s | https://poly.pizza/m/%s |" % (name, meta["Title"], meta["Creator"], meta["Licence"], cfg["src"]))
         rows.append((meta["Title"], meta["Creator"], meta["Licence"]))
+    lines += ["", "## Небо, текстуры, шрифты, музыка", "",
+              "| Что | Источник | Автор | Лицензия |", "|---|---|---|---|"]
+    for what, source, author, licence in OTHER:
+        lines.append("| %s | %s | %s | %s |" % (what, source, author, licence))
     with open("docs/CREDITS.md", "w", encoding="utf-8") as handle:
         handle.write("\n".join(lines) + "\n")
     # The same list for the in-game credits screen.
@@ -215,7 +233,8 @@ def credits():
         if entry not in seen:
             seen.append(entry)
     with open("Assets/Skyforge/Resources/credits.txt", "w", encoding="utf-8") as handle:
-        handle.write("3D models from poly.pizza:\n" + "\n".join(seen) + "\n")
+        handle.write("3D models from poly.pizza:\n" + "\n".join(seen) + "\n\n" + "\n".join(
+            "%s: %s, %s (%s)" % row for row in OTHER) + "\n")
 
 
 def preview(path, loaded):

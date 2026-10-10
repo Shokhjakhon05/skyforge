@@ -411,6 +411,24 @@ namespace Skyforge.EditorTools
             }
         }
 
+        /// <summary>Music is streamed off the disk as it plays; decompressing minutes of it into memory would cost tens of megabytes.</summary>
+        static void ConfigureAudio()
+        {
+            foreach (string guid in AssetDatabase.FindAssets("t:AudioClip", new[] { "Assets/Skyforge/Resources/Music" }))
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guid);
+                if (!(AssetImporter.GetAtPath(path) is AudioImporter importer)) continue;
+                AudioImporterSampleSettings settings = importer.defaultSampleSettings;
+                if (settings.loadType == AudioClipLoadType.Streaming) continue;
+                settings.loadType = AudioClipLoadType.Streaming;
+                settings.compressionFormat = AudioCompressionFormat.Vorbis;
+                settings.quality = 0.55f;
+                importer.defaultSampleSettings = settings;
+                importer.loadInBackground = true;
+                importer.SaveAndReimport();
+            }
+        }
+
         static void ConfigureSky(Material sky)
         {
             if (sky.shader.name == "Skyforge/Sky")
@@ -445,6 +463,7 @@ namespace Skyforge.EditorTools
             AssetDatabase.CreateAsset(new Material(FindShader("Universal Render Pipeline/Unlit")), dir + "/Unlit.mat");
 
             ConfigureTextures();
+            ConfigureAudio();
 
             // The photographed sky; the procedural one stands in if the shader is broken.
             Shader skyShader = Shader.Find("Skyforge/Sky");

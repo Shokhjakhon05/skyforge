@@ -1,0 +1,102 @@
+{
+  "id": "ts_sprint",
+  "region": "tessara",
+  "order": 5,
+  "template": "race",
+  "weather": "clear",
+  "timeGoal": 320,
+  "baseReward": 430,
+  "starReward": 130,
+  "objectives": [
+    {
+      "type": "takeoff"
+    },
+    {
+      "type": "reach",
+      "at": {
+        "anchor": "ring0"
+      },
+      "radius": 7,
+      "gate": true
+    },
+    {
+      "type": "reach",
+      "at": {
+        "anchor": "ring1"
+      },
+      "radius": 7,
+      "gate": true
+    },
+    {
+      "type": "reach",
+      "at": {
+        "anchor": "ring2"
+      },
+      "radius": 7,
+      "gate": true
+    },
+    {
+      "type": "reach",
+      "at": {
+        "anchor": "ring3"
+      },
+      "radius": 7,
+      "gate": true
+    },
+    {
+      "type": "reach",
+      "at": {
+        "anchor": "ring4"
+      },
+      "radius": 7,
+      "gate": true
+    },
+    {
+      "type": "reach",
+      "at": {
+        "anchor": "ring5"
+      },
+      "radius": 7,
+      "gate": true
+    },
+    {
+      "type": "reach",
+      "at": {
+        "anchor": "ring6"
+      },
+      "radius": 7,
+      "gate": true
+    },
+    {
+      "type": "reach",
+      "at": {
+        "anchor": "ring7"
+      },
+      "radius": 7,
+      "gate": true
+    },
+    {
+      "type": "reach",
+      "at": {
+        "anchor": "ring8"
+      },
+      "radius": 7,
+      "gate": true
+    },
+    {
+      "type": "reach",
+      "at": {
+        "anchor": "ring9"
+      },
+      "radius": 7,
+      "gate": true
+    },
+    {
+      "type": "land",
+      "at": {
+        "anchor": "pad"
+      },
+      "radius": 8
+    }
+  ]
+}

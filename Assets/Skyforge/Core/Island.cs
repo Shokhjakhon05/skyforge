@@ -133,7 +133,31 @@ namespace Skyforge.Core
                 float ridge = 1f - Mathf.Abs(2f * Fbm(x * 0.0035f + offsetX + 50f, z * 0.0035f + offsetZ + 50f, 3) - 1f);
                 ridge *= ridge;
 
-                map[ix, iz] = land * (8f + hills * Biome.Hills + ridge * hills * Biome.Ridges) - (1f - land) * 14f;
+                float rise = 8f + hills * Biome.Hills + ridge * hills * Biome.Ridges;
+                if (Biome.Cone > 0f)
+                {
+                    // A volcano in the middle, with the top of the cone knocked in.
+                    float flank = Mathf.Clamp01(1f - distance / 0.19f);
+                    rise += Biome.Cone * flank * flank * (3f - 2f * flank);
+                    float crater = Mathf.Clamp01(1f - distance / 0.045f);
+                    rise -= Biome.Cone * 0.28f * crater * crater;
+                }
+                if (Biome.Terrace > 0f)
+                {
+                    // Tablelands: flat steps with a short steep riser between them.
+                    float level = rise / Biome.Terrace;
+                    float step = Mathf.Floor(level), part = level - step;
+                    float stepped = (step + Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.72f, 1f, part))) * Biome.Terrace;
+                    rise = Mathf.Lerp(rise, stepped, 0.85f);
+                }
+                if (Biome.Channels > 0f)
+                {
+                    // The sea reaches in wherever a slow noise runs low, leaving islands between the channels.
+                    float mask = Fbm(x * 0.0017f + offsetX + 300f, z * 0.0017f + offsetZ + 300f, 3);
+                    land *= Mathf.Lerp(1f, Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.38f, 0.52f, mask)), Biome.Channels);
+                }
+
+                map[ix, iz] = land * rise - (1f - land) * 14f;
             }
         }
 
@@ -240,8 +264,20 @@ namespace Skyforge.Core
                 float angle = startAngle + (i * 45f + 22.5f) * Mathf.Deg2Rad;
                 var direction = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
                 // Walk outwards until the ground dips to the beach, and stay one step short of it.
-                Vector2 shore = direction * half * 0.3f;
-                for (float distance = half * 0.3f; distance < half; distance += 6f)
+                // Where channels cut the land the walk may begin in water: find dry ground first,
+                // looking outwards and then back towards the middle.
+                float begin = half * 0.3f;
+                if (Map.Height(direction.x * begin, direction.y * begin) < 3f)
+                {
+                    float found = -1f;
+                    for (float distance = begin; distance < half * 0.9f && found < 0f; distance += 6f)
+                        if (Map.Height(direction.x * distance, direction.y * distance) >= 4f) found = distance;
+                    for (float distance = begin; distance > 0f && found < 0f; distance -= 6f)
+                        if (Map.Height(direction.x * distance, direction.y * distance) >= 4f) found = distance;
+                    if (found >= 0f) begin = found;
+                }
+                Vector2 shore = direction * begin;
+                for (float distance = begin; distance < half; distance += 6f)
                 {
                     Vector2 point = direction * distance;
                     if (Map.Height(point.x, point.y) < 3f) break;

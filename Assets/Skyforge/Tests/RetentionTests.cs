@@ -160,7 +160,7 @@ namespace Skyforge.Tests
         {
             var limits = new Dictionary<string, int>
             {
-                { "missions", 45 }, { "stars", 135 }, { "perfect", 45 }, { "drones", DroneCatalog.All.Count },
+                { "missions", RegionCatalog.All.Count * 15 }, { "stars", RegionCatalog.All.Count * 45 }, { "perfect", RegionCatalog.All.Count * 15 }, { "drones", DroneCatalog.All.Count },
                 { "upgrades", DroneCatalog.All.Count * Loadout.Tracks * Loadout.MaxLevel }, { "modules", Loadout.Modules.Length },
                 { "regions", RegionCatalog.All.Count }, { "caches", RegionCatalog.All.Count * Caches.PerRegion },
                 { "streak", Daily.StreakCredits.Length },

@@ -1,0 +1,62 @@
+{
+  "id": "ts_fpv_strike",
+  "region": "tessara",
+  "order": 6,
+  "template": "kamikaze",
+  "weather": "overcast",
+  "timeGoal": 180,
+  "baseReward": 490,
+  "starReward": 140,
+  "strikeDrones": 4,
+  "targets": [
+    {
+      "id": "heavy",
+      "kind": "tank_heavy",
+      "at": {
+        "anchor": "poi9",
+        "dx": -8
+      }
+    },
+    {
+      "id": "bunker",
+      "kind": "bunker",
+      "at": {
+        "anchor": "poi9",
+        "dx": 12,
+        "dz": 8
+      }
+    },
+    {
+      "id": "howitzer",
+      "kind": "artillery",
+      "at": {
+        "anchor": "poi9",
+        "dx": -4,
+        "dz": -18
+      }
+    },
+    {
+      "id": "squad",
+      "kind": "squad",
+      "at": {
+        "anchor": "poi9",
+        "dx": 2,
+        "dz": 20
+      }
+    }
+  ],
+  "objectives": [
+    {
+      "type": "takeoff"
+    },
+    {
+      "type": "destroy",
+      "targets": [
+        "heavy",
+        "bunker",
+        "howitzer"
+      ],
+      "text": "objective.destroy_kamikaze"
+    }
+  ]
+}

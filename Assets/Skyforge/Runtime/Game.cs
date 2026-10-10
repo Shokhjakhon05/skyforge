@@ -66,6 +66,7 @@ namespace Skyforge
         bool _touchMoved;
         DroneAudio _audio;
         Sfx _sfx;
+        Music _music;
         SceneLook _look;
         Weather _weather;
 
@@ -78,6 +79,14 @@ namespace Skyforge
         float _zoom = 1f;
         bool _actionPressed, _bombPressed;
         bool _autoLand;
+        /// <summary>Seconds left of the fly-past that opens a mission; the drone waits on the pad meanwhile.</summary>
+        float _introTimer;
+        Vector3 _introPoint;
+        /// <summary>Real seconds left of the slow motion that follows a decisive kill.</summary>
+        float _slowMotion;
+        float _radioTimer;
+        bool _radioedHull, _radioedLock;
+        readonly List<Vector4> _secondaries = new List<Vector4>();
         int _shownGunStamp = -1;
         const float AutoLandRange = 70f;
         Effects _effects;
@@ -122,6 +131,7 @@ namespace Skyforge
             _sticks = new TouchSticks();
             _audio = new DroneAudio(transform);
             _sfx = new Sfx(transform);
+            _music = Music.Create(transform);
             _look = new SceneLook(transform, _camera.Camera, null);
             _effects = new Effects(transform);
             GlassBackdrop.Attach(_camera.Camera);
@@ -254,6 +264,7 @@ namespace Skyforge
             _hud.Visible = false;
             _result.Visible = false;
             ApplyWeather(WeatherCatalog.Get(_mission.WeatherId));
+            _music.Menu(RegionCatalog.IndexOf(_region.Id));
             ShowMenuScreen();
         }
 
@@ -617,7 +628,34 @@ namespace Skyforge
             _course.Visible = false;
             _hud.DetectionVisible = _mission.HasDetectors;
             EnterFlight(true);
+            if (_mission.Targets.Count > 0) _music.Battle(_mission.Order + RegionCatalog.IndexOf(_region.Id));
+            else _music.Menu(RegionCatalog.IndexOf(_region.Id) + 1);
+            StartIntro();
         }
+
+        /// <summary>
+        /// Opens a combat mission with a slow pass around what is to be destroyed, the name of
+        /// the operation across the screen. Skipped for the screenshot run.
+        /// </summary>
+        void StartIntro()
+        {
+            if (SkipIntro || _mission.Targets.Count == 0) return;
+            int index = -1;
+            for (int i = 0; i < _mission.Targets.Count && index < 0; i++)
+                if (!_mission.Targets[i].Friendly) index = i;
+            if (index < 0) return;
+            TargetDefinition target = _mission.Targets[index];
+            _introPoint = target.Path.Count > 0 ? target.Path[0] : target.Position;
+            _introPoint.y = Mathf.Max(_island.Map.Height(_introPoint.x, _introPoint.z), Island.WaterLevel);
+            _introTimer = 4.2f;
+            _hud.SetLetterbox(true);
+            _hud.SetMessage(Loc.T("brief.operation") + " «" + Loc.T(_mission.TitleKey).ToUpperInvariant() + "»");
+            _messageTimer = 0f;
+            _sfx.Play(Sound.Open);
+        }
+
+        /// <summary>Set by the screenshot run, which needs the drone in the air at once.</summary>
+        public bool SkipIntro;
 
         void StartFreeFlight()
         {
@@ -630,6 +668,7 @@ namespace Skyforge
             _course.Visible = true;
             RestartCourse();
             EnterFlight(false);
+            _music.Menu(RegionCatalog.IndexOf(_region.Id) + 1);
         }
 
         void EnterFlight(bool gauges)
@@ -767,6 +806,17 @@ namespace Skyforge
         void ResetFlight()
         {
             _freezeTimer = 0f;
+            _introTimer = 0f;
+            _slowMotion = 0f;
+            Time.timeScale = 1f;
+            _secondaries.Clear();
+            _radioTimer = 0f;
+            _radioedHull = _radioedLock = false;
+            if (_hud != null)
+            {
+                _hud.SetRadio(null);
+                _hud.SetLetterbox(false);
+            }
             _autoLand = false;
             if (_look.Scope) _look.SetScope(false);
             if (_hud != null) _hud.SetGunCamera(null);
@@ -800,11 +850,19 @@ namespace Skyforge
                     _freezeTimer -= deltaTime;
                     if (_freezeTimer <= 0f) AfterFreeze();
                 }
+                else if (_introTimer > 0f)
+                {
+                    // The opening fly-past; a touch anywhere cuts it short.
+                    _introTimer -= Time.unscaledDeltaTime;
+                    if (Input.touchCount > 0 || Input.GetMouseButtonDown(0)) _introTimer = Mathf.Min(_introTimer, 0.01f);
+                    if (_introTimer <= 0f) EndIntro();
+                }
                 else
                 {
                     Simulate(ReadInput(), deltaTime);
                 }
             }
+            UpdateSlowMotion();
 
             // AfterFreeze may have left the flight.
             flying = _phase == Phase.Mission || _phase == Phase.FreeFlight;
@@ -818,6 +876,38 @@ namespace Skyforge
             }
             _look.Update();
             CountFrames();
+        }
+
+        /// <summary>A decisive kill is shown at a third of the speed for a moment, then time runs on.</summary>
+        void UpdateSlowMotion()
+        {
+            if (_slowMotion <= 0f) return;
+            _slowMotion -= Time.unscaledDeltaTime;
+            if (_slowMotion <= 0f || _phase != Phase.Mission)
+            {
+                _slowMotion = 0f;
+                Time.timeScale = 1f;
+                return;
+            }
+            // Eases back to full speed over the last third.
+            Time.timeScale = Mathf.Lerp(1f, 0.3f, Mathf.Clamp01(_slowMotion / 0.35f));
+        }
+
+        void EndIntro()
+        {
+            _introTimer = 0f;
+            _hud.SetMessage("");
+            _hud.SetLetterbox(false);
+            _camera.Snap();
+            Radio("radio.cleared");
+        }
+
+        /// <summary>A line from the operator: a click of static and a caption that stays a few seconds.</summary>
+        void Radio(string key)
+        {
+            _sfx.Play(Sound.Radio, 0.7f);
+            _hud.SetRadio(Loc.T("radio.callsign") + ": " + Loc.T(key));
+            _radioTimer = 4.5f;
         }
 
         void CountFrames()
@@ -1017,6 +1107,19 @@ namespace Skyforge
                 return;
             }
 
+            if (_introTimer > 0f)
+            {
+                _world.Update(_run, now, 0f);
+                _camera.Orbit(_introPoint + Vector3.up * 4f, 14f + (4.2f - _introTimer) * 2.2f, 0f, 62f);
+                return;
+            }
+            if (_radioTimer > 0f)
+            {
+                _radioTimer -= Time.unscaledDeltaTime;
+                if (_radioTimer <= 0f) _hud.SetRadio(null);
+            }
+            UpdateSecondaries(deltaTime);
+
             _camera.Update(position, yaw, tilt, speedShare, deltaTime);
             _hud.SetTelemetry(speed * 3.6f, _sim.AltitudeAboveGround);
             _hud.UpdateSticks(_sticks,
@@ -1093,7 +1196,15 @@ namespace Skyforge
                     _hud.SetSecondary(Loc.T("hud.bombs", _run.Bombs));
                 }
                 _hud.SetActionReady(_run.LockedTarget >= 0);
-                if (_run.LockedTarget >= 0 && _lastLock < 0) _sfx.Play(Sound.Lock, 0.6f);
+                if (_run.LockedTarget >= 0 && _lastLock < 0)
+                {
+                    _sfx.Play(Sound.Lock, 0.6f);
+                    if (!_radioedLock)
+                    {
+                        _radioedLock = true;
+                        Radio("radio.weapons_free");
+                    }
+                }
                 _lastLock = _run.LockedTarget;
             }
             else
@@ -1112,6 +1223,11 @@ namespace Skyforge
             _hud.UpdateScope(_run, _mission, objective != null && objective.Type == ObjectiveType.Destroy ? objective : null,
                 now.Position, now.YawDeg);
             _hud.SetDamage(_run.UnderFire && _freezeTimer <= 0f, Time.deltaTime);
+            if (!_radioedHull && _run.IsCombat && !_run.Kamikaze && _run.Hull < 0.4f && _freezeTimer <= 0f)
+            {
+                _radioedHull = true;
+                Radio("radio.hull");
+            }
             _gunSoundClock -= Time.deltaTime;
             _noticeClock -= Time.deltaTime;
 
@@ -1217,10 +1333,26 @@ namespace Skyforge
                         _effects.Explosion(e.Position + Vector3.up * 1.5f, e.Size);
                         _sfx.Play(Sound.Explosion, Mathf.Lerp(1f, 0.35f, distance / 400f));
                         _camera.Shake(1.3f - distance / (e.Size * 10f));
+                        if (definition.Kind.Structure) _effects.Collapse(e.Position, definition.Kind.Radius * 1.3f);
+                        // Whatever was inside goes on exploding for a second or two.
+                        int cookOff = definition.Kind.Structure || definition.Kind.Armed || definition.Kind.Blast > 0f ? 3 : 1;
+                        for (int i = 0; i < cookOff; i++)
+                        {
+                            Vector3 at = e.Position + new Vector3(UnityEngine.Random.Range(-1f, 1f), 0f, UnityEngine.Random.Range(-1f, 1f)) * definition.Kind.Radius * 0.6f;
+                            _secondaries.Add(new Vector4(at.x, at.y + 1f, at.z, 0.35f + i * UnityEngine.Random.Range(0.35f, 0.6f)));
+                        }
                         if (!definition.Friendly)
                         {
                             _save.Stats.Kills++;
                             ShowMessage(Loc.T("msg.destroyed", Loc.T(definition.Kind.NameKey)), 1.6f);
+                            // The kill that finishes the job is worth a long look.
+                            ObjectiveDefinition current = _run.CurrentObjective;
+                            bool last = current == null || current.Type != ObjectiveType.Destroy || _run.Remaining(current) == 0;
+                            if (last || definition.Kind.Structure)
+                            {
+                                _slowMotion = last ? 1.5f : 0.9f;
+                                if (last) Radio("radio.target_down");
+                            }
                         }
                         break;
                     }
@@ -1257,6 +1389,27 @@ namespace Skyforge
                         _camera.Shake(1f);
                         break;
                 }
+            }
+        }
+
+        /// <summary>Sets off the delayed blasts queued by a kill; x, y, z are the place and w the seconds left.</summary>
+        void UpdateSecondaries(float deltaTime)
+        {
+            for (int i = _secondaries.Count - 1; i >= 0; i--)
+            {
+                Vector4 blast = _secondaries[i];
+                blast.w -= deltaTime;
+                if (blast.w > 0f)
+                {
+                    _secondaries[i] = blast;
+                    continue;
+                }
+                _secondaries.RemoveAt(i);
+                var at = new Vector3(blast.x, blast.y, blast.z);
+                float distance = Vector3.Distance(_sim.State.Position, at);
+                _effects.Explosion(at, UnityEngine.Random.Range(4f, 7f), false);
+                _sfx.Play(Sound.Explosion, Mathf.Lerp(0.6f, 0.15f, distance / 350f));
+                _camera.Shake(0.5f - distance / 120f);
             }
         }
 

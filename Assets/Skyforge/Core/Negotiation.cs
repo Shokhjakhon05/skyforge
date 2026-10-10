@@ -36,6 +36,9 @@ namespace Skyforge.Core
             Make("broken_arrow", "arvelia"),
             Make("kh_broken_arrow", "kharad"),
             Make("nh_broken_arrow", "nordheim"),
+            Make("ts_broken_arrow", "tessara"),
+            Make("vk_broken_arrow", "vulkar"),
+            Make("rd_broken_arrow", "redrock"),
         };
 
         /// <summary>

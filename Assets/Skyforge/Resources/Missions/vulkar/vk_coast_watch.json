@@ -1,0 +1,82 @@
+{
+  "id": "vk_coast_watch",
+  "region": "vulkar",
+  "order": 3,
+  "template": "recon",
+  "weather": "overcast",
+  "timeGoal": 220,
+  "baseReward": 550,
+  "starReward": 160,
+  "props": [
+    {
+      "id": "camp",
+      "kind": "camp",
+      "at": {
+        "anchor": "poi10"
+      }
+    }
+  ],
+  "targets": [
+    {
+      "id": "boat1",
+      "kind": "boat",
+      "at": {
+        "anchor": "sea3"
+      }
+    },
+    {
+      "id": "boat2",
+      "kind": "boat",
+      "at": {
+        "anchor": "sea3",
+        "dx": 34,
+        "dz": 22
+      }
+    },
+    {
+      "id": "boat3",
+      "kind": "boat",
+      "at": {
+        "anchor": "sea3",
+        "dx": -30,
+        "dz": 30
+      }
+    },
+    {
+      "id": "squad",
+      "kind": "squad",
+      "at": {
+        "anchor": "poi10",
+        "dx": 12,
+        "dz": 8
+      }
+    }
+  ],
+  "objectives": [
+    {
+      "type": "takeoff"
+    },
+    {
+      "type": "observe",
+      "target": "camp",
+      "range": 100,
+      "hold": 4
+    },
+    {
+      "type": "destroy",
+      "targets": [
+        "boat1",
+        "boat2",
+        "boat3"
+      ],
+      "text": "objective.destroy_boats"
+    },
+    {
+      "type": "land",
+      "at": {
+        "anchor": "pad"
+      },
+      "radius": 8
+    }
+  ]
+}

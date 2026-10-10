@@ -312,8 +312,10 @@ namespace Skyforge.UI
             _note.text = Loc.T(drone.NoteKey);
             // What it fights with, straight from the numbers the game uses.
             DroneSpec arms = drone.Spec;
-            _weapons.text = Loc.T("hangar.weapons", arms.Rockets, Mathf.RoundToInt(arms.RocketDamage), arms.Bombs,
-                Mathf.RoundToInt(arms.BombDamage), Mathf.RoundToInt(arms.LockRange));
+            _weapons.text = arms.OneWay > 0
+                ? Loc.T("hangar.oneway", arms.OneWay)
+                : Loc.T("hangar.weapons", arms.Rockets, Mathf.RoundToInt(arms.RocketDamage), arms.Bombs,
+                    Mathf.RoundToInt(arms.BombDamage), Mathf.RoundToInt(arms.LockRange));
             _status.text = "";
 
             float[] stats =

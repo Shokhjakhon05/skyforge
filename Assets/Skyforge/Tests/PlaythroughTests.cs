@@ -459,5 +459,14 @@ namespace Skyforge.Tests
 
         [Test]
         public void NordheimCanBeFlownThrough() => PlayRegion(RegionCatalog.Get("nordheim"));
+
+        [Test]
+        public void TessaraCanBeFlownThrough() => PlayRegion(RegionCatalog.Get("tessara"));
+
+        [Test]
+        public void VulkarCanBeFlownThrough() => PlayRegion(RegionCatalog.Get("vulkar"));
+
+        [Test]
+        public void RedrockCanBeFlownThrough() => PlayRegion(RegionCatalog.Get("redrock"));
     }
 }

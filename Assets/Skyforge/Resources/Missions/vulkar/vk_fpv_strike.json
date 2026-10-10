@@ -1,0 +1,72 @@
+{
+  "id": "vk_fpv_strike",
+  "region": "vulkar",
+  "order": 6,
+  "template": "kamikaze",
+  "weather": "dust",
+  "timeGoal": 240,
+  "baseReward": 700,
+  "starReward": 210,
+  "strikeDrones": 5,
+  "targets": [
+    {
+      "id": "heavy",
+      "kind": "tank_heavy",
+      "at": {
+        "anchor": "poi9",
+        "dx": -8
+      }
+    },
+    {
+      "id": "bunker",
+      "kind": "bunker",
+      "at": {
+        "anchor": "poi9",
+        "dx": 12,
+        "dz": 8
+      }
+    },
+    {
+      "id": "howitzer",
+      "kind": "artillery",
+      "at": {
+        "anchor": "poi9",
+        "dx": -4,
+        "dz": -18
+      }
+    },
+    {
+      "id": "tank",
+      "kind": "tank",
+      "at": {
+        "anchor": "poi9",
+        "dx": 18,
+        "dz": -10
+      }
+    },
+    {
+      "id": "squad",
+      "kind": "squad",
+      "at": {
+        "anchor": "poi9",
+        "dx": 2,
+        "dz": 20
+      }
+    }
+  ],
+  "objectives": [
+    {
+      "type": "takeoff"
+    },
+    {
+      "type": "destroy",
+      "targets": [
+        "heavy",
+        "bunker",
+        "howitzer",
+        "tank"
+      ],
+      "text": "objective.destroy_kamikaze"
+    }
+  ]
+}
