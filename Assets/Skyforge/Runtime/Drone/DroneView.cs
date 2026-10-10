@@ -130,6 +130,18 @@ namespace Skyforge.Drone
             body.localPosition = new Vector3(0f, -FootDepth * (1f - look.Scale), 0f);
             for (int i = 0; i < 8; i++)
                 if (parts.TryGetValue("rotor" + i, out Transform rotor)) _rotors.Add(rotor);
+
+            // A helicopter's model has its blades frozen in place; a turning disc of blades goes over them.
+            if (look.Model == "drone_heli" || look.Model == "drone_gunship" || look.Model == "drone_lifter")
+            {
+                float span = model.Bounds.size.z * 0.92f;
+                var blades = new MeshBuilder();
+                blades.Box(Vector3.zero, new Vector3(span, 0.025f, 0.11f), Palette.Graphite);
+                blades.Box(Vector3.zero, new Vector3(0.11f, 0.025f, span), Palette.Graphite);
+                Transform rotor = AddPart("MainRotor", body, blades.Build("MainRotor"));
+                rotor.localPosition = new Vector3(0f, model.Bounds.max.y + 0.03f, model.Bounds.center.z + model.Bounds.size.z * 0.12f);
+                _rotors.Add(rotor);
+            }
             _renderers = GetComponentsInChildren<Renderer>();
             return true;
         }

@@ -14,6 +14,9 @@ namespace Skyforge
         Gun,
         Release,
         Lock,
+        Tap,
+        Open,
+        Radio,
     }
 
     /// <summary>Short interface and event sounds, synthesised at start like the motor hum.</summary>
@@ -33,7 +36,7 @@ namespace Skyforge
 
             _clips = new[]
             {
-                Tones("Click", 0.05f, 0.5f, 1400f),
+                Tones("Click", 0.035f, 0.42f, 1250f, 1880f),
                 Tones("Scan", 0.12f, 0.5f, 880f, 1320f),
                 Tones("Success", 0.14f, 0.55f, 660f, 880f, 1100f, 1320f),
                 Crash(),
@@ -43,6 +46,9 @@ namespace Skyforge
                 Gun(),
                 Tones("Release", 0.07f, 0.5f, 300f, 210f),
                 Tones("Lock", 0.05f, 0.4f, 1760f, 0f, 1760f),
+                Tones("Tap", 0.022f, 0.30f, 2400f, 1900f),
+                Sweep("Open", 0.20f, 0.22f, 520f, 1500f),
+                Radio(),
             };
         }
 
@@ -129,6 +135,39 @@ namespace Skyforge
                 }
             }
             return Create(name, samples);
+        }
+
+        /// <summary>A tone that glides from one pitch to another: a panel sliding open.</summary>
+        static AudioClip Sweep(string name, float seconds, float volume, float from, float to)
+        {
+            var samples = new float[Mathf.RoundToInt(seconds * SampleRate)];
+            float phase = 0f;
+            for (int i = 0; i < samples.Length; i++)
+            {
+                float position = i / (float)samples.Length;
+                phase += 2f * Mathf.PI * Mathf.Lerp(from, to, position * position) / SampleRate;
+                float envelope = Mathf.Min(1f, position * 12f) * (1f - position) * (1f - position);
+                samples[i] = (Mathf.Sin(phase) + 0.25f * Mathf.Sin(phase * 2f)) * envelope * volume;
+            }
+            return Create(name, samples);
+        }
+
+        /// <summary>A radio keying up: a click and a breath of static.</summary>
+        static AudioClip Radio()
+        {
+            var samples = new float[SampleRate * 22 / 100];
+            var random = new System.Random(41);
+            float band = 0f;
+            for (int i = 0; i < samples.Length; i++)
+            {
+                float position = i / (float)samples.Length;
+                float white = (float)random.NextDouble() * 2f - 1f;
+                band += (white - band) * 0.5f;
+                float hiss = (white - band) * 0.35f * (position < 0.85f ? 1f : (1f - position) / 0.15f);
+                float click = position < 0.04f ? Mathf.Sin(position * 900f) * (1f - position / 0.04f) : 0f;
+                samples[i] = (hiss + click * 0.8f) * 0.5f;
+            }
+            return Create("Radio", samples);
         }
 
         /// <summary>A burst of noise over a falling low thump.</summary>

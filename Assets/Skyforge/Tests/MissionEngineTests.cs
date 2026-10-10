@@ -215,6 +215,33 @@ namespace Skyforge.Tests
             }
             Assert.IsFalse(island.Obstacles.Hits(island.Anchors["poi3"] + Vector3.up, 4f), "anchors are kept clear of trees");
         }
+
+        [Test]
+        public void OneWayDronesFlyOnlyMissionsOfPureDestruction()
+        {
+            int suited = 0, refused = 0;
+            foreach (RegionDefinition region in RegionCatalog.All)
+            {
+                foreach (MissionDefinition mission in LoadAll(region, new List<string>()))
+                {
+                    MissionDefinition sortie = MissionRun.AsOneWaySortie(mission, 6);
+                    bool onlyDestroy = sortie != null;
+                    Assert.AreEqual(onlyDestroy, MissionRun.SuitsOneWay(mission), mission.Id);
+                    if (sortie != null)
+                    {
+                        Assert.AreEqual(6, sortie.StrikeDrones);
+                        foreach (ObjectiveDefinition objective in sortie.Objectives)
+                            Assert.IsTrue(objective.Type == ObjectiveType.Destroy || objective.Type == ObjectiveType.TakeOff, mission.Id);
+                        // The campaign's own definition is left as it was.
+                        Assert.AreNotSame(sortie, mission);
+                    }
+                    if (onlyDestroy) suited++;
+                    else refused++;
+                }
+            }
+            Assert.Greater(suited, 0, "no mission a one-way drone can fly");
+            Assert.Greater(refused, 0);
+        }
     }
 
     public class LocTests

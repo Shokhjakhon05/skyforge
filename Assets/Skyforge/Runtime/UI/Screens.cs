@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text;
 using Skyforge.Core;
 using UnityEngine;
@@ -7,14 +8,29 @@ using UnityEngine.UI;
 namespace Skyforge.UI
 {
     /// <summary>The screen between flights: who you are, what the next operation is, and how to start it.</summary>
+    /// <summary>
+    /// The operations room: the selected mission as a briefing. A tactical map of the area with
+    /// the pad and the targets marked, the threat level, what the enemy has there, and the orders,
+    /// typed out as if coming over the wire.
+    /// </summary>
     public sealed class MenuScreen
     {
         public event Action StartPressed, FreeFlightPressed, SettingsPressed, WeatherPressed, PreviousPressed, NextPressed, HangarPressed, GlobePressed, DailyPressed, AchievementsPressed;
 
+        const int MapMarks = 28;
+        const float MapSize = 380f;
+
         readonly GameObject _root;
-        readonly Text _credits, _title, _body, _best, _weather, _heading, _start;
-        readonly Image _startButton;
+        readonly Text _credits, _title, _body, _best, _weather, _heading, _start, _threat, _intel, _stamp, _mapNote;
+        readonly Image _startButton, _threatPlate;
         readonly Image[] _stars = new Image[3];
+        readonly RawImage _map;
+        readonly RectTransform[] _marks = new RectTransform[MapMarks];
+        readonly Image[] _markImages = new Image[MapMarks];
+        readonly RectTransform _padMark, _sweep;
+        readonly Typewriter _typing;
+        float _mapHalfSize = 768f;
+        string _typedFor;
 
         public MenuScreen(Transform parent)
         {
@@ -22,95 +38,170 @@ namespace Skyforge.UI
             _root = canvas.gameObject;
             RectTransform safe = UiKit.SafeArea(canvas.transform);
             var topLeft = new Vector2(0f, 1f);
+            var topRight = new Vector2(1f, 1f);
 
             Image panel = UiKit.Box(safe, "Panel", UiKit.SolidPanelColor);
             panel.rectTransform.anchorMin = new Vector2(0f, 0f);
             panel.rectTransform.anchorMax = new Vector2(0f, 1f);
             panel.rectTransform.pivot = new Vector2(0f, 0.5f);
-            panel.rectTransform.anchoredPosition = Vector2.zero;
-            panel.rectTransform.sizeDelta = new Vector2(980f, 0f);
+            panel.rectTransform.anchoredPosition = new Vector2(24f, 0f);
+            panel.rectTransform.sizeDelta = new Vector2(1080f, -48f);
             Transform p = panel.transform;
 
-            Text logo = UiKit.Label(p, 84, TextAnchor.UpperLeft);
+            // Masthead.
+            Text logo = UiKit.Label(p, 58, TextAnchor.UpperLeft);
             logo.text = "SKYFORGE";
-            UiKit.Place(logo.rectTransform, topLeft, new Vector2(60f, -40f), new Vector2(700f, 96f));
-            Text tagline = UiKit.Label(p, 30, TextAnchor.UpperLeft);
-            tagline.text = "GLOBAL OPERATIONS";
-            tagline.color = UiKit.Accent;
-            UiKit.Place(tagline.rectTransform, topLeft, new Vector2(64f, -136f), new Vector2(700f, 40f));
+            UiKit.Place(logo.rectTransform, topLeft, new Vector2(44f, -26f), new Vector2(520f, 70f));
+            Text tagline = UiKit.Label(p, 22, TextAnchor.UpperLeft);
+            tagline.text = "GLOBAL OPERATIONS  //  TACTICAL NET";
+            tagline.color = UiKit.Cyan;
+            UiKit.Place(tagline.rectTransform, topLeft, new Vector2(48f, -94f), new Vector2(700f, 30f));
+            _credits = UiKit.Label(p, 24, TextAnchor.UpperRight);
+            _credits.lineSpacing = 1.1f;
+            _credits.color = new Color(1f, 1f, 1f, 0.85f);
+            UiKit.Place(_credits.rectTransform, topRight, new Vector2(-40f, -26f), new Vector2(460f, 100f));
+            UiKit.Rule(p, topLeft, new Vector2(44f, -134f), 992f);
 
-            _credits = UiKit.Label(p, 28, TextAnchor.UpperRight);
-            _credits.lineSpacing = 1.15f;
-            UiKit.Place(_credits.rectTransform, new Vector2(1f, 1f), new Vector2(-50f, -44f), new Vector2(420f, 120f));
+            // The operation: where, which one, how dangerous.
+            _heading = UiKit.Label(p, 24, TextAnchor.UpperLeft);
+            _heading.color = UiKit.Cyan;
+            UiKit.Place(_heading.rectTransform, topLeft, new Vector2(46f, -150f), new Vector2(640f, 32f));
+            UiKit.FitWidth(_heading, 15);
+            _threat = UiKit.Tag(p, UiKit.Bad, 22);
+            _threatPlate = _threat.transform.parent.GetComponent<Image>();
+            UiKit.Place(_threatPlate.rectTransform, topRight, new Vector2(-292f, -148f), new Vector2(300f, 38f));
+            UiKit.FitWidth(_threat, 14);
 
-            _heading = UiKit.Label(p, 26, TextAnchor.UpperLeft);
-            _heading.color = new Color(1f, 1f, 1f, 0.6f);
-            UiKit.Place(_heading.rectTransform, topLeft, new Vector2(64f, -220f), new Vector2(660f, 34f));
-            UiKit.FitWidth(_heading, 16);
-            _title = UiKit.Label(p, 56, TextAnchor.UpperLeft);
-            UiKit.Place(_title.rectTransform, topLeft, new Vector2(60f, -254f), new Vector2(700f, 70f));
+            _title = UiKit.Label(p, 54, TextAnchor.UpperLeft);
+            UiKit.Place(_title.rectTransform, topLeft, new Vector2(44f, -186f), new Vector2(760f, 70f));
+            UiKit.FitWidth(_title, 30);
 
             // Browse the operations with the two arrows next to the title.
-            Text previous = UiKit.Button(p, "Previous", new Color(1f, 1f, 1f, 0.14f), 44, () => PreviousPressed?.Invoke());
+            Text previous = UiKit.Button(p, "Previous", new Color(0.30f, 0.86f, 1f, 0.16f), 40, () => PreviousPressed?.Invoke());
             previous.text = "<";
-            UiKit.Place((RectTransform)previous.transform.parent, new Vector2(1f, 1f), new Vector2(-170f, -226f), new Vector2(110f, 100f));
-            Text next = UiKit.Button(p, "Next", new Color(1f, 1f, 1f, 0.14f), 44, () => NextPressed?.Invoke());
+            UiKit.Place((RectTransform)previous.transform.parent, topRight, new Vector2(-160f, -148f), new Vector2(110f, 104f));
+            Text next = UiKit.Button(p, "Next", new Color(0.30f, 0.86f, 1f, 0.16f), 40, () => NextPressed?.Invoke());
             next.text = ">";
-            UiKit.Place((RectTransform)next.transform.parent, new Vector2(1f, 1f), new Vector2(-50f, -226f), new Vector2(110f, 100f));
+            UiKit.Place((RectTransform)next.transform.parent, topRight, new Vector2(-40f, -148f), new Vector2(110f, 104f));
 
             for (int i = 0; i < 3; i++)
             {
                 _stars[i] = UiKit.Box(p, "Star" + i, UiKit.Faint, UiKit.Star);
-                UiKit.Place(_stars[i].rectTransform, topLeft, new Vector2(60f + i * 62f, -334f), new Vector2(54f, 54f));
+                UiKit.Place(_stars[i].rectTransform, topLeft, new Vector2(46f + i * 48f, -264f), new Vector2(40f, 40f));
             }
-            _best = UiKit.Label(p, 30, TextAnchor.MiddleLeft);
-            _best.color = new Color(1f, 1f, 1f, 0.75f);
-            UiKit.Place(_best.rectTransform, topLeft, new Vector2(260f, -340f), new Vector2(660f, 44f));
+            _best = UiKit.Label(p, 24, TextAnchor.MiddleLeft);
+            _best.color = new Color(1f, 1f, 1f, 0.7f);
+            UiKit.Place(_best.rectTransform, topLeft, new Vector2(204f, -266f), new Vector2(560f, 36f));
+            UiKit.Rule(p, topLeft, new Vector2(44f, -318f), 992f, 0.3f);
 
-            _body = UiKit.Label(p, 28, TextAnchor.UpperLeft, true);
-            _body.fontStyle = FontStyle.Normal;
-            _body.lineSpacing = 1.12f;
-            UiKit.Place(_body.rectTransform, topLeft, new Vector2(62f, -408f), new Vector2(860f, 420f));
+            // Left column: the orders.
+            Text ordersHead = UiKit.Label(p, 20, TextAnchor.UpperLeft);
+            ordersHead.text = "// " + Loc.T("brief.orders");
+            ordersHead.color = UiKit.Cyan;
+            UiKit.Place(ordersHead.rectTransform, topLeft, new Vector2(46f, -332f), new Vector2(560f, 28f));
+            _body = UiKit.Label(p, 26, TextAnchor.UpperLeft, true);
+            UiKit.Light(_body);
+            _body.lineSpacing = 1.1f;
+            UiKit.Place(_body.rectTransform, topLeft, new Vector2(46f, -366f), new Vector2(560f, 250f));
+            UiKit.FitWidth(_body, 18);
+            _typing = _body.gameObject.AddComponent<Typewriter>();
+
+            Text intelHead = UiKit.Label(p, 20, TextAnchor.UpperLeft);
+            intelHead.text = "// " + Loc.T("brief.intel");
+            intelHead.color = UiKit.Cyan;
+            UiKit.Place(intelHead.rectTransform, topLeft, new Vector2(46f, -628f), new Vector2(560f, 28f));
+            _intel = UiKit.Label(p, 24, TextAnchor.UpperLeft, true);
+            UiKit.Light(_intel);
+            _intel.lineSpacing = 1.12f;
+            _intel.supportRichText = true;
+            UiKit.Place(_intel.rectTransform, topLeft, new Vector2(46f, -660f), new Vector2(560f, 186f));
+            UiKit.FitWidth(_intel, 16);
+
+            // Right column: the map of the area.
+            Image mapFrame = UiKit.Box(p, "MapFrame", new Color(0.01f, 0.03f, 0.05f, 0.9f));
+            UiKit.Place(mapFrame.rectTransform, topRight, new Vector2(-40f, -332f), new Vector2(MapSize + 16f, MapSize + 16f));
+            RectTransform mapRect = UiKit.Rect("Map", mapFrame.transform);
+            UiKit.Place(mapRect, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(MapSize, MapSize));
+            _map = mapRect.gameObject.AddComponent<RawImage>();
+            _map.raycastTarget = false;
+            // A sweep line passing over the map, like a scope refreshing.
+            Image sweep = UiKit.Box(mapRect, "Sweep", new Color(0.30f, 0.86f, 1f, 0.16f), UiKit.Gradient);
+            _sweep = sweep.rectTransform;
+            _sweep.anchorMin = new Vector2(0f, 0f);
+            _sweep.anchorMax = new Vector2(1f, 0f);
+            _sweep.pivot = new Vector2(0.5f, 1f);
+            _sweep.sizeDelta = new Vector2(0f, 70f);
+            sweep.gameObject.AddComponent<MapSweep>().Height = MapSize;
+            for (int i = 0; i < MapMarks; i++)
+            {
+                _markImages[i] = UiKit.Box(mapRect, "Mark", UiKit.Bad);
+                _marks[i] = _markImages[i].rectTransform;
+                UiKit.Place(_marks[i], new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(11f, 11f));
+                _marks[i].pivot = new Vector2(0.5f, 0.5f);
+                _marks[i].localRotation = Quaternion.Euler(0f, 0f, 45f);
+                _marks[i].gameObject.SetActive(false);
+            }
+            Image pad = UiKit.Box(mapRect, "Pad", UiKit.Good, UiKit.Ring);
+            _padMark = pad.rectTransform;
+            UiKit.Place(_padMark, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(24f, 24f));
+            _padMark.pivot = new Vector2(0.5f, 0.5f);
+            Image mapEdge = UiKit.Box(mapFrame.transform, "Edge", new Color(UiKit.Cyan.r, UiKit.Cyan.g, UiKit.Cyan.b, 0.7f), UiKit.Brackets);
+            mapEdge.type = Image.Type.Sliced;
+            UiKit.Stretch(mapEdge.rectTransform);
+            _mapNote = UiKit.Label(p, 20, TextAnchor.UpperLeft);
+            _mapNote.color = new Color(1f, 1f, 1f, 0.6f);
+            _mapNote.supportRichText = true;
+            UiKit.Place(_mapNote.rectTransform, topRight, new Vector2(-40f - MapSize - 16f + (MapSize + 16f), -736f), new Vector2(MapSize + 16f, 60f));
+            _mapNote.rectTransform.pivot = new Vector2(1f, 1f);
+            UiKit.FitWidth(_mapNote, 14);
+
+            // The "restricted" stamp across the corner of the page.
+            _stamp = UiKit.Label(p, 22, TextAnchor.MiddleCenter);
+            _stamp.color = new Color(0.95f, 0.30f, 0.25f, 0.75f);
+            UiKit.Place(_stamp.rectTransform, topRight, new Vector2(-292f, -196f), new Vector2(300f, 30f));
+            UiKit.FitWidth(_stamp, 13);
 
             // Free flight has no mission to set the weather, so the player picks it here.
-            _weather = UiKit.Label(p, 28, TextAnchor.MiddleLeft);
-            _weather.color = new Color(1f, 1f, 1f, 0.8f);
-            UiKit.Place(_weather.rectTransform, new Vector2(0f, 0f), new Vector2(62f, 180f), new Vector2(560f, 64f));
-            Text change = UiKit.Button(p, "Weather", new Color(1f, 1f, 1f, 0.14f), 26, () => WeatherPressed?.Invoke());
+            UiKit.Rule(p, new Vector2(0f, 0f), new Vector2(44f, 176f), 992f, 0.3f);
+            _weather = UiKit.Label(p, 22, TextAnchor.MiddleLeft);
+            _weather.color = new Color(1f, 1f, 1f, 0.75f);
+            UiKit.Place(_weather.rectTransform, new Vector2(1f, 0f), new Vector2(-240f, 132f), new Vector2(330f, 36f));
+            _weather.rectTransform.pivot = new Vector2(1f, 0f);
+            _weather.alignment = TextAnchor.MiddleRight;
+            UiKit.FitWidth(_weather, 14);
+            Text change = UiKit.Button(p, "Weather", new Color(0.30f, 0.86f, 1f, 0.16f), 22, () => WeatherPressed?.Invoke());
             change.text = Loc.T("menu.change");
-            UiKit.Place((RectTransform)change.transform.parent, new Vector2(0f, 0f), new Vector2(640f, 180f), new Vector2(280f, 64f));
-
-            Text settings = UiKit.Button(safe, "Settings", UiKit.SolidPanelColor, 30, () => SettingsPressed?.Invoke());
-            settings.text = Loc.T("menu.settings");
-            UiKit.Place((RectTransform)settings.transform.parent, new Vector2(1f, 1f), new Vector2(-36f, -26f), new Vector2(320f, 84f));
-
-            Text hangar = UiKit.Button(safe, "Hangar", UiKit.Accent, 30, () => HangarPressed?.Invoke());
-            hangar.text = Loc.T("menu.hangar");
-            hangar.color = new Color(0.08f, 0.06f, 0.02f);
-            UiKit.Place((RectTransform)hangar.transform.parent, new Vector2(1f, 1f), new Vector2(-36f, -124f), new Vector2(320f, 84f));
-
-            Text globe = UiKit.Button(safe, "Globe", UiKit.SolidPanelColor, 30, () => GlobePressed?.Invoke());
-            globe.text = Loc.T("menu.globe");
-            UiKit.Place((RectTransform)globe.transform.parent, new Vector2(1f, 1f), new Vector2(-36f, -222f), new Vector2(320f, 84f));
-
-            Text daily = UiKit.Button(safe, "Daily", UiKit.SolidPanelColor, 30, () => DailyPressed?.Invoke());
-            daily.text = Loc.T("menu.daily");
-            UiKit.Place((RectTransform)daily.transform.parent, new Vector2(1f, 1f), new Vector2(-36f, -320f), new Vector2(320f, 84f));
-
-            Text achievements = UiKit.Button(safe, "Achievements", UiKit.SolidPanelColor, 30, () => AchievementsPressed?.Invoke());
-            achievements.text = Loc.T("menu.achievements");
-            UiKit.Place((RectTransform)achievements.transform.parent, new Vector2(1f, 1f), new Vector2(-36f, -418f), new Vector2(320f, 84f));
+            UiKit.FitWidth(change, 14);
+            UiKit.Place((RectTransform)change.transform.parent, new Vector2(1f, 0f), new Vector2(-40f, 128f), new Vector2(190f, 44f));
+            ((RectTransform)change.transform.parent).pivot = new Vector2(1f, 0f);
 
             _start = UiKit.Button(p, "Start", UiKit.Accent, 40, () => StartPressed?.Invoke());
             var startRect = (RectTransform)_start.transform.parent;
-            UiKit.Place(startRect, new Vector2(0f, 0f), new Vector2(60f, 50f), new Vector2(500f, 110f));
+            UiKit.Place(startRect, new Vector2(0f, 0f), new Vector2(44f, 36f), new Vector2(600f, 124f));
             _startButton = startRect.GetComponent<Image>();
             UiKit.FitWidth(_start, 24);
 
-            Text free = UiKit.Button(p, "FreeFlight", new Color(1f, 1f, 1f, 0.14f), 32, () => FreeFlightPressed?.Invoke());
+            Text free = UiKit.Button(p, "FreeFlight", new Color(0.30f, 0.86f, 1f, 0.16f), 30, () => FreeFlightPressed?.Invoke());
             free.text = Loc.T("menu.free");
-            UiKit.FitWidth(free, 20);
-            UiKit.Place((RectTransform)free.transform.parent, new Vector2(0f, 0f), new Vector2(580f, 50f), new Vector2(340f, 110f));
+            UiKit.FitWidth(free, 18);
+            UiKit.Place((RectTransform)free.transform.parent, new Vector2(0f, 0f), new Vector2(664f, 36f), new Vector2(372f, 84f));
+
+            // The rest of the base, down the right-hand edge.
+            float y = -26f;
+            Text Side(string name, string key, Color color, Action pressed)
+            {
+                Text label = UiKit.Button(safe, name, color, 28, pressed);
+                label.text = Loc.T(key);
+                UiKit.FitWidth(label, 18);
+                UiKit.Place((RectTransform)label.transform.parent, topRight, new Vector2(-36f, y), new Vector2(330f, 82f));
+                y -= 96f;
+                return label;
+            }
+            Side("Hangar", "menu.hangar", UiKit.Accent, () => HangarPressed?.Invoke()).color = new Color(0.08f, 0.06f, 0.02f);
+            Side("Globe", "menu.globe", UiKit.SolidPanelColor, () => GlobePressed?.Invoke());
+            Side("Daily", "menu.daily", UiKit.SolidPanelColor, () => DailyPressed?.Invoke());
+            Side("Achievements", "menu.achievements", UiKit.SolidPanelColor, () => AchievementsPressed?.Invoke());
+            Side("Settings", "menu.settings", UiKit.SolidPanelColor, () => SettingsPressed?.Invoke());
         }
 
         public bool Visible
@@ -118,18 +209,32 @@ namespace Skyforge.UI
             set => _root.SetActive(value);
         }
 
+        /// <summary>The picture of the region the missions are flown over, and how far it reaches from the middle.</summary>
+        public void SetMap(Texture map, float halfSize)
+        {
+            _map.texture = map;
+            _mapHalfSize = Mathf.Max(1f, halfSize);
+        }
+
+        Vector2 OnMap(Vector3 world)
+        {
+            float scale = MapSize * 0.5f / _mapHalfSize;
+            return new Vector2(Mathf.Clamp(world.x * scale, -MapSize * 0.5f, MapSize * 0.5f),
+                Mathf.Clamp(world.z * scale, -MapSize * 0.5f, MapSize * 0.5f));
+        }
+
         /// <param name="number">Position of the mission in the campaign, from 1.</param>
         /// <param name="locked">The previous mission has not been completed yet.</param>
         public void Show(MissionDefinition mission, SaveData save, int number, int total, bool locked, string regionName)
         {
-            _credits.text = Loc.T("menu.credits", save.Credits) + "\n" + Loc.T("menu.parts", save.Parts) + "\n" +
+            _credits.text = Loc.T("menu.credits", save.Credits) + "    " + Loc.T("menu.parts", save.Parts) + "\n" +
                             Loc.T("menu.drone", Loc.T(Garage.Selected(save).NameKey));
-            _title.text = Loc.T(mission.TitleKey);
+            _title.text = Loc.T(mission.TitleKey).ToUpperInvariant();
             // The last three missions of a region are the stages of its major operation.
             string kind = number > total - 3 && total >= 3
                 ? Loc.T("menu.major", number - (total - 3))
                 : Loc.T("template." + mission.Template);
-            _heading.text = regionName.ToUpperInvariant() + "  ·  " + number + "/" + total + "  ·  " + kind;
+            _heading.text = regionName.ToUpperInvariant() + "  /  OP " + number.ToString("00") + "-" + total.ToString("00") + "  /  " + kind.ToUpperInvariant();
 
             _start.text = Loc.T(locked ? "menu.locked_short" : "menu.start");
             _start.color = locked ? Color.white : new Color(0.08f, 0.06f, 0.02f);
@@ -142,29 +247,109 @@ namespace Skyforge.UI
                 ? Loc.T("menu.best", Format.Time(record.BestTime))
                 : Loc.T("menu.not_flown");
 
+            // How dangerous: counted from what can shoot and what can see.
+            int guns = 0, hostile = 0;
+            var counts = new Dictionary<string, int>();
+            var order = new List<string>();
+            foreach (TargetDefinition target in mission.Targets)
+            {
+                if (target.Friendly) continue;
+                hostile++;
+                if (target.Kind.Armed) guns++;
+                if (!counts.ContainsKey(target.Kind.NameKey))
+                {
+                    counts[target.Kind.NameKey] = 0;
+                    order.Add(target.Kind.NameKey);
+                }
+                counts[target.Kind.NameKey]++;
+            }
+            int danger = guns * 2 + mission.Zones.Count + (hostile > 6 ? 1 : 0);
+            int level = danger == 0 ? 0 : danger <= 2 ? 1 : danger <= 6 ? 2 : 3;
+            _threat.text = Loc.T("brief.threat") + ": " + Loc.T("brief.threat." + level);
+            _threatPlate.color = level == 0 ? new Color(0.20f, 0.55f, 0.32f, 0.95f)
+                : level == 1 ? new Color(0.72f, 0.56f, 0.10f, 0.95f)
+                : level == 2 ? new Color(0.80f, 0.36f, 0.08f, 0.95f)
+                : new Color(0.75f, 0.14f, 0.12f, 0.95f);
+            _stamp.text = locked ? Loc.T("brief.stamp.locked") : Loc.T("brief.stamp");
+
+            // The orders are typed out once per mission, not again each time the screen refreshes.
+            string orders = Loc.T(mission.BriefKey);
+            if (_typedFor != mission.Id + Loc.Language)
+            {
+                _typedFor = mission.Id + Loc.Language;
+                _typing.Type(orders);
+            }
+            else
+            {
+                _typing.Finish(orders);
+            }
+
             Weather weather = WeatherCatalog.Get(mission.WeatherId);
-            var body = new StringBuilder();
-            body.Append(Loc.T(mission.BriefKey)).Append("\n\n");
-
+            var intel = new StringBuilder();
+            string Head(string key) => "<color=" + UiKit.CyanHex + ">" + Loc.T(key) + "</color>  ";
+            if (hostile > 0)
+            {
+                intel.Append(Head("brief.enemy"));
+                for (int i = 0; i < order.Count && i < 5; i++)
+                {
+                    if (i > 0) intel.Append(", ");
+                    intel.Append(Loc.T(order[i]).ToLowerInvariant());
+                    if (counts[order[i]] > 1) intel.Append(" ×").Append(counts[order[i]]);
+                }
+                if (order.Count > 5) intel.Append("…");
+                intel.Append('\n');
+            }
             // Everything that changes the flight is said up front.
-            body.Append(Loc.T("menu.weather", Loc.T(weather.NameKey), Format.Wind(weather)));
-            if (mission.Payload > 0f) body.Append(' ').Append(Loc.T("menu.cargo"));
+            intel.Append(Head("brief.weather")).Append(Loc.T(weather.NameKey)).Append(", ").Append(Format.Wind(weather));
+            if (mission.Payload > 0f) intel.Append(' ').Append(Loc.T("menu.cargo"));
             if (mission.BatteryStart < 1f)
-                body.Append(' ').Append(Loc.T("menu.low_battery", Mathf.RoundToInt(mission.BatteryStart * 100f)));
-            if (mission.Zones.Count > 0) body.Append(' ').Append(Loc.T("menu.radars"));
-            body.Append('\n');
+                intel.Append(' ').Append(Loc.T("menu.low_battery", Mathf.RoundToInt(mission.BatteryStart * 100f)));
+            if (mission.Zones.Count > 0) intel.Append(' ').Append(Loc.T("menu.radars"));
+            intel.Append('\n');
+            intel.Append("<color=").Append(UiKit.AccentHex).Append(">").Append(Loc.T("menu.stars")).Append("</color>  ");
+            intel.Append(Loc.T("star.complete")).Append("; ");
+            intel.Append(Loc.T("star.time", Format.Time(mission.TimeGoalSeconds))).Append("; ");
+            intel.Append(Loc.T(mission.StrikeDrones > 0 ? "star.spare" : mission.Targets.Count > 0 ? "star.hull" : "star.no_damage")).Append(".\n");
+            intel.Append(Head("brief.pay")).Append(Loc.T("menu.reward", mission.BaseReward, mission.StarReward));
+            if (locked) intel.Append("\n<color=#F24D40>").Append(Loc.T("menu.locked")).Append("</color>");
+            _intel.text = intel.ToString();
 
-            body.Append("<color=").Append(UiKit.AccentHex).Append(">").Append(Loc.T("menu.stars")).Append("</color>  ");
-            body.Append(Loc.T("star.complete")).Append("; ");
-            body.Append(Loc.T("star.time", Format.Time(mission.TimeGoalSeconds))).Append("; ");
-            body.Append(Loc.T(mission.StrikeDrones > 0 ? "star.spare" : mission.Targets.Count > 0 ? "star.hull" : "star.no_damage")).Append(".\n");
-            body.Append(Loc.T("menu.reward", mission.BaseReward, mission.StarReward));
-            if (locked) body.Append("\n<color=#F24D40>").Append(Loc.T("menu.locked")).Append("</color>");
-            _body.text = body.ToString();
+            // The map: the pad, then every target; hostile in red, friendly in green, radars as pale marks.
+            _padMark.anchoredPosition = OnMap(mission.BasePosition);
+            int used = 0;
+            foreach (TargetDefinition target in mission.Targets)
+            {
+                if (used >= MapMarks) break;
+                Vector3 at = target.Path.Count > 0 ? target.Path[0] : target.Position;
+                Place(used++, at, target.Friendly ? UiKit.Good : UiKit.Bad, 11f);
+            }
+            foreach (ZoneDefinition zone in mission.Zones)
+            {
+                if (used >= MapMarks) break;
+                Place(used++, zone.Position, new Color(1f, 0.85f, 0.3f, 0.9f), 15f);
+            }
+            foreach (ObjectiveDefinition objective in mission.Objectives)
+            {
+                if (used >= MapMarks || hostile > 0) break;
+                Place(used++, objective.Position, UiKit.Accent, 12f);
+            }
+            for (int i = used; i < MapMarks; i++)
+                if (_marks[i].gameObject.activeSelf) _marks[i].gameObject.SetActive(false);
+            _mapNote.text = "<color=#59D973>◯</color> " + Loc.T("brief.map.pad") + "   <color=#F24D40>◆</color> " + Loc.T("brief.map.target") +
+                            (mission.Zones.Count > 0 ? "   <color=#FFD94D>◆</color> " + Loc.T("brief.map.radar") : "");
 
             Weather free = WeatherCatalog.Get(save.FreeFlightWeather);
             _weather.text = Loc.T("menu.free_weather", Loc.T(free.NameKey));
             Visible = true;
+        }
+
+        void Place(int index, Vector3 world, Color color, float size)
+        {
+            RectTransform mark = _marks[index];
+            if (!mark.gameObject.activeSelf) mark.gameObject.SetActive(true);
+            mark.anchoredPosition = OnMap(world);
+            mark.sizeDelta = new Vector2(size, size);
+            _markImages[index].color = color;
         }
     }
 
@@ -260,7 +445,7 @@ namespace Skyforge.UI
             heading.text = Loc.T("credits.title");
             UiKit.Place(heading.rectTransform, topLeft, new Vector2(60f, -36f), new Vector2(900f, 60f));
             Text list = UiKit.Label(sheet.transform, 24, TextAnchor.UpperLeft, true);
-            list.fontStyle = FontStyle.Normal;
+            UiKit.Light(list);
             var names = Resources.Load<TextAsset>("credits");
             list.text = Loc.T("credits.note") + "\n\n" + (names != null ? names.text.Replace("\n\"", "   \"").Replace(":\n", ":\n") : "");
             UiKit.Place(list.rectTransform, topLeft, new Vector2(60f, -110f), new Vector2(1380f, 680f));
@@ -343,7 +528,7 @@ namespace Skyforge.UI
             }
 
             _lines = UiKit.Label(p, 34, TextAnchor.UpperCenter, true);
-            _lines.fontStyle = FontStyle.Normal;
+            UiKit.Light(_lines);
             _lines.lineSpacing = 1.2f;
             UiKit.Place(_lines.rectTransform, top, new Vector2(0f, -350f), new Vector2(1000f, 200f));
 

@@ -9,7 +9,7 @@ namespace Skyforge.Tests
     public class DroneCatalogTests
     {
         [Test]
-        public void TwelveDronesWithUniqueIdsAndTexts()
+        public void ThirteenDronesWithUniqueIdsAndTexts()
         {
             var ids = new HashSet<string>();
             foreach (DroneDefinition drone in DroneCatalog.All)
@@ -20,7 +20,7 @@ namespace Skyforge.Tests
                 Assert.IsTrue(Loc.Has(drone.RoleKey), drone.RoleKey);
                 Assert.IsTrue(Loc.Has(drone.NoteKey), drone.NoteKey);
             }
-            Assert.AreEqual(12, ids.Count);
+            Assert.AreEqual(13, ids.Count);
             Assert.AreEqual(DroneCatalog.Starter, DroneCatalog.All[0].Id);
             Assert.AreEqual(0, DroneCatalog.All[0].Price);
         }

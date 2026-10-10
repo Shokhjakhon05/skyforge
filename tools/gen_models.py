@@ -56,6 +56,13 @@ MODELS = {
     "drone_wing": dict(src="3Eio09miiAF", size=2.3, yaw=0, lift=-0.38),
     "drone_heavy": dict(src="6CUQX98vha4", size=1.7, yaw=-90, lift=-0.38),
     "drone_jet": dict(src="6fyLMORhgGK", size=2.6, yaw=0, lift=-0.38),
+    "drone_delta": dict(src="1fi8ZIDdFCP", size=2.2, yaw=0, lift=-0.38),
+    "drone_fighter": dict(src="dukcCKsLDrS", size=3.0, yaw=0, lift=-0.38),
+    "drone_prop": dict(src="9VeIc0cybp4", size=2.6, yaw=0, lift=-0.38),
+    "drone_heli": dict(src="EQJ2MECUbx", size=2.8, yaw=0, lift=-0.38),
+    "drone_gunship": dict(src="hG2Qr0A3zR", size=3.2, yaw=0, lift=-0.38),
+    "drone_lifter": dict(src="cTzINMr0WdS", size=3.2, yaw=180, lift=-0.38),
+    "drone_hover": dict(src="eGrzfhSGpOg", size=2.4, yaw=180, lift=-0.38),
 }
 
 

@@ -72,6 +72,11 @@ namespace Skyforge.UI
             }
         }
 
+        public event Action LandPressed;
+        readonly GameObject _land, _gunCamera;
+        readonly Text _landLabel, _gunText;
+        readonly Image _landImage;
+
         public Hud(Transform parent)
         {
             _canvas = UiKit.CreateCanvas(parent, "Hud", 0);
@@ -201,6 +206,62 @@ namespace Skyforge.UI
             UiKit.Place(secondaryRect, new Vector2(1f, 0.5f), new Vector2(-350f, 70f), new Vector2(260f, 140f));
             _secondary = secondaryRect.gameObject;
             _secondary.SetActive(false);
+
+            // Automatic landing, over the left thumb; offered only near the pad.
+            _landLabel = UiKit.Button(safe, "Land", new Color(0.10f, 0.42f, 0.52f, 0.92f), 34, () => LandPressed?.Invoke());
+            UiKit.FitWidth(_landLabel, 22);
+            var landRect = (RectTransform)_landLabel.transform.parent;
+            UiKit.Place(landRect, new Vector2(0f, 0.5f), new Vector2(36f, 40f), new Vector2(280f, 110f));
+            _land = landRect.gameObject;
+            _landImage = landRect.GetComponent<Image>();
+            _land.SetActive(false);
+
+            // The gun camera's furniture: a reticle in the middle, brackets in the corners, a line of data.
+            RectTransform gun = UiKit.Rect("GunCamera", screen);
+            UiKit.Stretch(gun);
+            gun.SetAsFirstSibling();
+            _gunCamera = gun.gameObject;
+            var white = new Color(1f, 1f, 1f, 0.85f);
+            foreach (Vector2 arm in new[] { new Vector2(1f, 0f), new Vector2(-1f, 0f), new Vector2(0f, 1f), new Vector2(0f, -1f) })
+            {
+                Image line = UiKit.Box(gun, "Arm", white);
+                UiKit.Place(line.rectTransform, middle, arm * 86f, arm.x != 0f ? new Vector2(96f, 3f) : new Vector2(3f, 96f));
+                line.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            }
+            Image pip = UiKit.Box(gun, "Pip", white, UiKit.Ring);
+            UiKit.Place(pip.rectTransform, middle, Vector2.zero, new Vector2(34f, 34f));
+            pip.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            Image corners = UiKit.Box(gun, "Corners", new Color(1f, 1f, 1f, 0.7f), UiKit.Brackets);
+            corners.type = Image.Type.Sliced;
+            corners.rectTransform.anchorMin = new Vector2(0.2f, 0.16f);
+            corners.rectTransform.anchorMax = new Vector2(0.8f, 0.84f);
+            corners.rectTransform.offsetMin = corners.rectTransform.offsetMax = Vector2.zero;
+            _gunText = UiKit.Label(gun, 26, TextAnchor.LowerLeft);
+            _gunText.color = white;
+            _gunText.rectTransform.anchorMin = _gunText.rectTransform.anchorMax = new Vector2(0.2f, 0.16f);
+            _gunText.rectTransform.pivot = new Vector2(0f, 0f);
+            _gunText.rectTransform.anchoredPosition = new Vector2(16f, 12f);
+            _gunText.rectTransform.sizeDelta = new Vector2(900f, 70f);
+            _gunCamera.SetActive(false);
+        }
+
+        /// <summary>Shows or hides the automatic-landing button; <paramref name="engaged"/> lights it while it is flying the drone.</summary>
+        public void SetLand(string label, bool engaged)
+        {
+            bool show = !string.IsNullOrEmpty(label);
+            if (_land.activeSelf != show) _land.SetActive(show);
+            if (!show) return;
+            if (_landLabel.text != label) _landLabel.text = label;
+            Color wanted = engaged ? UiKit.Good : new Color(0.10f, 0.42f, 0.52f, 0.92f);
+            if (_landImage.color != wanted) _landImage.color = wanted;
+        }
+
+        /// <summary>The gun camera's reticle and data line; null hides them.</summary>
+        public void SetGunCamera(string data)
+        {
+            bool show = data != null;
+            if (_gunCamera.activeSelf != show) _gunCamera.SetActive(show);
+            if (show && _gunText.text != data) _gunText.text = data;
         }
 
         public bool Visible

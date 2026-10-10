@@ -202,6 +202,39 @@ namespace Skyforge.Core
         public bool IsCombat => _targets.Length > 0;
         public bool Kamikaze => Definition.StrikeDrones > 0;
 
+/// <summary>
+        /// Whether one-way attack drones can fly a mission: apart from taking off, and coming
+        /// home at the end, it must ask for nothing but destruction.
+        /// </summary>
+        public static bool SuitsOneWay(MissionDefinition mission)
+        {
+            if (mission.Targets.Count == 0) return false;
+            int destroy = 0;
+            for (int i = 0; i < mission.Objectives.Count; i++)
+            {
+                ObjectiveType type = mission.Objectives[i].Type;
+                if (type == ObjectiveType.Destroy) destroy++;
+                else if (type == ObjectiveType.TakeOff) continue;
+                else if (type == ObjectiveType.Land && i == mission.Objectives.Count - 1) continue;
+                else return false;
+            }
+            return destroy > 0;
+        }
+
+        /// <summary>
+        /// The mission as a sortie of <paramref name="airframes"/> one-way drones: the landing at
+        /// the end is struck off, since none of them is coming back. Null if they cannot fly it.
+        /// </summary>
+        public static MissionDefinition AsOneWaySortie(MissionDefinition mission, int airframes)
+        {
+            if (!SuitsOneWay(mission)) return null;
+            MissionDefinition sortie = mission.Copy();
+            sortie.StrikeDrones = airframes;
+            int last = sortie.Objectives.Count - 1;
+            if (sortie.Objectives[last].Type == ObjectiveType.Land) sortie.Objectives.RemoveAt(last);
+            return sortie;
+        }
+
         /// <summary>The third star: an intact drone, or in combat one that was not shot to pieces.</summary>
         public bool CleanFinish => Kamikaze ? DronesLeft > 0 : IsCombat ? Hull >= CleanHull : !Damaged;
 

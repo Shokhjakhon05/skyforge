@@ -46,7 +46,9 @@ namespace Skyforge.World
         {
             Material sea = GameMaterials.Water;
             CreateObject("Terrain", parent, BuildTerrainMesh(island.Map),
-                GameMaterials.LitTextured(BuildTerrainTexture(island, TerrainPaint.For(island.Biome))), true);
+                GameMaterials.Surface(BuildTerrainTexture(island, TerrainPaint.For(island.Biome)),
+                    island.Biome == Biome.Desert ? GameMaterials.Matter.Sand
+                    : island.Biome == Biome.Snow ? GameMaterials.Matter.Snow : GameMaterials.Matter.Ground), true);
             CreateObject("Sea", parent, BuildSeaMesh(), sea, false);
             CreateObject("Trees", parent, BuildTreesMesh(island), GameMaterials.PaletteLit, true);
             CreateObject("Pad", parent, BuildPadMesh(island), GameMaterials.PaletteLit, false);

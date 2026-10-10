@@ -30,3 +30,10 @@
 | drone_wing | Predator Drone | sftwr314r8 | CC-BY 3.0 | https://poly.pizza/m/3Eio09miiAF |
 | drone_heavy | Stinger Drone | Aaron Clifford | CC-BY 3.0 | https://poly.pizza/m/6CUQX98vha4 |
 | drone_jet | Jet | jeremy | CC-BY 3.0 | https://poly.pizza/m/6fyLMORhgGK |
+| drone_delta | Low poly Fighter | Stephen Graybill | CC-BY 3.0 | https://poly.pizza/m/1fi8ZIDdFCP |
+| drone_fighter | Jet | Poly by Google | CC-BY 3.0 | https://poly.pizza/m/dukcCKsLDrS |
+| drone_prop | Aeroplane | Gilang Romadhan | CC-BY 3.0 | https://poly.pizza/m/9VeIc0cybp4 |
+| drone_heli | Helicopter | kazuma | CC0 1.0 | https://poly.pizza/m/EQJ2MECUbx |
+| drone_gunship | Helicopter | Zsky | CC-BY 3.0 | https://poly.pizza/m/hG2Qr0A3zR |
+| drone_lifter | Helicopter | Poly by Google | CC-BY 3.0 | https://poly.pizza/m/cTzINMr0WdS |
+| drone_hover | Hover Battler: Sparrow | Aaron Clifford | CC-BY 3.0 | https://poly.pizza/m/eGrzfhSGpOg |

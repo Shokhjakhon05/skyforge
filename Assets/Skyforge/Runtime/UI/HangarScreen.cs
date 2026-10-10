@@ -78,7 +78,7 @@ namespace Skyforge.UI
             UiKit.FitWidth(_role, 18);
             // Two short lines beside the role, clear of the browse buttons on the right.
             _weapons = UiKit.Label(p, 21, TextAnchor.UpperLeft, true);
-            _weapons.fontStyle = FontStyle.Normal;
+            UiKit.Light(_weapons);
             _weapons.color = new Color(1f, 1f, 1f, 0.85f);
             UiKit.Place(_weapons.rectTransform, topLeft, new Vector2(440f, -150f), new Vector2(330f, 56f));
             UiKit.FitWidth(_weapons, 15);
@@ -91,7 +91,7 @@ namespace Skyforge.UI
             UiKit.Place((RectTransform)next.transform.parent, topRight, new Vector2(-50f, -100f), new Vector2(110f, 96f));
 
             _note = UiKit.Label(p, 26, TextAnchor.UpperLeft, true);
-            _note.fontStyle = FontStyle.Normal;
+            UiKit.Light(_note);
             UiKit.Place(_note.rectTransform, topLeft, new Vector2(52f, -210f), new Vector2(960f, 70f));
 
             // Six stats in two columns of three.
@@ -137,7 +137,7 @@ namespace Skyforge.UI
                 r.Title = UiKit.Label(root, 28, TextAnchor.UpperLeft);
                 UiKit.Place(r.Title.rectTransform, topLeft, new Vector2(0f, 0f), new Vector2(620f, 36f));
                 r.Note = UiKit.Label(root, 21, TextAnchor.UpperLeft);
-                r.Note.fontStyle = FontStyle.Normal;
+                UiKit.Light(r.Note);
                 r.Note.color = new Color(1f, 1f, 1f, 0.7f);
                 UiKit.Place(r.Note.rectTransform, topLeft, new Vector2(0f, -38f), new Vector2(620f, 30f));
                 r.ButtonLabel = UiKit.Button(root, "Button", UiKit.Faint, 24, () => RowPressed(row));

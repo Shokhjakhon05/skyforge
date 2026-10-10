@@ -77,6 +77,9 @@ namespace Skyforge
         MissionRun _run;
         float _zoom = 1f;
         bool _actionPressed, _bombPressed;
+        bool _autoLand;
+        int _shownGunStamp = -1;
+        const float AutoLandRange = 70f;
         Effects _effects;
         /// <summary>The freeze in progress ends with the next strike drone on the pad, not with the result.</summary>
         bool _respawnAfterFreeze;
@@ -115,12 +118,14 @@ namespace Skyforge
             _analytics.Event("session_start", null, _save.Sessions);
 
             _camera = new CameraRig(transform, null);
-            _camera.View = (CameraView)Mathf.Clamp(_save.CameraViewIndex, 0, 2);
+            _camera.View = (CameraView)Mathf.Clamp(_save.CameraViewIndex, 0, 3);
             _sticks = new TouchSticks();
             _audio = new DroneAudio(transform);
             _sfx = new Sfx(transform);
             _look = new SceneLook(transform, _camera.Camera, null);
             _effects = new Effects(transform);
+            GlassBackdrop.Attach(_camera.Camera);
+            UiKit.Tap = () => _sfx.Play(Sound.Tap, 0.7f);
             ApplyQuality();
             AudioListener.volume = _save.Muted ? 0f : 1f;
 
@@ -135,8 +140,10 @@ namespace Skyforge
             _hud.ZoomPressed += ToggleZoom;
             _hud.ActionPressed += () => _actionPressed = true;
             _hud.BombPressed += () => _bombPressed = true;
+            _hud.LandPressed += ToggleAutoLand;
 
             _menu = new MenuScreen(transform);
+            _menu.SetMap(TacticalMap.Build(_island), _island.Map.HalfSize);
             _menu.StartPressed += () => { Click(); StartMission(); };
             _menu.FreeFlightPressed += () => { Click(); StartFreeFlight(); };
             _menu.SettingsPressed += () => { Click(); ShowSettings(); };
@@ -288,8 +295,23 @@ namespace Skyforge
 
         void ContinueAfterResult()
         {
-            // After a first completion the menu moves on to the mission that just opened.
-            if (_advanceOnContinue && _missionIndex + 1 < _missions.Count) _missionIndex++;
+            // After a first completion the campaign moves on, and it moves to another theatre:
+            // the next operation is the first unflown one in the next region that is open.
+            if (_advanceOnContinue)
+            {
+                RegionDefinition next = NextTheatre();
+                if (next != _region)
+                {
+                    _analytics.Event("region_rotate", next.Id);
+                    LoadRegion(next);
+                    _store.Save(_save);
+                    Toast(Loc.T("msg.theatre", Loc.T(next.NameKey)));
+                }
+                else if (_missionIndex + 1 < _missions.Count)
+                {
+                    _missionIndex++;
+                }
+            }
             _advanceOnContinue = false;
             ShowMenu();
         }
@@ -407,6 +429,7 @@ namespace Skyforge
             _caches = new CachesView(_island, _regionRoot, index => Caches.IsFound(_save, region.Id, index));
             _camera.SetMap(_island.Map);
             _look.SetSea(sea);
+            if (_menu != null) _menu.SetMap(TacticalMap.Build(_island), _island.Map.HalfSize);
 
             _missions = MissionCatalog.Load(region, _island);
             _missionIndex = FirstUnfinishedMission();
@@ -415,6 +438,23 @@ namespace Skyforge
             _previous = _sim.State;
             // The previous island's meshes and textures are no longer referenced by anything.
             Resources.UnloadUnusedAssets();
+        }
+
+        /// <summary>The next open region, going round the catalog, that still has an operation nobody has flown.</summary>
+        RegionDefinition NextTheatre()
+        {
+            int count = RegionCatalog.All.Count, current = RegionCatalog.IndexOf(_region.Id);
+            for (int step = 1; step <= count; step++)
+            {
+                RegionDefinition region = RegionCatalog.All[(current + step) % count];
+                if (IsRegionLocked(region)) continue;
+                foreach (string id in MissionCatalog.Ids(region))
+                {
+                    MissionRecord record = _save.Find(id);
+                    if (record == null || record.Completions == 0) return region;
+                }
+            }
+            return _region;
         }
 
         bool IsRegionLocked(RegionDefinition region) => Garage.TotalStars(_save) < region.StarsRequired;
@@ -535,6 +575,7 @@ namespace Skyforge
             if (strike) spec = spec.AsStrikeDrone();
             var sim = new FlightSim(_island, spec.WithPayload(payload));
             sim.Mode = (FlightMode)Mathf.Clamp(_save.FlightModeIndex, 0, 1);
+            sim.Cushion = !strike;
             return sim;
         }
 
@@ -552,6 +593,20 @@ namespace Skyforge
             _mission = _dailySlot >= 0 && _dailySlot < _dailyOps.Count
                 ? Daily.Apply(AppliedMission(), _dailyOps[_dailySlot].Modifier)
                 : AppliedMission();
+            // A one-way attack drone turns a mission of pure destruction into a kamikaze sortie;
+            // anything that asks for a photograph, a delivery or a landing it cannot fly at all.
+            DroneSpec chosen = Garage.SelectedSpec(_save);
+            if (chosen.OneWay > 0 && _mission.StrikeDrones == 0)
+            {
+                MissionDefinition sortie = MissionRun.AsOneWaySortie(_mission, chosen.OneWay);
+                if (sortie == null)
+                {
+                    _sfx.Play(Sound.Warning);
+                    Toast(Loc.T("msg.oneway_refused"));
+                    return;
+                }
+                _mission = sortie;
+            }
             _phase = Phase.Mission;
             _analytics.Event("mission_start", _mission.Id);
             _sim = CreateSim(_mission.Payload, _mission.StrikeDrones > 0);
@@ -604,7 +659,7 @@ namespace Skyforge
             _hud.UpdateScope(null, null, null, Vector3.zero, 0f);
             RefreshLabels();
             _shownHeadlineStamp = _shownSublineStamp = -1;
-            _drone.Visible = _camera.View != CameraView.Fpv;
+            _drone.Visible = _camera.View != CameraView.Fpv && _camera.View != CameraView.Gun;
         }
 
         void ShowResult()
@@ -712,6 +767,9 @@ namespace Skyforge
         void ResetFlight()
         {
             _freezeTimer = 0f;
+            _autoLand = false;
+            if (_look.Scope) _look.SetScope(false);
+            if (_hud != null) _hud.SetGunCamera(null);
             _respawnAfterFreeze = false;
             _messageTimer = 0f;
             _accumulator = 0f;
@@ -752,7 +810,7 @@ namespace Skyforge
             flying = _phase == Phase.Mission || _phase == Phase.FreeFlight;
             Present(deltaTime, flying);
             _caches.Update(deltaTime);
-            _effects.Update(deltaTime, _camera.Camera.transform.position);
+            _effects.Update(deltaTime, _camera.Camera.transform);
             if (_toastTimer > 0f)
             {
                 _toastTimer -= Time.unscaledDeltaTime;
@@ -850,7 +908,54 @@ namespace Skyforge
         {
             Vector2 move = _save.SticksSwapped ? _sticks.Right.Value : _sticks.Left.Value;
             Vector2 lift = _save.SticksSwapped ? _sticks.Left.Value : _sticks.Right.Value;
+            if (_autoLand)
+            {
+                // Any firm push on a stick takes the drone back from the automatic landing.
+                if (move.magnitude > 0.35f || lift.magnitude > 0.35f || _sim.State.Grounded) _autoLand = false;
+                else return FlightSim.LandingInput(_sim.State, _island.Spawn);
+            }
             return new FlightInput { Move = move, Throttle = lift.y, Yaw = lift.x };
+        }
+
+        /// <summary>The automatic landing is offered in the air near the pad, to a drone that is coming back.</summary>
+        bool CanAutoLand()
+        {
+            if (_sim.State.Grounded || _freezeTimer > 0f) return false;
+            if (_phase == Phase.Mission && _run.Kamikaze) return false;
+            Vector3 offset = _sim.State.Position - _island.Spawn;
+            return offset.x * offset.x + offset.z * offset.z < AutoLandRange * AutoLandRange;
+        }
+
+        void ToggleAutoLand()
+        {
+            if (!_autoLand && !CanAutoLand()) return;
+            Click();
+            _autoLand = !_autoLand;
+        }
+
+        void PresentLanding()
+        {
+            bool offered = CanAutoLand();
+            if (!offered) _autoLand = false;
+            _hud.SetLand(offered ? Loc.T(_autoLand ? "hud.landing" : "hud.land") : null, _autoLand);
+        }
+
+        void PresentGunCamera()
+        {
+            bool gun = _camera.View == CameraView.Gun;
+            if (gun != _look.Scope) _look.SetScope(gun);
+            if (!gun)
+            {
+                _hud.SetGunCamera(null);
+                return;
+            }
+            bool locked = _phase == Phase.Mission && _run.IsCombat && _run.LockedTarget >= 0;
+            _camera.GunTarget = locked ? _run.Target(_run.LockedTarget).Position + Vector3.up * 1.2f : (Vector3?)null;
+            int stamp = Mathf.RoundToInt(_sim.AltitudeAboveGround) * 1000 + Mathf.RoundToInt(Mathf.Repeat(_sim.State.YawDeg, 360f)) + (locked ? 500000 : 0);
+            if (stamp == _shownGunStamp) return;
+            _shownGunStamp = stamp;
+            _hud.SetGunCamera(Loc.T("hud.gun", Mathf.RoundToInt(Mathf.Repeat(_sim.State.YawDeg, 360f)), Mathf.RoundToInt(_sim.AltitudeAboveGround)) +
+                              "\n" + Loc.T(locked ? "hud.gun.locked" : "hud.gun.search"));
         }
 
         void Freeze(string message, float seconds)
@@ -872,7 +977,7 @@ namespace Skyforge
                 _run.Respawned();
                 _hasFlown = false;
                 _camera.Snap();
-                _drone.Visible = _camera.View != CameraView.Fpv;
+                _drone.Visible = _camera.View != CameraView.Fpv && _camera.View != CameraView.Gun;
                 return;
             }
             if (_phase == Phase.Mission)
@@ -882,7 +987,7 @@ namespace Skyforge
             }
             ResetFlight();
             RestartCourse();
-            _drone.Visible = _camera.View != CameraView.Fpv;
+            _drone.Visible = _camera.View != CameraView.Fpv && _camera.View != CameraView.Gun;
         }
 
         void Present(float deltaTime, bool flying)
@@ -928,6 +1033,8 @@ namespace Skyforge
                 }
             }
 
+            PresentLanding();
+            PresentGunCamera();
             if (_phase == Phase.Mission) PresentMission();
             else PresentFreeFlight();
         }
@@ -1325,6 +1432,9 @@ namespace Skyforge
             _weather = weather;
             _look.Apply(weather);
             _effects.Wind = weather.WindAt(0f);
+            // Smoke is lit by the day it hangs in: grey at noon, nearly black at night.
+            Color daylight = weather.AmbientSky * 0.55f + weather.SunColor * (weather.SunIntensity * 0.42f);
+            _effects.Daylight = new Color(Mathf.Clamp01(daylight.r * 1.25f), Mathf.Clamp01(daylight.g * 1.25f), Mathf.Clamp01(daylight.b * 1.25f));
             _hud.SetWind(weather.HasWind ? Loc.T("hud.wind", Mathf.RoundToInt(weather.WindSpeed)) : "");
         }
 
@@ -1332,6 +1442,7 @@ namespace Skyforge
         {
             GraphicsTier level = _save.Quality == 0 ? SceneLook.Recommend() : (GraphicsTier)_save.Quality;
             _look.SetQuality(level);
+            GlassBackdrop.Allowed = level > GraphicsTier.Low;
         }
 
         void ShowSettings() => _settings.Show(_save, SettingsScreen.QualityKey((int)_look.Quality));
@@ -1417,8 +1528,8 @@ namespace Skyforge
 
         void ToggleCamera()
         {
-            _camera.View = (CameraView)(((int)_camera.View + 1) % 3);
-            _drone.Visible = _camera.View != CameraView.Fpv;
+            _camera.View = (CameraView)(((int)_camera.View + 1) % 4);
+            _drone.Visible = _camera.View != CameraView.Fpv && _camera.View != CameraView.Gun;
             _save.CameraViewIndex = (int)_camera.View;
             SaveSettings();
         }
@@ -1529,7 +1640,7 @@ namespace Skyforge
         public void AutomationSetCamera(CameraView view)
         {
             _camera.View = view;
-            _drone.Visible = view != CameraView.Fpv;
+            _drone.Visible = view != CameraView.Fpv && view != CameraView.Gun;
             _camera.Snap();
         }
 
@@ -1571,7 +1682,7 @@ namespace Skyforge
         void RefreshLabels()
         {
             _hud.SetCameraLabel(Loc.T(_camera.View == CameraView.Chase ? "hud.camera.chase"
-                : _camera.View == CameraView.Fpv ? "hud.camera.fpv" : "hud.camera.top"));
+                : _camera.View == CameraView.Fpv ? "hud.camera.fpv" : _camera.View == CameraView.Gun ? "hud.camera.gun" : "hud.camera.top"));
             _hud.SetZoomLabel(Loc.T("hud.zoom", Mathf.RoundToInt(_zoom)));
             _hud.SetModeLabel(Loc.T(_sim.Mode == FlightMode.Assist ? "hud.mode.assist" : "hud.mode.sport"));
         }

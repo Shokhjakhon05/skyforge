@@ -40,7 +40,7 @@ namespace Skyforge.World
                     var rust = new Color(0.30f, 0.16f, 0.09f);
                     colors[i] = Color.Lerp(soot, rust, i % 3 == 0 ? 0.35f : 0.08f);
                 }
-                return _burnt = Paint(colors, 0.05f);
+                return _burnt = Paint(colors, GameMaterials.Matter.Burnt);
             }
         }
 
@@ -61,7 +61,7 @@ namespace Skyforge.World
             return Paint(colors);
         }
 
-        static Material Paint(Color32[] colors, float smoothness = 0.3f)
+        static Material Paint(Color32[] colors, GameMaterials.Matter matter = GameMaterials.Matter.Metal)
         {
             var texture = new Texture2D(colors.Length, 1, TextureFormat.RGBA32, false)
             {
@@ -69,7 +69,7 @@ namespace Skyforge.World
             };
             texture.SetPixels32(colors);
             texture.Apply(false, true);
-            return GameMaterials.LitTextured(texture, smoothness);
+            return GameMaterials.Surface(texture, matter);
         }
 
         public int PartIndex(string name)

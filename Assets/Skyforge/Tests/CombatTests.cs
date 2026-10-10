@@ -274,10 +274,17 @@ namespace Skyforge.Tests
         {
             foreach (DroneDefinition drone in DroneCatalog.All)
             {
+                Assert.IsFalse(string.IsNullOrEmpty(drone.Look.Model), drone.Id + " has no model");
+                if (drone.Spec.OneWay > 0)
+                {
+                    // A one-way attack drone is the weapon: it brings airframes, not ammunition.
+                    Assert.GreaterOrEqual(drone.Spec.OneWay, 3, drone.Id);
+                    Assert.AreEqual(0, drone.Spec.Rockets + drone.Spec.Bombs, drone.Id);
+                    continue;
+                }
                 Assert.Greater(drone.Spec.Rockets, 0, drone.Id);
                 Assert.Greater(drone.Spec.Rockets * drone.Spec.RocketDamage + drone.Spec.Bombs * drone.Spec.BombDamage, 300f, drone.Id);
                 Assert.Greater(drone.Spec.LockRange, 100f, drone.Id);
-                Assert.IsFalse(string.IsNullOrEmpty(drone.Look.Model), drone.Id + " has no model");
             }
         }
     }

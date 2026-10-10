@@ -365,13 +365,63 @@ namespace Skyforge.EditorTools
         {
             pipeline.renderScale = 1f;
             pipeline.msaaSampleCount = 2;
-            pipeline.supportsHDR = false;
+            pipeline.supportsHDR = true;
             pipeline.shadowDistance = 140f;
             pipeline.shadowCascadeCount = 2;
         }
 
+        /// <summary>
+        /// The .meta files written by gen_meta.py carry no import settings, so the pictures are
+        /// told here what they are: panoramas of the sky, and packed detail maps that hold data
+        /// rather than colour.
+        /// </summary>
+        static void ConfigureTextures()
+        {
+            foreach (string guid in AssetDatabase.FindAssets("t:Texture", new[] { "Assets/Skyforge/Resources" }))
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guid);
+                if (!(AssetImporter.GetAtPath(path) is TextureImporter importer)) continue;
+                bool sky = path.Contains("/Sky/"), detail = path.Contains("/Textures/detail_");
+                if (!sky && !detail) continue;
+
+                importer.textureType = TextureImporterType.Default;
+                importer.textureShape = TextureImporterShape.Texture2D;
+                importer.npotScale = TextureImporterNPOTScale.None;
+                importer.alphaIsTransparency = false;
+                if (sky)
+                {
+                    importer.sRGBTexture = true;
+                    importer.mipmapEnabled = false;
+                    importer.wrapModeU = TextureWrapMode.Repeat;
+                    importer.wrapModeV = TextureWrapMode.Clamp;
+                    importer.maxTextureSize = 4096;
+                    importer.filterMode = FilterMode.Bilinear;
+                }
+                else
+                {
+                    importer.sRGBTexture = false;
+                    importer.mipmapEnabled = true;
+                    importer.wrapMode = TextureWrapMode.Repeat;
+                    importer.maxTextureSize = 1024;
+                    importer.filterMode = FilterMode.Trilinear;
+                    importer.anisoLevel = 4;
+                }
+                importer.textureCompression = TextureImporterCompression.CompressedHQ;
+                importer.SaveAndReimport();
+            }
+        }
+
         static void ConfigureSky(Material sky)
         {
+            if (sky.shader.name == "Skyforge/Sky")
+            {
+                sky.SetTexture("_MainTex", AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Skyforge/Resources/Sky/sky_clear.jpg"));
+                sky.SetColor("_Tint", Color.white);
+                sky.SetFloat("_Exposure", 1f);
+                sky.SetFloat("_Rotation", 0f);
+                sky.SetColor("_HorizonColor", new Color(0.70f, 0.80f, 0.90f));
+                return;
+            }
             // A material made in code gets no keywords, and without one the sky has no sun disc.
             sky.EnableKeyword("_SUNDISK_SIMPLE");
             sky.SetFloat("_SunDisk", 1f);
@@ -394,9 +444,48 @@ namespace Skyforge.EditorTools
             AssetDatabase.CreateAsset(new Material(FindShader("Universal Render Pipeline/Lit")), dir + "/Lit.mat");
             AssetDatabase.CreateAsset(new Material(FindShader("Universal Render Pipeline/Unlit")), dir + "/Unlit.mat");
 
-            var sky = new Material(FindShader("Skybox/Procedural"));
+            ConfigureTextures();
+
+            // The photographed sky; the procedural one stands in if the shader is broken.
+            Shader skyShader = Shader.Find("Skyforge/Sky");
+            bool skyOk = skyShader != null && !ShaderUtil.ShaderHasError(skyShader);
+            if (!skyOk) Debug.LogWarning("[Skyforge] SKY SHADER BROKEN: using the procedural sky.");
+            var sky = new Material(skyOk ? skyShader : FindShader("Skybox/Procedural"));
             ConfigureSky(sky);
             AssetDatabase.CreateAsset(sky, dir + "/Sky.mat");
+
+            Shader surface = Shader.Find("Skyforge/Surface");
+            if (surface == null || ShaderUtil.ShaderHasError(surface))
+            {
+                Debug.LogWarning("[Skyforge] SURFACE SHADER BROKEN: the world falls back to plain materials.");
+            }
+            else
+            {
+                AssetDatabase.CreateAsset(new Material(surface), dir + "/Surface.mat");
+                var terrain = new Material(surface);
+                terrain.EnableKeyword("_TERRAIN");
+                AssetDatabase.CreateAsset(terrain, dir + "/SurfaceTerrain.mat");
+            }
+
+            Shader particle = Shader.Find("Skyforge/Particle");
+            if (particle == null || ShaderUtil.ShaderHasError(particle))
+            {
+                Debug.LogWarning("[Skyforge] PARTICLE SHADER BROKEN: smoke falls back to solid puffs.");
+            }
+            else
+            {
+                var smoke = new Material(particle);
+                smoke.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
+                smoke.SetFloat("_DstBlend", (float)BlendMode.OneMinusSrcAlpha);
+                smoke.renderQueue = 3000;
+                AssetDatabase.CreateAsset(smoke, dir + "/Particle.mat");
+                var fire = new Material(particle);
+                fire.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
+                fire.SetFloat("_DstBlend", (float)BlendMode.One);
+                fire.SetFloat("_Additive", 1f);
+                fire.renderQueue = 3100;
+                AssetDatabase.CreateAsset(fire, dir + "/ParticleAdd.mat");
+            }
 
             // Without this material the game falls back to a plain glossy sea.
             Shader water = Shader.Find("Skyforge/Water");

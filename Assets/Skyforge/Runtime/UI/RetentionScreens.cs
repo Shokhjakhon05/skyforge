@@ -52,7 +52,7 @@ namespace Skyforge.UI
             _streak.color = UiKit.Accent;
             UiKit.Place(_streak.rectTransform, topLeft, new Vector2(60f, -140f), new Vector2(900f, 44f));
             _streakReward = UiKit.Label(p, 28, TextAnchor.UpperLeft);
-            _streakReward.fontStyle = FontStyle.Normal;
+            UiKit.Light(_streakReward);
             UiKit.Place(_streakReward.rectTransform, topLeft, new Vector2(60f, -188f), new Vector2(900f, 38f));
             _claim = UiKit.Button(p, "Claim", UiKit.Accent, 32, () => ClaimPressed?.Invoke());
             var claimRect = (RectTransform)_claim.transform.parent;
@@ -64,7 +64,7 @@ namespace Skyforge.UI
             UiKit.Place(crateRow, new Vector2(0f, 0f), new Vector2(60f, 16f), new Vector2(1380f, 60f));
             _crateRow = crateRow.gameObject;
             _crate = UiKit.Label(crateRow, 26, TextAnchor.MiddleLeft);
-            _crate.fontStyle = FontStyle.Normal;
+            UiKit.Light(_crate);
             UiKit.Place(_crate.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0f), new Vector2(1000f, 40f));
             Text watch = UiKit.Button(crateRow, "Watch", new Color(0.35f, 0.85f, 0.45f, 0.9f), 26, () => CratePressed?.Invoke());
             watch.text = Loc.T("ads.crate_button");
@@ -73,7 +73,7 @@ namespace Skyforge.UI
             _crateRow.SetActive(false);
 
             _empty = UiKit.Label(p, 32, TextAnchor.MiddleCenter, true);
-            _empty.fontStyle = FontStyle.Normal;
+            UiKit.Light(_empty);
             _empty.text = Loc.T("daily.none");
             UiKit.Place(_empty.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0f, -120f), new Vector2(1200f, 120f));
 
@@ -87,7 +87,7 @@ namespace Skyforge.UI
                 row.Title = UiKit.Label(back.transform, 36, TextAnchor.UpperLeft);
                 UiKit.Place(row.Title.rectTransform, topLeft, new Vector2(30f, -18f), new Vector2(900f, 46f));
                 row.Note = UiKit.Label(back.transform, 26, TextAnchor.UpperLeft, true);
-                row.Note.fontStyle = FontStyle.Normal;
+                UiKit.Light(row.Note);
                 row.Note.lineSpacing = 1.15f;
                 row.Note.color = new Color(1f, 1f, 1f, 0.8f);
                 UiKit.Place(row.Note.rectTransform, topLeft, new Vector2(30f, -72f), new Vector2(940f, 90f));

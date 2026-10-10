@@ -46,7 +46,7 @@ namespace Skyforge.UI
             _speaker = UiKit.Label(p, 44, TextAnchor.UpperLeft);
             UiKit.Place(_speaker.rectTransform, topLeft, new Vector2(58f, -110f), new Vector2(1200f, 56f));
             _text = UiKit.Label(p, 36, TextAnchor.UpperLeft, true);
-            _text.fontStyle = FontStyle.Normal;
+            UiKit.Light(_text);
             _text.lineSpacing = 1.15f;
             UiKit.Place(_text.rectTransform, topLeft, new Vector2(60f, -190f), new Vector2(1280f, 240f));
 

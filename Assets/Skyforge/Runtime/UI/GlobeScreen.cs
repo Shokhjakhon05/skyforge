@@ -55,7 +55,7 @@ namespace Skyforge.UI
             UiKit.Place((RectTransform)next.transform.parent, topRight, new Vector2(-50f, -136f), new Vector2(110f, 96f));
 
             _note = UiKit.Label(p, 30, TextAnchor.UpperLeft, true);
-            _note.fontStyle = FontStyle.Normal;
+            UiKit.Light(_note);
             _note.lineSpacing = 1.15f;
             UiKit.Place(_note.rectTransform, topLeft, new Vector2(52f, -260f), new Vector2(760f, 200f));
 

@@ -50,8 +50,8 @@ namespace Skyforge.Core
         static readonly List<RegionDefinition> List = new List<RegionDefinition>
         {
             new RegionDefinition { Id = "arvelia", Seed = 7, Biome = Biome.Temperate, StarsRequired = 0, Latitude = 38f, Longitude = -20f },
-            new RegionDefinition { Id = "kharad", Seed = 23, Biome = Biome.Desert, StarsRequired = 18, Latitude = 14f, Longitude = 48f },
-            new RegionDefinition { Id = "nordheim", Seed = 41, Biome = Biome.Snow, StarsRequired = 45, Latitude = 64f, Longitude = 105f },
+            new RegionDefinition { Id = "kharad", Seed = 23, Biome = Biome.Desert, StarsRequired = 2, Latitude = 14f, Longitude = 48f },
+            new RegionDefinition { Id = "nordheim", Seed = 41, Biome = Biome.Snow, StarsRequired = 4, Latitude = 64f, Longitude = 105f },
         };
 
         public static IReadOnlyList<RegionDefinition> All => List;

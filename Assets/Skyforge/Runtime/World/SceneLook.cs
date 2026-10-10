@@ -28,6 +28,11 @@ namespace Skyforge.World
         readonly Material _particleMaterial;
         readonly Volume _volume;
         readonly Bloom _bloom;
+        readonly ColorAdjustments _grade;
+        readonly System.Collections.Generic.Dictionary<string, Texture2D> _skies =
+            new System.Collections.Generic.Dictionary<string, Texture2D>();
+        Cubemap _reflection;
+        bool _scope;
         Weather _weather;
         GraphicsTier _quality = GraphicsTier.High;
 
@@ -79,16 +84,19 @@ namespace Skyforge.World
             _volume = volumeObject.AddComponent<Volume>();
             _volume.isGlobal = true;
             var profile = ScriptableObject.CreateInstance<VolumeProfile>();
-            var grade = profile.Add<ColorAdjustments>(true);
-            grade.contrast.value = 9f;
-            grade.saturation.value = 7f;
+            _grade = profile.Add<ColorAdjustments>(true);
+            _grade.contrast.value = 14f;
+            _grade.saturation.value = -4f;
+            _grade.postExposure.value = 0.12f;
+            var tone = profile.Add<Tonemapping>(true);
+            tone.mode.value = TonemappingMode.Neutral;
             var vignette = profile.Add<Vignette>(true);
-            vignette.intensity.value = 0.20f;
+            vignette.intensity.value = 0.24f;
             vignette.smoothness.value = 0.45f;
             _bloom = profile.Add<Bloom>(true);
-            _bloom.threshold.value = 0.92f;
-            _bloom.intensity.value = 0.22f;
-            _bloom.scatter.value = 0.6f;
+            _bloom.threshold.value = 1.0f;
+            _bloom.intensity.value = 0.55f;
+            _bloom.scatter.value = 0.62f;
             _volume.sharedProfile = profile;
         }
 
@@ -140,9 +148,13 @@ namespace Skyforge.World
 
             _sun.shadows = quality == GraphicsTier.Low ? LightShadows.None : LightShadows.Soft;
 
-            bool effects = quality >= GraphicsTier.High;
+            bool effects = quality >= GraphicsTier.Medium;
             _volume.enabled = effects;
-            _bloom.active = quality == GraphicsTier.Ultra;
+            _bloom.active = quality >= GraphicsTier.High;
+            if (pipeline != null) pipeline.supportsHDR = quality >= GraphicsTier.High;
+            // The cheapest tier draws surfaces without their grain.
+            if (quality == GraphicsTier.Low) Shader.EnableKeyword("SKYFORGE_FLAT");
+            else Shader.DisableKeyword("SKYFORGE_FLAT");
             UniversalAdditionalCameraData cameraData = _camera.GetUniversalAdditionalCameraData();
             if (cameraData != null) cameraData.renderPostProcessing = effects;
 
@@ -164,16 +176,31 @@ namespace Skyforge.World
             RenderSettings.fogStartDistance = weather.FogStart;
             RenderSettings.fogEndDistance = weather.FogEnd;
 
-            // Under a cloud deck the sky is simply the colour of the fog, so the horizon disappears into it.
-            _camera.clearFlags = weather.Overcast ? CameraClearFlags.SolidColor : CameraClearFlags.Skybox;
+            _camera.clearFlags = CameraClearFlags.Skybox;
             _camera.backgroundColor = weather.Fog;
             if (_sky != null)
             {
-                _sky.SetColor("_SkyTint", weather.SkyTint);
-                _sky.SetColor("_GroundColor", weather.Fog);
-                _sky.SetFloat("_Exposure", weather.SkyExposure);
-                _sky.SetFloat("_AtmosphereThickness", weather.Atmosphere);
+                if (_sky.HasProperty("_HorizonColor"))
+                {
+                    Texture2D picture = SkyPicture(weather.Sky);
+                    if (picture != null) _sky.SetTexture("_MainTex", picture);
+                    _sky.SetColor("_Tint", weather.SkyTone);
+                    _sky.SetFloat("_Exposure", weather.SkyBrightness);
+                    _sky.SetColor("_HorizonColor", weather.Fog);
+                    // Thick weather swallows more of the sky above the horizon.
+                    _sky.SetFloat("_HorizonHeight", Mathf.Lerp(0.34f, 0.07f, Mathf.InverseLerp(260f, 2200f, weather.FogEnd)));
+                    // The sun in the photograph goes where the light comes from.
+                    _sky.SetFloat("_Rotation", (weather.SunYawDeg + 180f - weather.SkySunYawDeg) * Mathf.Deg2Rad);
+                }
+                else
+                {
+                    _sky.SetColor("_SkyTint", weather.SkyTint);
+                    _sky.SetColor("_GroundColor", weather.Fog);
+                    _sky.SetFloat("_Exposure", weather.SkyExposure);
+                    _sky.SetFloat("_AtmosphereThickness", weather.Atmosphere);
+                }
             }
+            ApplyReflection(weather);
             if (_sea != null)
             {
                 if (_sea.HasProperty("_DeepColor"))
@@ -190,6 +217,64 @@ namespace Skyforge.World
             }
             ApplyPrecipitation(weather);
         }
+
+        Texture2D SkyPicture(string id)
+        {
+            if (_skies.TryGetValue(id, out Texture2D cached)) return cached;
+            var picture = Resources.Load<Texture2D>("Sky/sky_" + id);
+            if (picture == null) Debug.LogError("[Skyforge] Missing sky " + id);
+            _skies[id] = picture;
+            return picture;
+        }
+
+        /// <summary>
+        /// What shiny things reflect: a small gradient of the weather's own sky, horizon and ground
+        /// colours. Nothing is baked in a code-only project, and without this metal reflects black.
+        /// </summary>
+        void ApplyReflection(Weather weather)
+        {
+            const int size = 16;
+            if (_reflection == null) _reflection = new Cubemap(size, TextureFormat.RGBA32, true) { name = "SkyReflection" };
+            Color zenith = weather.AmbientSky * 1.25f, horizon = weather.Fog, ground = weather.AmbientGround * 0.9f;
+            var pixels = new Color[size * size];
+            for (int face = 0; face < 6; face++)
+            {
+                for (int y = 0; y < size; y++)
+                for (int x = 0; x < size; x++)
+                {
+                    float a = (x + 0.5f) / size * 2f - 1f, b = (y + 0.5f) / size * 2f - 1f;
+                    // Only the height of the direction matters for a gradient.
+                    float up;
+                    if (face == (int)CubemapFace.PositiveY) up = 1f / Mathf.Sqrt(1f + a * a + b * b);
+                    else if (face == (int)CubemapFace.NegativeY) up = -1f / Mathf.Sqrt(1f + a * a + b * b);
+                    else up = -b / Mathf.Sqrt(1f + a * a + b * b);
+                    Color color = up >= 0f
+                        ? Color.Lerp(horizon, zenith, Mathf.Pow(up, 0.6f))
+                        : Color.Lerp(horizon, ground, Mathf.Pow(-up, 0.4f));
+                    color.a = 1f;
+                    pixels[y * size + x] = color;
+                }
+                _reflection.SetPixels(pixels, (CubemapFace)face);
+            }
+            _reflection.Apply(true);
+            RenderSettings.defaultReflectionMode = DefaultReflectionMode.Custom;
+            RenderSettings.customReflectionTexture = _reflection;
+            RenderSettings.reflectionIntensity = 1f;
+        }
+
+        /// <summary>
+        /// The gun camera: the picture a strike drone's operator sees, drained of colour and hard
+        /// in contrast. Only the grade changes; the HUD draws the reticle.
+        /// </summary>
+        public void SetScope(bool on)
+        {
+            _scope = on;
+            _grade.saturation.value = on ? -100f : -4f;
+            _grade.contrast.value = on ? 38f : 14f;
+            _grade.postExposure.value = on ? 0.35f : 0.12f;
+        }
+
+        public bool Scope => _scope;
 
         void ApplyPrecipitation(Weather weather)
         {

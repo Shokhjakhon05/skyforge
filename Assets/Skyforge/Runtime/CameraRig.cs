@@ -9,6 +9,8 @@ namespace Skyforge
         Fpv,
         /// <summary>Straight down from above the drone; the top of the screen is where the nose points.</summary>
         Top,
+        /// <summary>The gun camera slung under the nose: looks down the line the weapons fly.</summary>
+        Gun,
     }
 
     /// <summary>Chase and first-person cameras. Both read the drone's interpolated pose.</summary>
@@ -24,6 +26,10 @@ namespace Skyforge
         float _fieldOfView = 52f;
         bool _snap = true;
         float _shake;
+        Vector3 _gunAim = Vector3.forward;
+        bool _snapGun = true;
+        /// <summary>What the gun camera should look at: the locked target, or nothing.</summary>
+        public Vector3? GunTarget;
 
         public CameraRig(Transform parent, HeightMap map)
         {
@@ -80,6 +86,7 @@ namespace Skyforge
             float yawEase = _snap ? 1f : 1f - Mathf.Exp(-5f * deltaTime);
             _yaw = Mathf.LerpAngle(_yaw, yawDeg, yawEase);
             _snap = false;
+            if (View != CameraView.Gun) _snapGun = true;
 
             Transform t = Camera.transform;
             float targetFov;
@@ -90,6 +97,19 @@ namespace Skyforge
                 // A stabilised gimbal: only a hint of the airframe's lean reaches the picture.
                 t.rotation = Quaternion.Euler(6f + tiltDeg.y * 0.2f, yawDeg, -tiltDeg.x * 0.3f);
                 targetFov = 62f + speedShare * 10f;
+            }
+            else if (View == CameraView.Gun)
+            {
+                Quaternion heading = Quaternion.Euler(0f, yawDeg, 0f);
+                t.position = position + heading * new Vector3(0f, -0.35f, 0.3f);
+                // Steadied like a gimbal; it eases onto whatever the weapons are locked on.
+                Vector3 aim = heading * Quaternion.Euler(24f, 0f, 0f) * Vector3.forward;
+                if (GunTarget.HasValue && (GunTarget.Value - t.position).sqrMagnitude > 16f)
+                    aim = (GunTarget.Value - t.position).normalized;
+                _gunAim = _snapGun ? aim : Vector3.Slerp(_gunAim, aim, 1f - Mathf.Exp(-6f * deltaTime));
+                _snapGun = false;
+                t.rotation = Quaternion.LookRotation(_gunAim, Vector3.up);
+                targetFov = 46f;
             }
             else if (View == CameraView.Top)
             {

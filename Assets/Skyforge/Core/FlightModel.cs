@@ -95,6 +95,12 @@ namespace Skyforge.Core
 
         public static DroneSpec Sparrow() => new DroneSpec();
 
+        /// <summary>
+        /// More than zero makes this a one-way attack drone: it carries no weapons, it is the
+        /// weapon, and this many of them stand ready for one sortie.
+        /// </summary>
+        public int OneWay;
+
         public DroneSpec Clone() => (DroneSpec)MemberwiseClone();
 
         /// <summary>
