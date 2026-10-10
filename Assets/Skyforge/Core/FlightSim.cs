@@ -53,6 +53,9 @@ namespace Skyforge.Core
             }
         }
 
+        /// <summary>Set while the automatic landing is flying the drone.</summary>
+        public bool AutoLanding;
+
         /// <summary>Whether the landing assist is fitted; a strike drone has none, it is meant to dive in.</summary>
         public bool Cushion = true;
         /// <summary>Height above the ground at which the landing assist starts to hold the descent back.</summary>
@@ -75,8 +78,9 @@ namespace Skyforge.Core
                 result = SimEvent.TookOff;
             }
 
-            FlightModel.Step(ref State, input, Spec, Mode, Wind, dt);
-            if (Cushion && Mode == FlightMode.Assist) ApplyCushion(dt);
+            // An automatic landing is flown with every assist on, whatever mode the pilot prefers.
+            FlightModel.Step(ref State, input, Spec, AutoLanding ? FlightMode.Assist : Mode, Wind, dt);
+            if (Cushion || AutoLanding) ApplyCushion(dt);
             KeepInsideWorld();
 
             Vector3 position = State.Position;
@@ -119,7 +123,8 @@ namespace Skyforge.Core
         /// <summary>
         /// The landing assist: close to the ground the drone will not sink faster than it can
         /// safely touch down, however hard the stick is held, and it stops sliding sideways in the
-        /// last metre. Over water only a drone with floats gets it.
+        /// last metre. It works in both flight modes: Sport takes away the help in the air, not the
+        /// undercarriage. Over water only a drone with floats gets it.
         /// </summary>
         void ApplyCushion(float dt)
         {
@@ -153,7 +158,9 @@ namespace Skyforge.Core
             var speed = new Vector2(Vector3.Dot(state.Velocity, right), Vector3.Dot(state.Velocity, forward));
             Vector2 move = Vector2.ClampMagnitude(want - speed * 0.07f, 1f);
             float away = new Vector2(offset.x, offset.z).magnitude;
-            return new FlightInput { Move = move, Throttle = away < 2.5f ? -1f : away < 8f ? -0.35f : 0f, Yaw = 0f };
+            // Down over the point, slower the nearer the ground; farther out it only loses a little height.
+            float throttle = away < 3f ? -Mathf.Clamp(0.25f + Mathf.Max(0f, -offset.y) * 0.12f, 0.3f, 1f) : away < 10f ? -0.3f : 0f;
+            return new FlightInput { Move = move, Throttle = throttle, Yaw = 0f };
         }
 
         void KeepInsideWorld()

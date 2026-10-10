@@ -228,10 +228,11 @@ namespace Skyforge.Tests
             SimEvent e = Run(sim, 30f, new FlightInput { Throttle = -1f }, SimEvent.Crashed);
             Assert.AreEqual(SimEvent.Crashed, e);
 
-            // Sport mode has no assists at all, fitted or not.
+            // Sport mode takes the help away in the air, but not at the ground.
             sim = new FlightSim(Island.Generate(7), DroneSpec.Sparrow()) { Mode = FlightMode.Sport };
             Run(sim, 4f, new FlightInput { Throttle = 1f });
-            Assert.AreEqual(SimEvent.Crashed, Run(sim, 30f, new FlightInput { Throttle = -1f }, SimEvent.Crashed));
+            Assert.AreEqual(SimEvent.Landed, Run(sim, 30f, new FlightInput { Throttle = -1f }, SimEvent.Landed));
+            Assert.LessOrEqual(sim.LastTouchdownSpeed, MissionRun.GentleTouchdownSpeed);
         }
 
         [Test]
@@ -275,6 +276,34 @@ namespace Skyforge.Tests
             sim.Reset();
             Assert.AreEqual(start, sim.State.Position);
             Assert.IsTrue(sim.State.Grounded);
+        }
+
+        [Test]
+        public void AutomaticLandingWorksForEveryHoveringAircraftInBothModesAndInWind()
+        {
+            Island island = Island.Generate(7);
+            foreach (DroneDefinition drone in DroneCatalog.All)
+            {
+                if (drone.Spec.MinSpeed > 0f) continue;
+                foreach (FlightMode mode in new[] { FlightMode.Assist, FlightMode.Sport })
+                foreach (float wind in new[] { 0f, 9f })
+                foreach (float height in new[] { 6f, 40f })
+                {
+                    string label = $"{drone.Id} {mode} wind {wind} from {height} m";
+                    var sim = new FlightSim(island, drone.Spec.Clone()) { Mode = mode, Wind = new Vector3(wind, 0f, wind * 0.5f) };
+                    // Flown out with the assists on, so that the approach is what is being tested.
+                    sim.AutoLanding = true;
+                    Run(sim, height / 4f, new FlightInput { Throttle = 1f });
+                    Run(sim, 3f, new FlightInput { Move = new Vector2(0.7f, 1f) });
+                    SimEvent e = SimEvent.None;
+                    for (int i = 0; i < 120 * 50 && e != SimEvent.Landed && e != SimEvent.Crashed; i++)
+                        e = sim.Step(FlightSim.LandingInput(sim.State, island.Spawn), 0.02f);
+                    Assert.AreEqual(SimEvent.Landed, e, label);
+                    Vector3 offset = sim.State.Position - island.Spawn;
+                    Assert.Less(new Vector2(offset.x, offset.z).magnitude, 8f, label);
+                    Assert.LessOrEqual(sim.LastTouchdownSpeed, MissionRun.GentleTouchdownSpeed, label);
+                }
+            }
         }
     }
 }

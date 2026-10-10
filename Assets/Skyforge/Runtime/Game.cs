@@ -999,11 +999,13 @@ namespace Skyforge
         {
             Vector2 move = _save.SticksSwapped ? _sticks.Right.Value : _sticks.Left.Value;
             Vector2 lift = _save.SticksSwapped ? _sticks.Left.Value : _sticks.Right.Value;
+            _sim.AutoLanding = _autoLand;
             if (_autoLand)
             {
                 // Any firm push on a stick takes the drone back from the automatic landing.
                 if (move.magnitude > 0.35f || lift.magnitude > 0.35f || _sim.State.Grounded) _autoLand = false;
                 else return FlightSim.LandingInput(_sim.State, _island.Spawn);
+                _sim.AutoLanding = false;
             }
             return new FlightInput { Move = move, Throttle = lift.y, Yaw = lift.x };
         }
@@ -1013,6 +1015,8 @@ namespace Skyforge
         {
             if (_sim.State.Grounded || _freezeTimer > 0f) return false;
             if (_phase == Phase.Mission && _run.Kamikaze) return false;
+            // An aircraft that cannot hover cannot be set down on a point.
+            if (_sim.Spec.MinSpeed > 0f) return false;
             Vector3 offset = _sim.State.Position - _island.Spawn;
             return offset.x * offset.x + offset.z * offset.z < AutoLandRange * AutoLandRange;
         }
