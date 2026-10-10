@@ -4,7 +4,7 @@
   "order": 6,
   "template": "kamikaze",
   "weather": "overcast",
-  "timeGoal": 200,
+  "timeGoal": 250,
   "baseReward": 590,
   "starReward": 180,
   "strikeDrones": 5,

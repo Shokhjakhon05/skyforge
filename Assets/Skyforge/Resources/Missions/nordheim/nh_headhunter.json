@@ -4,7 +4,7 @@
   "order": 13,
   "template": "eliminate",
   "weather": "overcast",
-  "timeGoal": 190,
+  "timeGoal": 220,
   "baseReward": 1060,
   "starReward": 260,
   "targets": [

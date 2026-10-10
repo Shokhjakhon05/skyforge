@@ -601,6 +601,7 @@ namespace Skyforge
             _lastLock = -1;
             _hud.SetSecondary(null);
             _hud.UpdateTargets(_camera.Camera, null, null, null);
+            _hud.UpdateScope(null, null, null, Vector3.zero, 0f);
             RefreshLabels();
             _shownHeadlineStamp = _shownSublineStamp = -1;
             _drone.Visible = _camera.View != CameraView.Fpv;
@@ -1001,6 +1002,8 @@ namespace Skyforge
             }
             _hud.UpdateTargets(_camera.Camera, live && _run.IsCombat ? _run : null, _mission,
                 objective != null && objective.Type == ObjectiveType.Destroy ? objective : null);
+            _hud.UpdateScope(_run, _mission, objective != null && objective.Type == ObjectiveType.Destroy ? objective : null,
+                now.Position, now.YawDeg);
             _hud.SetDamage(_run.UnderFire && _freezeTimer <= 0f, Time.deltaTime);
             _gunSoundClock -= Time.deltaTime;
             _noticeClock -= Time.deltaTime;

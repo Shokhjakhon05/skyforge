@@ -83,15 +83,15 @@ PATTERNS = [
     ("convoy", "convoy_ambush", "convoy", 200, 190, 60),
     ("recon", "coast_watch", "recon", 150, 210, 60),
     ("hunt", "tank_hunt", "hunt", 220, 240, 70),
-    ("race", "sprint", "race", 270, 240, 70),
-    ("kamikaze", "fpv_strike", "kamikaze", 130, 270, 80),
+    ("race", "sprint", "race", 290, 240, 70),
+    ("kamikaze", "fpv_strike", "kamikaze", 160, 270, 80),
     ("delivery", "supply_run", "delivery", 240, 280, 80),
     ("sead", "blind_them", "sead", 160, 320, 90),
     ("stealth", "silent_path", "stealth", 340, 340, 90),
     ("demolition", "hammer_fall", "demolition", 340, 380, 100),
     ("defend", "hold_the_line", "defend", 230, 420, 110),
     ("airfield", "night_raid", "airfield", 240, 450, 110),
-    ("eliminate", "headhunter", "eliminate", 120, 480, 120),
+    ("eliminate", "headhunter", "eliminate", 140, 480, 120),
     ("naval", "iron_tide", "naval", 180, 520, 120),
     ("special", "broken_arrow", "special", 420, 680, 150),
 ]
@@ -171,9 +171,10 @@ def build(pattern, r):
     if pattern == "sead":
         guns = [target("radar", "radar", "poi3"), target("gun1", "aagun", "poi3", dx=-16, dz=8),
                 target("gun2", "gatling", "poi3", dx=14, dz=-12)]
-        if tier >= 1:
+        if tier == 1:
             guns.append(target("sam", "sam", "poi3", dx=6, dz=20))
         if tier >= 2:
+            # In the mountains there is no flying under a missile battery: a third gun instead.
             guns.append(target("gun3", "aagun", "poi3", dx=-10, dz=-22))
         return dict(targets=guns, props=[{"id": "bags", "kind": "sandbags", "at": at("poi3", dx=-16, dz=14)}],
                     objectives=[TAKEOFF, destroy(guns, "objective.destroy_airdefence"), HOME])
@@ -234,10 +235,14 @@ def build(pattern, r):
 
     if pattern == "special":
         # The last position stands just clear of the radars: it is attacked from above their floor.
-        marks = [target("sam", "sam", "poi2", dx=14, dz=12), target("hq", "hq", "poi2", dx=-6), target("tank", ARMOUR[tier], "poi2", dx=4, dz=-20)]
-        guards = [target("gun", "gatling", "poi2", dx=22, dz=-10)] if tier >= 1 else []
-        return dict(props=[{"id": "papers", "kind": "crates", "at": at("poi4")}],
-                    zones=[{"at": at(a), "radius": 140, "floor": floor} for a in ("poi3", "poi6")],
+        # No missile battery here: the way in passes within its reach, and there is no flying low all of it.
+        marks = [target("gun", "aagun", "poi2", dx=14, dz=12), target("hq", "hq", "poi2", dx=-6), target("tank", ARMOUR[tier], "poi2", dx=4, dz=-20)]
+        guards = [target("gun2", "gatling", "poi2", dx=22, dz=-10)] if tier >= 1 else []
+        # The papers lie at the foot of the first radar, well under its floor. The circles are as wide
+        # as each island allows while leaving the position at poi2 outside them.
+        reach = (170, 150, 140)[tier]
+        return dict(props=[{"id": "papers", "kind": "crates", "at": at("poi3", dx=12, dz=-8)}],
+                    zones=[{"at": at(a), "radius": reach, "floor": floor} for a in ("poi3", "poi6")],
                     targets=marks + guards,
                     objectives=[TAKEOFF, {"type": "photo", "target": "papers", "range": 45},
                                 destroy(marks, "objective.destroy_final"), HOME])

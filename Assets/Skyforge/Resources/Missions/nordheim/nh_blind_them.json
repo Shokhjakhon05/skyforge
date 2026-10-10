@@ -34,15 +34,6 @@
       }
     },
     {
-      "id": "sam",
-      "kind": "sam",
-      "at": {
-        "anchor": "poi3",
-        "dx": 6,
-        "dz": 20
-      }
-    },
-    {
       "id": "gun3",
       "kind": "aagun",
       "at": {
@@ -73,7 +64,6 @@
         "radar",
         "gun1",
         "gun2",
-        "sam",
         "gun3"
       ],
       "text": "objective.destroy_airdefence"

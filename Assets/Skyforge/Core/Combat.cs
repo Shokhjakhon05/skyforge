@@ -476,8 +476,11 @@ namespace Skyforge.Core
                     {
                         p.Direction = to.normalized;
                         p.Position += p.Direction * step;
-                        // A rocket that has flown for this long has lost its target behind a hill.
-                        if (p.Elapsed > 6f || HeightAboveGround(p.Position) < -0.5f)
+                        // It was fired with the target in sight, so a crest on the way is skimmed, not hit:
+                        // the check that granted the lock looks at the ground more coarsely than a rocket flies.
+                        float skim = p.Position.y - HeightAboveGround(p.Position) + 1f;
+                        if (p.Position.y < skim) p.Position.y = skim;
+                        if (p.Elapsed > 6f)
                         {
                             Explode(p.Position, p.Damage, RocketSplash, -1, true);
                             gone = true;

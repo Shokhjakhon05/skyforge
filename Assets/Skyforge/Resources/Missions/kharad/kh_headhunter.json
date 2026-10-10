@@ -4,7 +4,7 @@
   "order": 13,
   "template": "eliminate",
   "weather": "sunset",
-  "timeGoal": 130,
+  "timeGoal": 160,
   "baseReward": 720,
   "starReward": 180,
   "targets": [

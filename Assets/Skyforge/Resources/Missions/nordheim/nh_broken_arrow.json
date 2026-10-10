@@ -12,7 +12,9 @@
       "id": "papers",
       "kind": "crates",
       "at": {
-        "anchor": "poi4"
+        "anchor": "poi3",
+        "dx": 12,
+        "dz": -8
       }
     }
   ],
@@ -34,8 +36,8 @@
   ],
   "targets": [
     {
-      "id": "sam",
-      "kind": "sam",
+      "id": "gun",
+      "kind": "aagun",
       "at": {
         "anchor": "poi2",
         "dx": 14,
@@ -60,7 +62,7 @@
       }
     },
     {
-      "id": "gun",
+      "id": "gun2",
       "kind": "gatling",
       "at": {
         "anchor": "poi2",
@@ -81,7 +83,7 @@
     {
       "type": "destroy",
       "targets": [
-        "sam",
+        "gun",
         "hq",
         "tank"
       ],

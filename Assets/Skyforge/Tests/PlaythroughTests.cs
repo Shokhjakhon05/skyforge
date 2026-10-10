@@ -127,6 +127,19 @@ namespace Skyforge.Tests
                 ObjectiveDefinition objective = _run.CurrentObjective;
                 if (objective == null) return default;
                 Vector3 position = state.Position;
+
+                // At the edge of a radar's circle and still above its floor: stop and sink first.
+                // Over a valley the drone can be far higher above the ground than it was cruising.
+                if (!state.Grounded && objective.Type != ObjectiveType.Destroy && objective.Type != ObjectiveType.Strike)
+                {
+                    float above = position.y - Ground(position.x, position.z);
+                    foreach (ZoneDefinition zone in _mission.Zones)
+                    {
+                        float edge = Flat(position, zone.Position) - zone.Radius;
+                        if (edge < 40f && edge > -zone.Radius && above > zone.Floor - 6f && UnderRadar(_run.TargetPosition(objective), 30f))
+                            return new FlightInput { Throttle = -1f };
+                    }
+                }
                 Vector3 target = _run.TargetPosition(objective);
                 Vector3 via = Around(position, target);
                 bool around = via != target;
@@ -164,6 +177,7 @@ namespace Skyforge.Tests
                     case ObjectiveType.Photo:
                     case ObjectiveType.Mark:
                     {
+                        if (around) return Steer(via, via.y, via, false, cruise);
                         if (objective.Type == ObjectiveType.Mark) target = NextThreat(objective, position);
                         // Stand off a little and above, looking at it.
                         Vector3 back = position - target;
@@ -230,15 +244,27 @@ namespace Skyforge.Tests
                     // Cruise over, then put the drone into the target.
                     TargetState mark = _run.Target(index);
                     float away = Flat(position, mark.Position);
-                    if (away > 70f) return Steer(mark.Position, Ground(mark.Position.x, mark.Position.z) + 24f, mark.Position, false, 24f);
+                    if (away > 110f) return Steer(mark.Position, Ground(mark.Position.x, mark.Position.z) + 24f, mark.Position, false, 24f);
                     // Down a slope that ends in the target, aiming through it so the drone does not slow.
                     Vector3 through = mark.Position - position;
                     through.y = 0f;
                     through = through.sqrMagnitude > 0.01f ? through.normalized : Vector3.forward;
                     FlightInput dive = Steer(mark.Position + through * 25f, position.y, mark.Position, true, 24f);
-                    float slope = mark.Position.y + 1.5f + Mathf.Max(0f, away - 8f) * 0.45f;
-                    if (away > 15f) slope = Mathf.Max(slope, Ground(position.x, position.z) + 3f);
+                    float slope = mark.Position.y + 1.5f + Mathf.Max(0f, away - 6f) * 0.5f;
+                    // Over the rooftops and the trees until the target is right ahead, then down.
+                    if (away > 26f) slope = Mathf.Max(slope, Ground(position.x, position.z) + 13f);
                     dive.Throttle = Mathf.Clamp((slope - position.y) * 0.6f, -1f, 1f);
+                    // Far too high for the slope, as when the target lies in a valley: stop and come down
+                    // first. A dive begun from up here ends past the target.
+                    if (position.y > slope + 12f && position.y - Ground(position.x, position.z) > 16f)
+                        dive.Move = Vector2.zero;
+                    // And never into the hillside: where the drone will be in a second must be clear air.
+                    Vector3 soon = position + state.Velocity;
+                    if (away > 14f && soon.y < Ground(soon.x, soon.z) + 7f)
+                    {
+                        dive.Throttle = 1f;
+                        dive.Move *= 0.3f;
+                    }
                     return dive;
                 }
 
@@ -256,8 +282,9 @@ namespace Skyforge.Tests
                     if (definition.Kind.MinAltitude > 0f) sams = true;
                     guarded = true;
                     // Concrete last: it needs a bombing run, and that is flown when the guns are quiet.
-                    float score = Flat(guard.Position, position) - (definition.Kind.MinAltitude > 0f ? 1000f : 0f) -
-                                  definition.Kind.GunRange + (definition.Kind.Structure ? 500f : 0f);
+                    // The longest reach first. A missile battery can wait: the pilot stays under its floor.
+                    float score = Flat(guard.Position, position) * 0.05f - definition.Kind.GunRange +
+                                  (definition.Kind.MinAltitude > 0f ? 300f : 0f) + (definition.Kind.Structure ? 500f : 0f);
                     if (score >= bestScore || _run.Rockets <= 0 || running) continue;
                     bestScore = score;
                     index = i;
@@ -301,7 +328,12 @@ namespace Skyforge.Tests
                 // missile battery's floor there is no climbing, so there the pilot closes in instead.
                 float standoff = _sim.Spec.LockRange * 0.85f;
                 if (sams || low) standoff = Mathf.Max(45f, standoff - _noLock * 8f);
-                else height += Mathf.Min(70f, _noLock * 6f);
+                else
+                {
+                    height += Mathf.Min(45f, _noLock * 6f);
+                    // Still hidden from as high as is sensible: nothing for it but to go closer.
+                    standoff = Mathf.Max(50f, standoff - Mathf.Max(0f, _noLock - 9f) * 8f);
+                }
                 // The range is measured along the slant, so height eats into the distance over the ground.
                 float reach = _sim.Spec.LockRange * 0.9f;
                 float drop = Ground(target.Position.x, target.Position.z) + height - target.Position.y;
@@ -318,6 +350,11 @@ namespace Skyforge.Tests
                 foreach (Projectile projectile in _run.Projectiles)
                     if (projectile.Type == ProjectileType.Rocket && projectile.Target == index) coming += projectile.Damage;
                 action = locked && coming < target.Health;
+                // Whatever else is in the sights and close enough to shoot back gets a rocket too.
+                int inSights = _run.LockedTarget;
+                if (!locked && inSights >= 0 && _mission.Targets[inSights].Kind.Armed && !_mission.Targets[inSights].Kind.Structure &&
+                    Vector3.Distance(position, _run.Target(inSights).Position) < _mission.Targets[inSights].Kind.GunRange + 20f)
+                    action = true;
                 Vector3 via = Around(position, post);
                 if (via != post) return Steer(via, via.y, via, false, cruise);
                 return Steer(post, Ground(target.Position.x, target.Position.z) + height, target.Position, false, Mathf.Min(cruise, height));

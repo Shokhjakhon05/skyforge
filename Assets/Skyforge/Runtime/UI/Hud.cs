@@ -33,6 +33,14 @@ namespace Skyforge.UI
         int _shownLock = -1, _shownLockHealth = -1;
         float _damageShown;
 
+        // The scope: everything around the drone as dots, nose up.
+        const int ScopeDots = 14;
+        const float ScopeRange = 380f, ScopeRadius = 96f;
+        readonly GameObject _scope;
+        readonly RectTransform[] _dots = new RectTransform[ScopeDots];
+        readonly Image[] _dotImages = new Image[ScopeDots];
+        readonly RectTransform _homeDot;
+
         sealed class StickVisual
         {
             public RectTransform Base, Knob;
@@ -152,6 +160,29 @@ namespace Skyforge.UI
             CreateButton(safe, 2, () => SticksPressed?.Invoke()).text = Loc.T("hud.sticks");
             CreateButton(safe, 3, () => MenuPressed?.Invoke()).text = Loc.T("hud.menu");
             _zoomLabel = CreateButton(safe, 4, () => ZoomPressed?.Invoke());
+
+            // The scope sits at the bottom, between the thumbs.
+            Image scope = UiKit.Box(safe, "Scope", new Color(0.03f, 0.05f, 0.07f, 0.45f), UiKit.Disc);
+            UiKit.Place(scope.rectTransform, new Vector2(0.5f, 0f), new Vector2(0f, 24f), new Vector2(ScopeRadius * 2f + 16f, ScopeRadius * 2f + 16f));
+            _scope = scope.gameObject;
+            Image rim = UiKit.Box(scope.transform, "Rim", new Color(1f, 1f, 1f, 0.45f), UiKit.Ring);
+            UiKit.Stretch(rim.rectTransform);
+            Image self = UiKit.Box(scope.transform, "Self", Color.white);
+            UiKit.Place(self.rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(8f, 14f));
+            self.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            Image home = UiKit.Box(scope.transform, "Home", Color.white, UiKit.Ring);
+            _homeDot = home.rectTransform;
+            UiKit.Place(_homeDot, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(18f, 18f));
+            _homeDot.pivot = new Vector2(0.5f, 0.5f);
+            for (int i = 0; i < ScopeDots; i++)
+            {
+                _dotImages[i] = UiKit.Box(scope.transform, "Dot", UiKit.Bad, UiKit.Disc);
+                _dots[i] = _dotImages[i].rectTransform;
+                UiKit.Place(_dots[i], new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(13f, 13f));
+                _dots[i].pivot = new Vector2(0.5f, 0.5f);
+                _dots[i].gameObject.SetActive(false);
+            }
+            _scope.SetActive(false);
 
             // The action button sits above the right thumb; it only exists while there is something to do.
             _actionLabel = UiKit.Button(safe, "Action", UiKit.Accent, 44, () => ActionPressed?.Invoke());
@@ -285,6 +316,49 @@ namespace Skyforge.UI
                 }
             }
             if (_lock.gameObject.activeSelf != show) _lock.gameObject.SetActive(show);
+        }
+
+        /// <summary>
+        /// The scope: targets as dots around the drone, the top of the circle being where the nose
+        /// points. Anything farther than its range sits on the rim. Hidden when there is no fight.
+        /// </summary>
+        public void UpdateScope(Skyforge.Core.MissionRun run, Skyforge.Core.MissionDefinition mission,
+            Skyforge.Core.ObjectiveDefinition objective, Vector3 drone, float yawDeg)
+        {
+            bool show = run != null && run.IsCombat;
+            if (_scope.activeSelf != show) _scope.SetActive(show);
+            if (!show) return;
+
+            float yaw = yawDeg * Mathf.Deg2Rad;
+            float sin = Mathf.Sin(yaw), cos = Mathf.Cos(yaw);
+            Vector2 OnScope(Vector3 world)
+            {
+                float dx = world.x - drone.x, dz = world.z - drone.z;
+                // Into the drone's frame: x to its right, y ahead of it.
+                var local = new Vector2(dx * cos - dz * sin, dx * sin + dz * cos) * (ScopeRadius / ScopeRange);
+                return local.magnitude > ScopeRadius ? local.normalized * ScopeRadius : local;
+            }
+
+            _homeDot.anchoredPosition = OnScope(mission.BasePosition);
+            int used = 0;
+            for (int i = 0; i < run.TargetCount && used < ScopeDots; i++)
+            {
+                Skyforge.Core.TargetState target = run.Target(i);
+                if (!target.Alive) continue;
+                Skyforge.Core.TargetDefinition definition = mission.Targets[i];
+                bool wanted = objective != null && objective.TargetIndices.Contains(i);
+                RectTransform dot = _dots[used];
+                if (!dot.gameObject.activeSelf) dot.gameObject.SetActive(true);
+                dot.anchoredPosition = OnScope(target.Position);
+                Color color = definition.Friendly ? UiKit.Good
+                    : i == run.LockedTarget ? Color.white
+                    : wanted ? UiKit.Bad
+                    : new Color(1f, 0.72f, 0.3f);
+                if (_dotImages[used].color != color) _dotImages[used].color = color;
+                used++;
+            }
+            for (int i = used; i < ScopeDots; i++)
+                if (_dots[i].gameObject.activeSelf) _dots[i].gameObject.SetActive(false);
         }
 
         /// <param name="underFire">Rounds are hitting the drone right now.</param>

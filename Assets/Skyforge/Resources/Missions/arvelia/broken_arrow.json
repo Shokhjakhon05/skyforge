@@ -12,7 +12,9 @@
       "id": "papers",
       "kind": "crates",
       "at": {
-        "anchor": "poi4"
+        "anchor": "poi3",
+        "dx": 12,
+        "dz": -8
       }
     }
   ],
@@ -21,21 +23,21 @@
       "at": {
         "anchor": "poi3"
       },
-      "radius": 140,
+      "radius": 170,
       "floor": 26
     },
     {
       "at": {
         "anchor": "poi6"
       },
-      "radius": 140,
+      "radius": 170,
       "floor": 26
     }
   ],
   "targets": [
     {
-      "id": "sam",
-      "kind": "sam",
+      "id": "gun",
+      "kind": "aagun",
       "at": {
         "anchor": "poi2",
         "dx": 14,
@@ -72,7 +74,7 @@
     {
       "type": "destroy",
       "targets": [
-        "sam",
+        "gun",
         "hq",
         "tank"
       ],
