@@ -17,7 +17,12 @@ namespace Skyforge.UI
         public static readonly Color Cyan = new Color(0.30f, 0.86f, 1f, 1f);
         public static readonly Color Good = new Color(0.35f, 0.85f, 0.45f, 1f);
         public static readonly Color Bad = new Color(0.95f, 0.30f, 0.25f, 1f);
-        public static readonly Color Faint = new Color(1f, 1f, 1f, 0.22f);
+        /// <summary>Something present but not available: an unlit button, an unearned star, the track of a gauge.</summary>
+        public static readonly Color Faint = new Color(0.42f, 0.60f, 0.74f, 0.26f);
+        /// <summary>A button that can be pressed but is not the main thing on the screen.</summary>
+        public static readonly Color Quiet = new Color(0.30f, 0.86f, 1f, 0.16f);
+        /// <summary>The same button when it is the chosen one of a group.</summary>
+        public static readonly Color Lit = new Color(0.16f, 0.60f, 0.78f, 0.80f);
         public const string AccentHex = "#FF9E1A";
         public const string CyanHex = "#4DDBFF";
 

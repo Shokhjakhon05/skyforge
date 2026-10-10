@@ -282,6 +282,7 @@ namespace Skyforge
             if (_drone != null) Destroy(_drone.gameObject);
             _drone = DroneView.Create(transform, drone.Look);
             _shownDrone = drone;
+            _camera.Reach = Mathf.Clamp(_drone.Length / 1.5f, 1f, 2.2f);
         }
 
         /// <summary>The selected mission as the player's negotiation choice, if any, has left it.</summary>
@@ -1103,7 +1104,8 @@ namespace Skyforge
             {
                 // The drone sits beside whichever panel is open: menu on the left, hangar on the right.
                 float side = _phase == Phase.Hangar ? 2.6f : _phase == Phase.Menu ? -2.6f : 0f;
-                _camera.Orbit(_island.Spawn, Time.unscaledTime, side, _phase == Phase.Hangar ? 7.5f : 11f);
+                float reach = Mathf.Lerp(1f, _camera.Reach, 0.6f);
+                _camera.Orbit(_island.Spawn, Time.unscaledTime, side * reach, (_phase == Phase.Hangar ? 7.5f : 11f) * reach, _phase == Phase.Hangar ? 0.30f : 0.22f);
                 return;
             }
 

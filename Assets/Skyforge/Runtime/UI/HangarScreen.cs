@@ -71,16 +71,17 @@ namespace Skyforge.UI
             UiKit.Place(_wallet.rectTransform, topRight, new Vector2(-50f, -40f), new Vector2(620f, 40f));
 
             _name = UiKit.Label(p, 60, TextAnchor.UpperLeft);
-            UiKit.Place(_name.rectTransform, topLeft, new Vector2(48f, -92f), new Vector2(520f, 72f));
+            UiKit.Place(_name.rectTransform, topLeft, new Vector2(48f, -92f), new Vector2(390f, 72f));
+            UiKit.FitWidth(_name, 34);
             _role = UiKit.Label(p, 28, TextAnchor.UpperLeft);
             _role.color = UiKit.Accent;
-            UiKit.Place(_role.rectTransform, topLeft, new Vector2(52f, -166f), new Vector2(380f, 38f));
+            UiKit.Place(_role.rectTransform, topLeft, new Vector2(52f, -166f), new Vector2(700f, 38f));
             UiKit.FitWidth(_role, 18);
             // Two short lines beside the role, clear of the browse buttons on the right.
             _weapons = UiKit.Label(p, 21, TextAnchor.UpperLeft, true);
             UiKit.Light(_weapons);
             _weapons.color = new Color(1f, 1f, 1f, 0.85f);
-            UiKit.Place(_weapons.rectTransform, topLeft, new Vector2(440f, -150f), new Vector2(330f, 56f));
+            UiKit.Place(_weapons.rectTransform, topLeft, new Vector2(450f, -98f), new Vector2(320f, 62f));
             UiKit.FitWidth(_weapons, 15);
 
             Text previous = UiKit.Button(p, "Previous", UiKit.Faint, 44, () => Browse(-1));
@@ -348,7 +349,7 @@ namespace Skyforge.UI
 
             for (int i = 0; i < 2; i++)
             {
-                _tabs[i].color = i == _tab ? new Color(1f, 1f, 1f, 0.45f) : UiKit.Faint;
+                _tabs[i].color = i == _tab ? UiKit.Lit : UiKit.Faint;
             }
 
             for (int i = 0; i < Rows; i++)
@@ -407,7 +408,7 @@ namespace Skyforge.UI
         static void SetButton(Row row, string label, bool enabled, bool active)
         {
             row.ButtonLabel.text = label;
-            row.Button.color = active ? UiKit.Good : enabled ? new Color(1f, 1f, 1f, 0.40f) : UiKit.Faint;
+            row.Button.color = active ? UiKit.Good : enabled ? UiKit.Lit : UiKit.Faint;
             row.ButtonLabel.color = enabled || active ? Color.white : new Color(1f, 1f, 1f, 0.55f);
         }
     }

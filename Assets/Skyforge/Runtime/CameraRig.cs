@@ -30,6 +30,8 @@ namespace Skyforge
         bool _snapGun = true;
         /// <summary>What the gun camera should look at: the locked target, or nothing.</summary>
         public Vector3? GunTarget;
+        /// <summary>How much farther back than behind the starter quadcopter the chase camera sits; set from the aircraft's size.</summary>
+        public float Reach = 1f;
 
         public CameraRig(Transform parent, HeightMap map)
         {
@@ -59,10 +61,10 @@ namespace Skyforge
         }
 
         /// <param name="side">Metres to slide the view sideways, so the subject sits beside a panel instead of under it.</param>
-        public void Orbit(Vector3 center, float time, float side = 0f, float distance = 11f)
+        public void Orbit(Vector3 center, float time, float side = 0f, float distance = 11f, float rise = 0.38f)
         {
             float angle = time * 0.12f;
-            Vector3 eye = center + new Vector3(Mathf.Sin(angle) * distance, distance * 0.38f, Mathf.Cos(angle) * distance);
+            Vector3 eye = center + new Vector3(Mathf.Sin(angle) * distance, distance * rise, Mathf.Cos(angle) * distance);
             Vector3 target = center + Vector3.up * 0.8f;
             Vector3 right = Vector3.Cross(Vector3.up, target - eye).normalized;
             eye += right * side;
@@ -120,8 +122,8 @@ namespace Skyforge
             else
             {
                 Quaternion heading = Quaternion.Euler(0f, _yaw, 0f);
-                float distance = 4.6f + speedShare * 1.6f;
-                Vector3 eye = position + heading * new Vector3(0f, 1.7f, -distance);
+                float distance = (4.6f + speedShare * 1.6f) * Reach;
+                Vector3 eye = position + heading * new Vector3(0f, 1.7f * Mathf.Lerp(1f, Reach, 0.7f), -distance);
                 float floor = Mathf.Max(_map.Height(eye.x, eye.z), Island.WaterLevel) + 0.7f;
                 if (eye.y < floor) eye.y = floor;
 

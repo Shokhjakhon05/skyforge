@@ -87,7 +87,7 @@ namespace Skyforge.UI
                 NegotiationChoice choice = negotiation.Choices[i];
                 bool affordable = Negotiations.CanAfford(save, choice);
                 _choiceLabels[i].text = affordable ? Loc.T(choice.TextKey) : Loc.T(choice.TextKey) + "  (" + Loc.T("talk.cannot_pay") + ")";
-                _choiceButtons[i].color = affordable ? new Color(1f, 1f, 1f, 0.40f) : UiKit.Faint;
+                _choiceButtons[i].color = affordable ? UiKit.Lit : UiKit.Faint;
             }
             _continue.SetActive(false);
             Visible = true;

@@ -118,6 +118,9 @@ namespace Skyforge.Drone
         /// The airframe as a baked 3D model, repainted in the drone's own colour, with the parts
         /// named rotor0..N spinning. Returns false if the drone has no model or it failed to load.
         /// </summary>
+        /// <summary>The airframe's longest side in metres; the camera stands back by it.</summary>
+        public float Length { get; private set; } = 1.25f;
+
         bool BuildFromModel(DroneLook look)
         {
             Model model = ModelLibrary.Get(look.Model);
@@ -126,6 +129,7 @@ namespace Skyforge.Drone
             var parts = new Dictionary<string, Transform>();
             Transform body = model.Spawn(_tilt, model.Tinted(Palette.Color(look.BodyColor)), true, parts);
             body.localScale = Vector3.one * look.Scale;
+            Length = Mathf.Max(model.Bounds.size.z, model.Bounds.size.x) * look.Scale;
             // The model's feet are at the depth the simulation rests on; scaling must not move them.
             body.localPosition = new Vector3(0f, -FootDepth * (1f - look.Scale), 0f);
             for (int i = 0; i < 8; i++)

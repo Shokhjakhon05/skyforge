@@ -76,7 +76,7 @@ namespace Skyforge.World
             Texture2D sheet = BuildSheet();
             Material smoke = GameMaterials.Particle(sheet, false) ?? GameMaterials.Unlit(new Color(0.3f, 0.3f, 0.3f));
             Material glow = GameMaterials.Particle(sheet, true) ?? GameMaterials.Unlit(new Color(1f, 0.7f, 0.3f));
-            if (glow.HasProperty("_Glow")) glow.SetFloat("_Glow", 2.4f);
+            if (glow.HasProperty("_Glow")) glow.SetFloat("_Glow", 1.8f);
             _smokeMesh = BuildQuads("Smoke", smoke);
             _glowMesh = BuildQuads("Glow", glow);
 
@@ -229,7 +229,7 @@ namespace Skyforge.World
             // The flash, and the ring of the shock running out along the ground.
             Emit(new Puff
             {
-                Glow = true, Cell = CellGlow, Position = at + Vector3.up * r * 0.2f, Life = 0.16f, SizeFrom = r * 0.8f, SizeTo = r * 3.4f,
+                Glow = true, Cell = CellGlow, Position = at + Vector3.up * r * 0.2f, Life = 0.14f, SizeFrom = r * 0.7f, SizeTo = r * 2.3f,
                 From = new Color(1f, 0.97f, 0.85f), To = new Color(1f, 0.62f, 0.15f),
             });
             Emit(new Puff

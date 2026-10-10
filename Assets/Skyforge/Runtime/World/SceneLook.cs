@@ -85,8 +85,8 @@ namespace Skyforge.World
             _volume.isGlobal = true;
             var profile = ScriptableObject.CreateInstance<VolumeProfile>();
             _grade = profile.Add<ColorAdjustments>(true);
-            _grade.contrast.value = 14f;
-            _grade.saturation.value = -4f;
+            _grade.contrast.value = 18f;
+            _grade.saturation.value = 8f;
             _grade.postExposure.value = 0.12f;
             var tone = profile.Add<Tonemapping>(true);
             tone.mode.value = TonemappingMode.Neutral;
@@ -273,8 +273,8 @@ namespace Skyforge.World
         public void SetScope(bool on)
         {
             _scope = on;
-            _grade.saturation.value = on ? -100f : -4f;
-            _grade.contrast.value = on ? 38f : 14f;
+            _grade.saturation.value = on ? -100f : 8f;
+            _grade.contrast.value = on ? 38f : 18f;
             _grade.postExposure.value = on ? 0.35f : 0.12f;
         }
 

@@ -65,11 +65,11 @@ namespace Skyforge.UI
             // The operation: where, which one, how dangerous.
             _heading = UiKit.Label(p, 24, TextAnchor.UpperLeft);
             _heading.color = UiKit.Cyan;
-            UiKit.Place(_heading.rectTransform, topLeft, new Vector2(46f, -150f), new Vector2(640f, 32f));
+            UiKit.Place(_heading.rectTransform, topLeft, new Vector2(46f, -150f), new Vector2(740f, 32f));
             UiKit.FitWidth(_heading, 15);
             _threat = UiKit.Tag(p, UiKit.Bad, 22);
             _threatPlate = _threat.transform.parent.GetComponent<Image>();
-            UiKit.Place(_threatPlate.rectTransform, topRight, new Vector2(-292f, -148f), new Vector2(300f, 38f));
+            UiKit.Place(_threatPlate.rectTransform, topRight, new Vector2(-40f, -264f), new Vector2(280f, 40f));
             UiKit.FitWidth(_threat, 14);
 
             _title = UiKit.Label(p, 54, TextAnchor.UpperLeft);
@@ -77,10 +77,10 @@ namespace Skyforge.UI
             UiKit.FitWidth(_title, 30);
 
             // Browse the operations with the two arrows next to the title.
-            Text previous = UiKit.Button(p, "Previous", new Color(0.30f, 0.86f, 1f, 0.16f), 40, () => PreviousPressed?.Invoke());
+            Text previous = UiKit.Button(p, "Previous", UiKit.Quiet, 40, () => PreviousPressed?.Invoke());
             previous.text = "<";
             UiKit.Place((RectTransform)previous.transform.parent, topRight, new Vector2(-160f, -148f), new Vector2(110f, 104f));
-            Text next = UiKit.Button(p, "Next", new Color(0.30f, 0.86f, 1f, 0.16f), 40, () => NextPressed?.Invoke());
+            Text next = UiKit.Button(p, "Next", UiKit.Quiet, 40, () => NextPressed?.Invoke());
             next.text = ">";
             UiKit.Place((RectTransform)next.transform.parent, topRight, new Vector2(-40f, -148f), new Vector2(110f, 104f));
 
@@ -91,7 +91,8 @@ namespace Skyforge.UI
             }
             _best = UiKit.Label(p, 24, TextAnchor.MiddleLeft);
             _best.color = new Color(1f, 1f, 1f, 0.7f);
-            UiKit.Place(_best.rectTransform, topLeft, new Vector2(204f, -266f), new Vector2(560f, 36f));
+            UiKit.Place(_best.rectTransform, topLeft, new Vector2(204f, -266f), new Vector2(290f, 36f));
+            UiKit.FitWidth(_best, 15);
             UiKit.Rule(p, topLeft, new Vector2(44f, -318f), 992f, 0.3f);
 
             // Left column: the orders.
@@ -125,7 +126,7 @@ namespace Skyforge.UI
             _map = mapRect.gameObject.AddComponent<RawImage>();
             _map.raycastTarget = false;
             // A sweep line passing over the map, like a scope refreshing.
-            Image sweep = UiKit.Box(mapRect, "Sweep", new Color(0.30f, 0.86f, 1f, 0.16f), UiKit.Gradient);
+            Image sweep = UiKit.Box(mapRect, "Sweep", UiKit.Quiet, UiKit.Gradient);
             _sweep = sweep.rectTransform;
             _sweep.anchorMin = new Vector2(0f, 0f);
             _sweep.anchorMax = new Vector2(1f, 0f);
@@ -158,22 +159,15 @@ namespace Skyforge.UI
             // The "restricted" stamp across the corner of the page.
             _stamp = UiKit.Label(p, 22, TextAnchor.MiddleCenter);
             _stamp.color = new Color(0.95f, 0.30f, 0.25f, 0.75f);
-            UiKit.Place(_stamp.rectTransform, topRight, new Vector2(-292f, -196f), new Vector2(300f, 30f));
+            UiKit.Place(_stamp.rectTransform, topRight, new Vector2(-330f, -268f), new Vector2(250f, 32f));
+            _stamp.alignment = TextAnchor.MiddleRight;
             UiKit.FitWidth(_stamp, 13);
 
             // Free flight has no mission to set the weather, so the player picks it here.
             UiKit.Rule(p, new Vector2(0f, 0f), new Vector2(44f, 176f), 992f, 0.3f);
-            _weather = UiKit.Label(p, 22, TextAnchor.MiddleLeft);
-            _weather.color = new Color(1f, 1f, 1f, 0.75f);
-            UiKit.Place(_weather.rectTransform, new Vector2(1f, 0f), new Vector2(-240f, 132f), new Vector2(330f, 36f));
-            _weather.rectTransform.pivot = new Vector2(1f, 0f);
-            _weather.alignment = TextAnchor.MiddleRight;
-            UiKit.FitWidth(_weather, 14);
-            Text change = UiKit.Button(p, "Weather", new Color(0.30f, 0.86f, 1f, 0.16f), 22, () => WeatherPressed?.Invoke());
-            change.text = Loc.T("menu.change");
-            UiKit.FitWidth(change, 14);
-            UiKit.Place((RectTransform)change.transform.parent, new Vector2(1f, 0f), new Vector2(-40f, 128f), new Vector2(190f, 44f));
-            ((RectTransform)change.transform.parent).pivot = new Vector2(1f, 0f);
+            _weather = UiKit.Button(p, "Weather", UiKit.Quiet, 22, () => WeatherPressed?.Invoke());
+            UiKit.FitWidth(_weather, 13);
+            UiKit.Place((RectTransform)_weather.transform.parent, new Vector2(0f, 0f), new Vector2(664f, 126f), new Vector2(372f, 42f));
 
             _start = UiKit.Button(p, "Start", UiKit.Accent, 40, () => StartPressed?.Invoke());
             var startRect = (RectTransform)_start.transform.parent;
@@ -181,7 +175,7 @@ namespace Skyforge.UI
             _startButton = startRect.GetComponent<Image>();
             UiKit.FitWidth(_start, 24);
 
-            Text free = UiKit.Button(p, "FreeFlight", new Color(0.30f, 0.86f, 1f, 0.16f), 30, () => FreeFlightPressed?.Invoke());
+            Text free = UiKit.Button(p, "FreeFlight", UiKit.Quiet, 30, () => FreeFlightPressed?.Invoke());
             free.text = Loc.T("menu.free");
             UiKit.FitWidth(free, 18);
             UiKit.Place((RectTransform)free.transform.parent, new Vector2(0f, 0f), new Vector2(664f, 36f), new Vector2(372f, 84f));
@@ -339,7 +333,7 @@ namespace Skyforge.UI
                             (mission.Zones.Count > 0 ? "   <color=#FFD94D>◆</color> " + Loc.T("brief.map.radar") : "");
 
             Weather free = WeatherCatalog.Get(save.FreeFlightWeather);
-            _weather.text = Loc.T("menu.free_weather", Loc.T(free.NameKey));
+            _weather.text = Loc.T("menu.free_weather", Loc.T(free.NameKey)) + "  ›";
             Visible = true;
         }
 
@@ -545,7 +539,7 @@ namespace Skyforge.UI
             _double = doubleRect.gameObject;
             _double.SetActive(false);
 
-            Text retry = UiKit.Button(p, "Retry", new Color(1f, 1f, 1f, 0.14f), 36, () => RetryPressed?.Invoke());
+            Text retry = UiKit.Button(p, "Retry", UiKit.Quiet, 36, () => RetryPressed?.Invoke());
             retry.text = Loc.T("result.retry");
             UiKit.Place((RectTransform)retry.transform.parent, new Vector2(0.5f, 0f), new Vector2(-230f, 40f), new Vector2(420f, 110f));
 
