@@ -17,7 +17,9 @@ namespace Skyforge.UI
 
         void OnEnable()
         {
-            if (_group == null) _group = gameObject.GetComponent<CanvasGroup>() ?? gameObject.AddComponent<CanvasGroup>();
+            // Not "??": a component that is not there compares equal to null without being null.
+            if (_group == null) _group = gameObject.GetComponent<CanvasGroup>();
+            if (_group == null) _group = gameObject.AddComponent<CanvasGroup>();
             _time = 0f;
             Apply();
         }

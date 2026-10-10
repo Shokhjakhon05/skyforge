@@ -187,7 +187,7 @@ namespace Skyforge
             _game.AutomationShowHangar("mule", 0, 2500);
             yield return Shot("13g_hangar_mule");
             int drone = 0;
-            foreach (string id in new[] { "kestrel", "viper", "wasp", "mule", "ghost", "ibex", "petrel", "owl", "relay", "albatross", "talon", "aegis" })
+            foreach (string id in new[] { "kestrel", "wasp", "mule", "ghost", "talon", "aegis" })
             {
                 _game.AutomationUseDrone(id);
                 _game.AutomationFreeFlight(WeatherCatalog.Clear);
@@ -214,7 +214,7 @@ namespace Skyforge
             }
             _game.AutomationCloseHeadquarters();
             _game.AutomationTransmission(2);
-            yield return Frames(90);
+            yield return Frames(40);
             yield return Shot("17z_transmission");
             _game.AutomationHideTransmission();
 
@@ -225,13 +225,13 @@ namespace Skyforge
                 Vector3 at = _game.AutomationOperation(kind, 9);
                 _game.AutomationSetCamera(kind == 8 ? CameraView.Gun : CameraView.Chase);
                 _game.AutomationPlace(at + new Vector3(0f, kind >= 9 ? 44f : 30f, kind >= 9 ? -110f : -75f), 0f);
-                yield return Frames(kind == 3 ? 240 : 30);
+                yield return Frames(kind == 3 ? 60 : 12);
                 yield return Shot("18" + (char)('a' + kind) + "_op_" + kinds[kind]);
             }
             _game.AutomationSetCamera(CameraView.Chase);
             Vector3 wave = _game.AutomationOperation(-1, 1);
             _game.AutomationPlace(island.Spawn + new Vector3(40f, 34f, -40f), 40f);
-            yield return Frames(200);
+            yield return Frames(50);
             yield return Shot("18m_survival");
             Vector3 range = _game.AutomationOperation(-3, 1);
             _game.AutomationPlace(range + new Vector3(0f, 22f, -70f), 0f);
@@ -243,7 +243,7 @@ namespace Skyforge
             _game.AutomationPlace(mark + new Vector3(0f, 40f, -130f), 0f);
             yield return Frames(10);
             _game.AutomationAbility();
-            yield return Frames(70);
+            yield return Frames(30);
             yield return Shot("18o_guided_missile");
             _game.AutomationUseDrone("talon");
             _game.AutomationWear("ember");
@@ -280,10 +280,12 @@ namespace Skyforge
                 _game.AutomationStartMission();
                 _game.AutomationPlace(other.Spawn + new Vector3(0f, 34f, -20f), 0f);
                 yield return Shot("16" + (char)('a' + shot++) + "_" + regionId + "_overview");
-                _game.AutomationPlace(other.Anchors["summit"] + new Vector3(0f, 40f, -160f), 0f);
-                yield return Shot("16" + (char)('a' + shot++) + "_" + regionId + "_summit");
-                _game.AutomationPlace(new Vector3(0f, 7f, -other.Map.HalfSize * 0.86f), 0f);
-                yield return Shot("16" + (char)('a' + shot++) + "_" + regionId + "_from_sea");
+                if (regionId == "meridian")
+                {
+                    Vector3 town = other.Villages.Count > 0 ? other.Villages[0] : other.Anchors["poi1"];
+                    _game.AutomationPlace(town + new Vector3(0f, 34f, -150f), 0f);
+                    yield return Shot("16" + (char)('a' + shot++) + "_" + regionId + "_city");
+                }
             }
             _game.AutomationLoadRegion("arvelia");
 
