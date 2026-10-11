@@ -47,21 +47,39 @@ namespace Sniper
         void BuildGround(LocationDef location)
         {
             float half = location.HalfSize;
-            var mesh = new Mesh { name = "Ground" };
-            const float repeat = 5f;
-            mesh.SetVertices(new List<Vector3> { new Vector3(-half, 0f, -half), new Vector3(-half, 0f, half), new Vector3(half, 0f, half), new Vector3(half, 0f, -half) });
-            mesh.SetNormals(new List<Vector3> { Vector3.up, Vector3.up, Vector3.up, Vector3.up });
-            mesh.SetTangents(new List<Vector4> { new Vector4(1f, 0f, 0f, -1f), new Vector4(1f, 0f, 0f, -1f), new Vector4(1f, 0f, 0f, -1f), new Vector4(1f, 0f, 0f, -1f) });
-            float r = 2f * half / repeat;
-            mesh.SetUVs(0, new List<Vector2> { new Vector2(0f, 0f), new Vector2(0f, r), new Vector2(r, r), new Vector2(r, 0f) });
-            mesh.SetTriangles(new[] { 0, 1, 2, 0, 2, 3 }, 0);
-            mesh.RecalculateBounds();
-            var ground = new GameObject("Ground");
-            ground.transform.SetParent(_root, false);
-            ground.AddComponent<MeshFilter>().sharedMesh = mesh;
-            var renderer = ground.AddComponent<MeshRenderer>();
+            bool shore = location.WaterZ > 0f;
+            float far = shore ? location.WaterZ : half;
             Material material = Resources.Load<Material>("Materials/Ground_" + location.Ground);
-            renderer.sharedMaterial = material != null ? material : GameMaterials.Lit(new Color(0.4f, 0.4f, 0.4f));
+            Sheet("Ground", new Vector3(-half, 0f, -half), new Vector3(-half, 0f, far), new Vector3(half, 0f, far), new Vector3(half, 0f, -half), Vector3.up, 5f,
+                material != null ? material : GameMaterials.Lit(new Color(0.4f, 0.4f, 0.4f)));
+            if (!shore) return;
+            // The quay ends in a wall, and the sea lies below it out to the haze.
+            Material wall = Resources.Load<Material>("Materials/Ground_asphalt");
+            Sheet("Quay", new Vector3(-half, -3f, far), new Vector3(-half, 0f, far), new Vector3(half, 0f, far), new Vector3(half, -3f, far), Vector3.forward, 5f,
+                wall != null ? wall : GameMaterials.Lit(new Color(0.3f, 0.3f, 0.3f)));
+            float out_ = 900f;
+            Material sea = GameMaterials.Water;
+            Sheet("Sea", new Vector3(-out_, -1.6f, far - 2f), new Vector3(-out_, -1.6f, out_), new Vector3(out_, -1.6f, out_), new Vector3(out_, -1.6f, far - 2f), Vector3.up, 40f,
+                sea != null ? sea : GameMaterials.Lit(new Color(0.08f, 0.2f, 0.3f), 0.8f));
+        }
+
+        void Sheet(string name, Vector3 a, Vector3 b, Vector3 c, Vector3 d, Vector3 normal, float repeat, Material material)
+        {
+            var mesh = new Mesh { name = name };
+            mesh.SetVertices(new List<Vector3> { a, b, c, d });
+            mesh.SetNormals(new List<Vector3> { normal, normal, normal, normal });
+            var tangent = new Vector4(1f, 0f, 0f, -1f);
+            mesh.SetTangents(new List<Vector4> { tangent, tangent, tangent, tangent });
+            float u = (d - a).magnitude / repeat, v = (b - a).magnitude / repeat;
+            mesh.SetUVs(0, new List<Vector2> { new Vector2(0f, 0f), new Vector2(0f, v), new Vector2(u, v), new Vector2(u, 0f) });
+            bool flip = Vector3.Dot(Vector3.Cross(b - a, c - a), normal) < 0f;
+            mesh.SetTriangles(flip ? new[] { 0, 2, 1, 0, 3, 2 } : new[] { 0, 1, 2, 0, 2, 3 }, 0);
+            mesh.RecalculateBounds();
+            var sheet = new GameObject(name);
+            sheet.transform.SetParent(_root, false);
+            sheet.AddComponent<MeshFilter>().sharedMesh = mesh;
+            var renderer = sheet.AddComponent<MeshRenderer>();
+            renderer.sharedMaterial = material;
             renderer.shadowCastingMode = ShadowCastingMode.Off;
         }
 

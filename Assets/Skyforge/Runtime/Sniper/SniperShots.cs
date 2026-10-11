@@ -22,13 +22,17 @@ namespace Sniper
             yield return Shot("01_menu");
 
             // The place itself, from where nobody plays: is it a quay or a heap of boxes?
-            _game.AutomationLook(new Vector3(-70f, 46f, -110f), new Vector3(0f, 2f, 14f), 50f);
+            _game.AutomationLook(new Vector3(-60f, 40f, -120f), new Vector3(0f, 2f, 20f), 55f);
             yield return Shot("02_docks_high");
             _game.AutomationLook(new Vector3(30f, 9f, -34f), new Vector3(-4f, 2f, 10f), 55f);
             yield return Shot("03_docks_low");
             _game.AutomationLook(new Vector3(-2f, 2.2f, -9f), new Vector3(-4f, 1.4f, 2f), 45f);
             yield return Shot("04_docks_man");
 
+            _game.AutomationLook(new Vector3(-30f, 3f, 10f), new Vector3(20f, 4f, 30f), 60f);
+            yield return Shot("04b_docks_lane");
+            _game.AutomationLook(new Vector3(0f, 26f, -150f), new Vector3(0f, 6f, 20f), 46f);
+            yield return Shot("04c_docks_from_perch");
             _game.AutomationBriefing("docks1");
             yield return Shot("05_briefing");
             _game.AutomationPlay("docks1");

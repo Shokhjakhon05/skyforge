@@ -48,6 +48,8 @@ namespace Sniper
         public string Light = "day";
         public List<Piece> Pieces = new List<Piece>();
         public float HalfSize = 220f;
+        /// <summary>Beyond this the ground ends in a quay wall and the sea begins; zero for a place with no shore.</summary>
+        public float WaterZ;
         /// <summary>Where the camera stands behind the menu, and what it looks at.</summary>
         public Vector3 MenuEye = new Vector3(30f, 8f, -34f), MenuLook = new Vector3(0f, 2f, 8f);
     }

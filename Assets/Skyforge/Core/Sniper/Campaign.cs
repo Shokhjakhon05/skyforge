@@ -43,43 +43,74 @@ namespace Sniper
         {
             var list = new List<LocationDef>();
 
-            // The docks: a quay of stacked containers between two sheds, a ship alongside.
-            var docks = new LocationDef { Id = "docks", NameKey = "loc.docks", Ground = "concrete", Light = "day", MenuEye = new Vector3(24f, 5f, -26f), MenuLook = new Vector3(-2f, 2.5f, 10f) };
-            string[] boxes = { "container_red", "container_green", "container_plain" };
-            for (int row = 0; row < 3; row++)
-            for (int i = 0; i < 7; i++)
+            // The docks: a container yard on a quay, sheds either side, a ship alongside and the city across the water.
+            var docks = new LocationDef
             {
-                if ((row * 7 + i) % 5 == 3) continue;
-                float x = -24f + i * 6.4f, z = 26f + row * 3.4f;
-                Put(docks, boxes[(row + i) % 3], x, z);
-                if ((row + i) % 2 == 0) Put(docks, boxes[(row + i + 1) % 3], x + 0.3f, z, 0f, 0f, false, false, 2.62f);
+                Id = "docks", NameKey = "loc.docks", Ground = "concrete", Light = "day", WaterZ = 50f, HalfSize = 260f,
+                MenuEye = new Vector3(26f, 4.5f, -24f), MenuLook = new Vector3(-4f, 3.5f, 14f),
+            };
+            string[] boxes = { "container_red", "container_green" };
+            for (int block = 0; block < 3; block++)
+            for (int row = 0; row < 4; row++)
+            for (int i = 0; i < 6; i++)
+            {
+                if ((block * 2 + row + i) % 7 == 0) continue;
+                float x = -62f + block * 44f + i * 6.1f, z = 25f + row * 2.9f;
+                int high = 1 + (block * 7 + row * 3 + i * 5) % 3;
+                for (int level = 0; level < high; level++) Put(docks, boxes[(block + row + i + level) % 2], x, z, 0f, 0f, false, false, level * 2.62f);
             }
-            for (int i = 0; i < 4; i++) Put(docks, boxes[i % 3], -46f + (i % 2) * 6.3f, -4f - (i / 2) * 3.2f, 4f);
-            for (int i = 0; i < 3; i++) Put(docks, boxes[(i + 1) % 3], 36f, -8f + i * 3.3f, 90f);
-            Put(docks, "container_red", 36.2f, -4.7f, 90f, 0f, false, false, 2.62f);
-            Put(docks, "shed", -52f, 34f, 90f, 17f);
-            Put(docks, "shed", 58f, 30f, -90f, 19f);
-            Put(docks, "block", 70f, -12f, 180f, 20f);
-            Put(docks, "ship", 4f, 72f, 0f, 30f);
+            // Walls of boxes down both sides of the yard.
+            for (int i = 0; i < 11; i++)
+            {
+                float z = -22f + i * 6.1f;
+                for (int level = 0; level < 1 + (i * 3) % 3; level++)
+                {
+                    Put(docks, boxes[(i + level) % 2], -80f, z, 90f, 0f, false, false, level * 2.62f);
+                    Put(docks, boxes[(i + level + 1) % 2], 80f, z, 90f, 0f, false, false, level * 2.62f);
+                }
+            }
+            for (int i = 0; i < 4; i++) Put(docks, "container_plain", -46f + (i % 2) * 4.8f, -4f - (i / 2) * 2.6f, 4f);
+            for (int i = 0; i < 3; i++) Put(docks, boxes[i % 2], 36f, -8f + i * 2.9f, 90f);
+            Put(docks, "container_red", 36.2f, -5f, 90f, 0f, false, false, 2.62f);
+            Put(docks, "warehouse", -108f, 8f, 0f, 14f);
+            Put(docks, "warehouse", 108f, 12f, 180f, 14f);
+            Put(docks, "shed", -104f, -46f, 90f, 16f);
+            Put(docks, "block", 104f, -50f, -90f, 19f);
+            Put(docks, "crane", -40f, 44f, 20f, 44f, true);
+            Put(docks, "crane", 38f, 44f, -30f, 40f, true);
+            Put(docks, "cargo", 6f, 76f, 90f, 30f, false, false, -1.4f);
+            Put(docks, "tug", -96f, 74f, 60f, 9f, true, false, -1f);
+            Put(docks, "watertower", -62f, -52f, 0f, 13f, true);
+            Row(docks, "tank", 58f, -54f, 4.2f, 0f, 4, 0f, 4.5f);
+            // The city across the water, far enough to be haze.
+            string[] towers = { "sky_a", "kay_b", "sky_b", "kay_c", "kay_f", "sky_a", "kay_a", "sky_b", "kay_d", "sky_a", "kay_b", "sky_b", "kay_f" };
+            for (int i = 0; i < towers.Length; i++)
+                Put(docks, towers[i], -330f + i * 55f, 300f + (i % 3) * 34f, i * 37f, 46f + (i * 29) % 60, true);
             Put(docks, "truck", -8f, 6f, 25f);
             Put(docks, "truck", 14f, 12f, -160f);
             Put(docks, "pickup", 22f, -6f, 70f);
-            Put(docks, "suv", -20f, -10f, -30f);
-            Put(docks, "tower", 44f, 14f, 0f, 10f);
-            Put(docks, "tower", -34f, 16f, 0f, 10f);
-            Row(docks, "fence_metal", -64f, -26f, 3.56f, 0f, 14, 0f, 0f, false, true);
-            Row(docks, "fence_metal", 18f, -26f, 3.56f, 0f, 14, 0f, 0f, false, true);
-            Row(docks, "light", -40f, -22f, 20f, 0f, 5, 0f, 0f, true);
-            Row(docks, "light", -30f, 20f, 22f, 0f, 4, 180f, 0f, true);
-            foreach (Vector3 p in new[] { V(-4f, -2f), V(-2.6f, -1.4f), V(6f, 2f), V(26f, 6f), V(27.2f, 6.6f), V(-14f, 16f), V(-30f, 4f) })
+            Put(docks, "armored", 54f, -16f, 200f);
+            Row(docks, "suv", -34f, -22f, 4.4f, 0f, 1, -8f);
+            Put(docks, "car", -29f, -22f, 5f);
+            Put(docks, "sports", -24f, -22.4f, -3f);
+            Put(docks, "police", 26f, -22f, 172f);
+            Put(docks, "tower", 9.5f, -31f, 0f, 10f);
+            Put(docks, "tower", -9.5f, -31f, 0f, 10f);
+            Row(docks, "fence_metal", -80f, -30f, 3.56f, 0f, 19, 0f, 0f, false, true);
+            Row(docks, "fence_metal", 14f, -30f, 3.56f, 0f, 19, 0f, 0f, false, true);
+            Row(docks, "barrier", -6f, -30f, 2.4f, 0f, 6, 0f, 0.9f);
+            Row(docks, "light", -66f, -26f, 22f, 0f, 7, 0f, 0f, true);
+            Row(docks, "light", -55f, 21f, 22f, 0f, 6, 180f, 0f, true);
+            foreach (Vector3 p in new[] { V(-4f, -2f), V(-2.6f, -1.4f), V(6f, 2f), V(26f, 6f), V(27.2f, 6.6f), V(-14f, 16f), V(-30f, 4f), V(48f, 18f), V(49f, 19.2f), V(-58f, 14f), V(-57f, 15.4f), V(62f, -6f) })
                 Put(docks, "barrel", p.x, p.z, p.x * 40f);
-            foreach (Vector3 p in new[] { V(2f, 4f), V(3.2f, 4.2f), V(2.5f, 5.3f), V(-12f, -6f), V(18f, 18f), V(19.1f, 18.3f), V(-26f, 12f) })
+            foreach (Vector3 p in new[] { V(2f, 4f), V(3.2f, 4.2f), V(2.5f, 5.3f), V(-12f, -6f), V(18f, 18f), V(19.1f, 18.3f), V(-26f, 12f), V(-52f, 4f), V(-51f, 5.2f), V(60f, 10f), V(61.2f, 10.4f), V(40f, 20f) })
                 Put(docks, "crate", p.x, p.z, p.z * 25f, 1.1f);
             Put(docks, "crate", 2.6f, 4.4f, 20f, 1.1f, false, false, 1.1f);
-            foreach (Vector3 p in new[] { V(8f, -4f), V(-18f, 2f), V(30f, 14f) }) Put(docks, "pallet", p.x, p.z, p.x * 17f);
+            Put(docks, "crate", 60.5f, 10.2f, 12f, 1.1f, false, false, 1.1f);
+            foreach (Vector3 p in new[] { V(8f, -4f), V(-18f, 2f), V(30f, 14f), V(-40f, 18f), V(56f, 2f), V(-64f, -10f), V(66f, 16f) }) Put(docks, "pallet", p.x, p.z, p.x * 17f);
             Put(docks, "dumpster", -38f, -18f, 0f, 1.6f);
             Put(docks, "dumpster", 50f, -2f, 90f, 1.6f);
-            Row(docks, "barrier", -10f, -18f, 2.2f, 0f, 6, 0f, 0.9f);
+            Put(docks, "dumpster", -70f, 16f, 90f, 1.6f);
             list.Add(docks);
             return list;
         }
