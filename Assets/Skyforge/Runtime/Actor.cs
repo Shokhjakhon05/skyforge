@@ -26,6 +26,13 @@ namespace Skyforge
         public string Current => _clip != null ? _clip.name : null;
         public bool Finished => _clip != null && !_loop && _time >= _clip.length;
 
+        void Awake()
+        {
+            // Nothing plays until the game says what: the importer's player would start the first clip on its own.
+            Animation player = GetComponentInChildren<Animation>();
+            if (player != null) player.playAutomatically = false;
+        }
+
         public AnimationClip Find(string name)
         {
             if (Clips == null) return null;
@@ -43,7 +50,8 @@ namespace Skyforge
             _time = from;
             if (clip.legacy)
             {
-                if (_legacy == null) _legacy = GetComponent<Animation>() ?? gameObject.AddComponent<Animation>();
+                if (_legacy == null) _legacy = GetComponentInChildren<Animation>() ?? gameObject.AddComponent<Animation>();
+                _legacy.playAutomatically = false;
                 if (_legacy.GetClip(clip.name) == null) _legacy.AddClip(clip, clip.name);
                 _legacy[clip.name].wrapMode = loop ? WrapMode.Loop : WrapMode.ClampForever;
                 _legacy.Play(clip.name);
@@ -71,8 +79,13 @@ namespace Skyforge
 
         void Update()
         {
-            if (_clip == null || _clip.legacy) return;
+            if (_clip == null) return;
             _time += Time.deltaTime * Speed;
+            if (_clip.legacy)
+            {
+                if (_legacy != null && _legacy[_clip.name] != null) _legacy[_clip.name].speed = Speed;
+                return;
+            }
             Apply();
         }
 

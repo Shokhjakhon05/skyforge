@@ -105,6 +105,7 @@ namespace Skyforge.EditorTools
                 var bounds = new Bounds(instance.transform.position, Vector3.zero);
                 foreach (Renderer renderer in instance.GetComponentsInChildren<Renderer>()) bounds.Encapsulate(renderer.bounds);
                 foreach (SkinnedMeshRenderer skinned in instance.GetComponentsInChildren<SkinnedMeshRenderer>()) skinned.updateWhenOffscreen = true;
+                Repaint(instance, name);
                 var actor = instance.AddComponent<Skyforge.Actor>();
                 actor.Clips = clips.ToArray();
                 actor.Height = Mathf.Max(0.01f, bounds.size.y);
@@ -120,6 +121,58 @@ namespace Skyforge.EditorTools
         /// Scenery comes as glTF files of every size and with the origin anywhere. Each becomes a
         /// prefab that stands on its own base at its own centre and knows how large it is.
         /// </summary>
+        static readonly System.Collections.Generic.Dictionary<Material, Material> Repainted = new System.Collections.Generic.Dictionary<Material, Material>();
+
+        /// <summary>
+        /// The glTF importer gives its models a shader of its own that this render pipeline does not
+        /// draw (they come out magenta). Every material is remade as a plain lit one of the pipeline,
+        /// keeping its colour and its picture.
+        /// </summary>
+        static void Repaint(GameObject instance, string model)
+        {
+            string dir = GeneratedDir + "/Materials";
+            Directory.CreateDirectory(dir);
+            foreach (Renderer renderer in instance.GetComponentsInChildren<Renderer>(true))
+            {
+                Material[] materials = renderer.sharedMaterials;
+                for (int i = 0; i < materials.Length; i++)
+                {
+                    Material source = materials[i];
+                    if (source == null) continue;
+                    if (!Repainted.TryGetValue(source, out Material lit))
+                    {
+                        Color colour = Color.white;
+                        foreach (string name in new[] { "baseColorFactor", "_BaseColor", "_Color" })
+                        {
+                            if (!source.HasProperty(name)) continue;
+                            colour = source.GetColor(name);
+                            break;
+                        }
+                        Texture picture = null;
+                        foreach (string name in new[] { "baseColorTexture", "_BaseMap", "_MainTex" })
+                        {
+                            if (!source.HasProperty(name)) continue;
+                            picture = source.GetTexture(name);
+                            if (picture != null) break;
+                        }
+                        float rough = source.HasProperty("roughnessFactor") ? source.GetFloat("roughnessFactor") : 0.8f;
+                        float metal = source.HasProperty("metallicFactor") ? source.GetFloat("metallicFactor") : 0f;
+                        lit = new Material(FindShader("Universal Render Pipeline/Lit"));
+                        colour.a = 1f;
+                        lit.SetColor("_BaseColor", colour);
+                        if (picture != null) lit.SetTexture("_BaseMap", picture);
+                        lit.SetFloat("_Smoothness", Mathf.Clamp(1f - rough, 0.05f, 0.45f));
+                        lit.SetFloat("_Metallic", Mathf.Clamp(metal, 0f, 0.6f));
+                        string safe = System.Text.RegularExpressions.Regex.Replace(model + "_" + source.name, "[^A-Za-z0-9_]", "_");
+                        AssetDatabase.CreateAsset(lit, dir + "/" + safe + "_" + Repainted.Count + ".mat");
+                        Repainted[source] = lit;
+                    }
+                    materials[i] = lit;
+                }
+                renderer.sharedMaterials = materials;
+            }
+        }
+
         static void PrepareProps()
         {
             const string source = "Assets/Sniper/Props";
@@ -147,6 +200,7 @@ namespace Skyforge.EditorTools
                 }
                 Bounds bounds = renderers[0].bounds;
                 foreach (Renderer renderer in renderers) bounds.Encapsulate(renderer.bounds);
+                Repaint(instance, name);
                 var root = new GameObject(name);
                 instance.transform.SetParent(root.transform, true);
                 instance.transform.position -= new Vector3(bounds.center.x, bounds.min.y, bounds.center.z);
