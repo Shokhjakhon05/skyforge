@@ -22,6 +22,9 @@ namespace Sniper
         public float YawDeg;
         /// <summary>Thin enough for a piercing round to go through.</summary>
         public bool Thin;
+        /// <summary>A drum of fuel: one round and it takes everyone near it. The number tells the scene which one went up.</summary>
+        public bool Explosive;
+        public int Tag;
     }
 
     /// <summary>A piece of scenery: which model, where, turned how, how large.</summary>
@@ -32,11 +35,16 @@ namespace Sniper
         public float YawDeg;
         /// <summary>Height in metres the model is scaled to; zero keeps the size it was made at.</summary>
         public float Height;
+        /// <summary>A plain multiplier instead of a height, for flat things a height says nothing about: rails, logs.</summary>
+        public float Scale;
+        /// <summary>For the model "box": its colour as rrggbb. The box is as large as <see cref="Solid"/> says.</summary>
+        public string Tint;
         /// <summary>The box a bullet meets, if it is set by hand; otherwise the picture's own bounds are used.</summary>
         public Vector3 Solid;
         /// <summary>Bullets pass: a lamp post, a tree's crown, something far in the background.</summary>
         public bool Open;
         public bool Thin;
+        public bool Explosive;
     }
 
     /// <summary>Something that drives or sails through the place for no reason but that places are like that.</summary>

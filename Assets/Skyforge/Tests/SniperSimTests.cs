@@ -203,5 +203,91 @@ namespace Skyforge.Tests
                 Assert.AreEqual(Outcome.Won, sim.Outcome, mission.Id + " lost: " + sim.Why + " after " + sim.Elapsed + " s, shots " + sim.Shots + ", kills " + sim.Kills);
             }
         }
+
+        [Test]
+        public void ADrumOfFuelTakesTheMenBesideItAndWakesTheRest()
+        {
+            MissionDef mission = Mission(Man("a", Role.Target, new Vector3(2f, 0f, 0f)), Man("b", Role.Target, new Vector3(-3f, 0f, 1f)), Man("far", Role.Guard, new Vector3(40f, 0f, 0f)));
+            mission.Perch = new Vector3(0f, 12f, -150f);
+            var sim = new SniperSim(mission, null, Armory.Get("vss"));
+            sim.AddCover(new Cover { Centre = new Vector3(0f, 0.57f, 0f), Size = new Vector3(0.7f, 1.14f, 0.7f), Explosive = true, Tag = 3 });
+            sim.Fire(mission.Perch, AimAt(sim, new Vector3(0f, 0.6f, 0f)));
+            bool blast = false;
+            for (float t = 0f; t < 3f; t += 0.02f)
+            {
+                sim.Events.Clear();
+                sim.Step(0.02f);
+                foreach (SimEvent e in sim.Events)
+                    if (e.Type == SimEventType.Explosion && e.Actor == 3) blast = true;
+            }
+            Assert.IsTrue(blast);
+            Assert.AreEqual(2, sim.Kills);
+            Assert.AreEqual(Outcome.Won, sim.Outcome);
+            Assert.IsTrue(sim.Alarm, "even a quiet rifle cannot make a drum of fuel quiet");
+        }
+
+        [Test]
+        public void AHuntCanBeMadeInEveryPlaceAndGrowsWithItsLevel()
+        {
+            foreach (LocationDef place in Campaign.Locations)
+            {
+                MissionDef small = Hunt.Make(place.Id, 1, 5), large = Hunt.Make(place.Id, 12, 5);
+                Assert.IsNotNull(small, place.Id);
+                int few = 0, many = 0;
+                foreach (ActorDef actor in small.Actors) if (actor.Role == Role.Target) few++;
+                foreach (ActorDef actor in large.Actors) if (actor.Role == Role.Target) many++;
+                Assert.GreaterOrEqual(few, 3, place.Id);
+                Assert.Greater(many, few, place.Id);
+                Assert.Greater(large.Reward, small.Reward);
+                Assert.GreaterOrEqual(small.Rounds, few + 2);
+                var sim = new SniperSim(large, place, Armory.Get("m24"));
+                for (float t = 0f; t < 5f; t += 0.02f) sim.Step(0.02f);
+                Assert.AreEqual(Outcome.Running, sim.Outcome, place.Id + " ended by itself: " + sim.Why);
+            }
+            var ids = new System.Collections.Generic.HashSet<string>();
+            foreach (Feat feat in Feats.All) Assert.IsTrue(ids.Add(feat.Id), feat.Id);
+        }
+
+        /// <summary>
+        /// Not a test of anything: when SNIPER_DUMP names a file, the places and contracts are written
+        /// there as JSON, for the tool that draws them on the laptop without Unity.
+        /// </summary>
+        [Test]
+        public void TheLayoutCanBeWrittenOutForThePreview()
+        {
+            string path = System.Environment.GetEnvironmentVariable("SNIPER_DUMP");
+            if (string.IsNullOrEmpty(path)) return;
+            var ci = System.Globalization.CultureInfo.InvariantCulture;
+            string V(Vector3 v) => "[" + v.x.ToString(ci) + "," + v.y.ToString(ci) + "," + v.z.ToString(ci) + "]";
+            var b = new System.Text.StringBuilder("{\"locations\":[");
+            bool firstPlace = true;
+            foreach (LocationDef l in Campaign.Locations)
+            {
+                b.Append(firstPlace ? "" : ",").Append("{\"id\":\"" + l.Id + "\",\"ground\":\"" + l.Ground + "\",\"light\":\"" + l.Light + "\",\"water\":" + l.WaterZ.ToString(ci) + ",\"menuEye\":" + V(l.MenuEye) + ",\"menuLook\":" + V(l.MenuLook) + ",\"pieces\":[");
+                firstPlace = false;
+                for (int i = 0; i < l.Pieces.Count; i++)
+                {
+                    Piece piece = l.Pieces[i];
+                    b.Append(i == 0 ? "" : ",").Append("{\"m\":\"" + piece.Model + "\",\"at\":" + V(piece.At) + ",\"yaw\":" + piece.YawDeg.ToString(ci) + ",\"h\":" + piece.Height.ToString(ci) + ",\"scale\":" + piece.Scale.ToString(ci) + ",\"tint\":\"" + (piece.Tint ?? "") + "\",\"solid\":" + V(piece.Solid) + ",\"open\":" + (piece.Open ? "true" : "false") + "}");
+                }
+                b.Append("]}");
+            }
+            b.Append("],\"missions\":[");
+            for (int m = 0; m < Campaign.Missions.Count; m++)
+            {
+                MissionDef mission = Campaign.Missions[m];
+                b.Append(m == 0 ? "" : ",").Append("{\"id\":\"" + mission.Id + "\",\"place\":\"" + mission.LocationId + "\",\"perch\":" + V(mission.Perch) + ",\"look\":" + V(mission.LookAt) + ",\"actors\":[");
+                for (int a = 0; a < mission.Actors.Count; a++)
+                {
+                    ActorDef actor = mission.Actors[a];
+                    b.Append(a == 0 ? "" : ",").Append("{\"role\":\"" + actor.Role + "\",\"path\":[");
+                    for (int k = 0; k < actor.Path.Length; k++) b.Append(k == 0 ? "" : ",").Append(V(actor.Path[k]));
+                    b.Append("]" + (actor.Escape.HasValue ? ",\"escape\":" + V(actor.Escape.Value) : "") + "}");
+                }
+                b.Append("]}");
+            }
+            b.Append("]}");
+            System.IO.File.WriteAllText(path, b.ToString());
+        }
     }
 }

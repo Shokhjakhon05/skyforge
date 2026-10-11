@@ -630,7 +630,7 @@ namespace Skyforge.EditorTools
             ConfigureAudio();
 
             // The ground of each kind of place: a photographed surface with its relief.
-            foreach (string ground in new[] { "asphalt", "concrete", "sand", "grass" })
+            foreach (string ground in new[] { "asphalt", "concrete", "sand", "snow" })
             {
                 var colour = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Skyforge/Resources/Textures/ground_" + ground + ".jpg");
                 var relief = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Skyforge/Resources/Textures/ground_" + ground + "_n.jpg");
@@ -644,7 +644,7 @@ namespace Skyforge.EditorTools
                     laid.SetFloat("_BumpScale", 1f);
                     laid.EnableKeyword("_NORMALMAP");
                 }
-                laid.SetFloat("_Smoothness", ground == "asphalt" || ground == "concrete" ? 0.28f : 0.08f);
+                laid.SetFloat("_Smoothness", ground == "asphalt" || ground == "concrete" ? 0.28f : ground == "snow" ? 0.4f : 0.08f);
                 laid.SetFloat("_Metallic", 0f);
                 AssetDatabase.CreateAsset(laid, dir + "/Ground_" + ground + ".mat");
             }

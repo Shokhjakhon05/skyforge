@@ -10,7 +10,7 @@ namespace Sniper
 
     public enum SimEventType
     {
-        Shot, Hit, Kill, Miss, Alarm, Escaped, PlayerHit, EnemyShot, AllyDown, Reloaded,
+        Shot, Hit, Kill, Miss, Alarm, Escaped, PlayerHit, EnemyShot, AllyDown, Reloaded, Explosion,
     }
 
     public struct SimEvent
@@ -69,6 +69,9 @@ namespace Sniper
         public readonly MissionDef Mission;
         public readonly RifleDef Rifle;
         readonly List<Cover> _covers = new List<Cover>();
+        readonly List<bool> _gone = new List<bool>();
+        public const float BlastRadius = 6.5f;
+        public int Blasts { get; private set; }
         readonly ActorState[] _actors;
         readonly List<Bullet> _bullets = new List<Bullet>();
         readonly System.Random _random;
@@ -104,7 +107,7 @@ namespace Sniper
             {
                 foreach (Piece piece in location.Pieces)
                 {
-                    if (piece.Solid.x <= 0f || piece.Solid.y <= 0f) continue;
+                    if (piece.Open || piece.Solid.x <= 0f || piece.Solid.y <= 0f) continue;
                     _covers.Add(new Cover { Centre = piece.At + new Vector3(0f, piece.Solid.y * 0.5f, 0f), Size = piece.Solid, YawDeg = piece.YawDeg, Thin = piece.Thin });
                 }
             }
@@ -385,6 +388,7 @@ namespace Sniper
                 }
                 for (int c = 0; c < _covers.Count; c++)
                 {
+                    if (c < _gone.Count && _gone[c]) continue;
                     float t = SegmentBox(from, to, _covers[c]);
                     if (t >= best) continue;
                     best = t;
@@ -423,6 +427,12 @@ namespace Sniper
                     Strike(hitActor, zone, at, bullet.Damage);
                     continue;
                 }
+                if (hitCover >= 0 && _covers[hitCover].Explosive)
+                {
+                    _bullets.RemoveAt(b);
+                    Explode(hitCover);
+                    continue;
+                }
                 if (hitCover >= 0 && _covers[hitCover].Thin && bullet.Piercing)
                 {
                     // Through, slower and weaker, a hand's breadth past the surface.
@@ -433,6 +443,33 @@ namespace Sniper
                 }
                 _bullets.RemoveAt(b);
                 Missed(at);
+            }
+        }
+
+        /// <summary>A drum of fuel hit: it goes up, and so does anyone standing by it. Nothing about it is quiet.</summary>
+        void Explode(int cover)
+        {
+            while (_gone.Count <= cover) _gone.Add(false);
+            _gone[cover] = true;
+            Blasts++;
+            Vector3 at = _covers[cover].Centre;
+            Events.Add(new SimEvent { Type = SimEventType.Explosion, Actor = _covers[cover].Tag, Position = at });
+            for (int i = 0; i < _actors.Length; i++)
+            {
+                if (_actors[i].Mood == Mood.Dead || _actors[i].Mood == Mood.Gone) continue;
+                if (Flat(_actors[i].Position, at) <= BlastRadius) Kill(i, Zone.Body, _actors[i].Position + Vector3.up);
+            }
+            // One drum sets off the next.
+            for (int c = 0; c < _covers.Count; c++)
+            {
+                if (!_covers[c].Explosive || (c < _gone.Count && _gone[c])) continue;
+                if (Flat(_covers[c].Centre, at) <= BlastRadius * 0.7f) Explode(c);
+            }
+            Raise(at, 100000f, 0.3f);
+            if (!Alarm)
+            {
+                Alarm = true;
+                Events.Add(new SimEvent { Type = SimEventType.Alarm, Actor = -1, Position = at });
             }
         }
 
@@ -546,8 +583,11 @@ namespace Sniper
         /// <summary>Whether a straight line between two points is clear of everything solid.</summary>
         public bool Clear(Vector3 from, Vector3 to)
         {
-            foreach (Cover cover in _covers)
-                if (SegmentBox(from, to, cover) <= 1f) return false;
+            for (int c = 0; c < _covers.Count; c++)
+            {
+                if (c < _gone.Count && _gone[c]) continue;
+                if (SegmentBox(from, to, _covers[c]) <= 1f) return false;
+            }
             return true;
         }
 

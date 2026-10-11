@@ -18,7 +18,13 @@ namespace Sniper
         {
             _game = GetComponent<SniperGame>();
             _game.SkipIntro = true;
-            yield return Frames(30);
+            yield return Frames(20);
+            SniperSplash splash = _game.AutomationSplash(1.5f);
+            yield return Shot("00_splash_aim", 2);
+            splash.Freeze(2.9f);
+            yield return Shot("00_splash_name", 2);
+            Destroy(splash.gameObject);
+            yield return Frames(10);
             yield return Shot("01_menu");
 
             // The place itself, from where nobody plays: is it a quay or a heap of boxes?
@@ -104,6 +110,48 @@ namespace Sniper
             _game.AutomationAim(_game.AutomationHead(0), false);
             yield return Frames(3);
             yield return Shot("34_fort_scope", 1);
+
+            // The three places added last: behind the menu, from the rifle, through the glass.
+            string[] added = { "air", "rail", "snow" };
+            for (int i = 0; i < added.Length; i++)
+            {
+                string place = added[i];
+                _game.AutomationWin(36);
+                _game.AutomationMenu(place);
+                yield return Frames(10);
+                yield return Shot("4" + i + "a_" + place + "_menu");
+                _game.AutomationLook(new Vector3(-70f, 46f, -120f), new Vector3(0f, 3f, 24f), 55f);
+                yield return Shot("4" + i + "b_" + place + "_high");
+                _game.AutomationBriefing(place + "5");
+                yield return Shot("4" + i + "c_" + place + "_briefing");
+                _game.AutomationPlay(place + "1");
+                yield return Frames(40);
+                yield return Shot("4" + i + "d_" + place + "_wide", 1);
+                _game.AutomationZoom(4);
+                _game.AutomationAim(_game.AutomationHead(0), false);
+                yield return Frames(3);
+                yield return Shot("4" + i + "e_" + place + "_scope_x8", 1);
+            }
+
+            // A drum of fuel beside two men.
+            _game.AutomationPlay("air3");
+            yield return Frames(30);
+            _game.AutomationZoom(3);
+            _game.AutomationAim(new Vector3(-40f, 0.6f, 10f), true);
+            yield return Frames(3);
+            yield return Shot("50_drum_before", 1);
+            _game.AutomationFire();
+            yield return Frames(22);
+            yield return Shot("51_drum_after", 1);
+            yield return Frames(40);
+            yield return Shot("52_drum_later", 1);
+
+            _game.AutomationHunt();
+            yield return Shot("53_hunt_briefing");
+            _game.AutomationCareer();
+            yield return Shot("54_career");
+            _game.AutomationSettings();
+            yield return Shot("55_settings");
 
             _game.AutomationCash(30000);
             _game.AutomationArmory();

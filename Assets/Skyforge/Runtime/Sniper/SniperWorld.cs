@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Skyforge;
+using Skyforge.World;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -25,6 +26,7 @@ namespace Sniper
         {
             _root = new GameObject("World").transform;
             _root.SetParent(parent, false);
+            _night = location.Light == "night";
             BuildGround(location);
             foreach (Piece piece in location.Pieces) Place(piece);
             StartTraffic(location);
@@ -51,8 +53,15 @@ namespace Sniper
             bool shore = location.WaterZ > 0f;
             float far = shore ? location.WaterZ : half;
             Material material = Resources.Load<Material>("Materials/Ground_" + location.Ground);
-            Sheet("Ground", new Vector3(-half, 0f, -half), new Vector3(-half, 0f, far), new Vector3(half, 0f, far), new Vector3(half, 0f, -half), Vector3.up, 5f,
-                material != null ? material : GameMaterials.Lit(new Color(0.4f, 0.4f, 0.4f)));
+            Material laid = material != null ? material : GameMaterials.Lit(new Color(0.4f, 0.4f, 0.4f));
+            // Laid in slabs: a light reaches only the slabs near it, and no slab has to answer to every lamp on the map.
+            const float slab = 65f;
+            for (float x = -half; x < half - 0.1f; x += slab)
+            for (float z = -half; z < far - 0.1f; z += slab)
+            {
+                float x1 = Mathf.Min(half, x + slab), z1 = Mathf.Min(far, z + slab);
+                Sheet("Ground", new Vector3(x, 0f, z), new Vector3(x, 0f, z1), new Vector3(x1, 0f, z1), new Vector3(x1, 0f, z), Vector3.up, 5f, laid, new Vector2(x, z));
+            }
             if (!shore) return;
             // The quay ends in a wall, and the sea lies below it out to the haze.
             Material wall = Resources.Load<Material>("Materials/Ground_asphalt");
@@ -64,7 +73,7 @@ namespace Sniper
                 sea != null ? sea : GameMaterials.Lit(new Color(0.08f, 0.2f, 0.3f), 0.8f));
         }
 
-        void Sheet(string name, Vector3 a, Vector3 b, Vector3 c, Vector3 d, Vector3 normal, float repeat, Material material)
+        void Sheet(string name, Vector3 a, Vector3 b, Vector3 c, Vector3 d, Vector3 normal, float repeat, Material material, Vector2 origin = default)
         {
             var mesh = new Mesh { name = name };
             mesh.SetVertices(new List<Vector3> { a, b, c, d });
@@ -72,7 +81,9 @@ namespace Sniper
             var tangent = new Vector4(1f, 0f, 0f, -1f);
             mesh.SetTangents(new List<Vector4> { tangent, tangent, tangent, tangent });
             float u = (d - a).magnitude / repeat, v = (b - a).magnitude / repeat;
-            mesh.SetUVs(0, new List<Vector2> { new Vector2(0f, 0f), new Vector2(0f, v), new Vector2(u, v), new Vector2(u, 0f) });
+            // The picture carries on from one slab to the next.
+            float u0 = origin.x / repeat, v0 = origin.y / repeat;
+            mesh.SetUVs(0, new List<Vector2> { new Vector2(u0, v0), new Vector2(u0, v0 + v), new Vector2(u0 + u, v0 + v), new Vector2(u0 + u, v0) });
             bool flip = Vector3.Dot(Vector3.Cross(b - a, c - a), normal) < 0f;
             mesh.SetTriangles(flip ? new[] { 0, 2, 1, 0, 3, 2 } : new[] { 0, 1, 2, 0, 2, 3 }, 0);
             mesh.RecalculateBounds();
@@ -87,20 +98,78 @@ namespace Sniper
         /// <summary>What a model measures as it stands in the scene, and where its middle is: found once per model.</summary>
         static readonly Dictionary<string, Bounds> Measured = new Dictionary<string, Bounds>();
 
+        static readonly Dictionary<string, Material> Paints = new Dictionary<string, Material>();
+
+        /// <summary>A plain painted block: a stripe on a runway, a platform edge, a drift of snow.</summary>
+        void Block(Piece piece)
+        {
+            string tint = string.IsNullOrEmpty(piece.Tint) ? "808080" : piece.Tint;
+            if (!Paints.TryGetValue(tint, out Material paint) || paint == null)
+            {
+                Color colour = Color.gray;
+                ColorUtility.TryParseHtmlString("#" + tint, out colour);
+                paint = GameMaterials.Lit(colour, 0.12f);
+                // Lamps and lit windows are painted with a colour that glows.
+                if (tint.EndsWith("ff") && tint.Length == 8)
+                {
+                    paint.EnableKeyword("_EMISSION");
+                    paint.SetColor("_EmissionColor", colour * 2.2f);
+                }
+                Paints[tint] = paint;
+            }
+            var builder = new MeshBuilder();
+            builder.Box(new Vector3(0f, piece.Solid.y * 0.5f, 0f), piece.Solid, Palette.White);
+            var block = new GameObject("Block");
+            block.transform.SetParent(_root, false);
+            block.transform.localPosition = piece.At;
+            block.transform.localRotation = Quaternion.Euler(0f, piece.YawDeg, 0f);
+            block.AddComponent<MeshFilter>().sharedMesh = builder.Build("Block");
+            var renderer = block.AddComponent<MeshRenderer>();
+            renderer.sharedMaterial = paint;
+            renderer.shadowCastingMode = piece.Solid.y > 0.4f ? ShadowCastingMode.On : ShadowCastingMode.Off;
+            if (piece.Open || piece.Solid.y < 0.35f) return;
+            Covers.Add(new Cover { Centre = piece.At + new Vector3(0f, piece.Solid.y * 0.5f, 0f), Size = piece.Solid, YawDeg = piece.YawDeg, Thin = piece.Thin });
+        }
+
         void Place(Piece piece)
         {
-            Transform holder = Stand(piece.Model, piece.Height, out Vector3 size, out float scale);
+            if (piece.Model == "box")
+            {
+                Block(piece);
+                return;
+            }
+            Transform holder = Stand(piece.Model, piece.Height, out Vector3 size, out float scale, piece.Scale);
             if (holder == null) return;
+            if (_night && (piece.Model == "light" || piece.Model == "floodlight")) Lamp(holder, scale);
             holder.localPosition = piece.At;
             holder.localRotation = Quaternion.Euler(0f, piece.YawDeg, 0f);
             if (piece.Open) return;
             Vector3 solid = piece.Solid.x > 0f ? piece.Solid : size * scale;
             if (solid.y < 0.35f) return;
-            Covers.Add(new Cover { Centre = piece.At + new Vector3(0f, solid.y * 0.5f, 0f), Size = solid, YawDeg = piece.YawDeg, Thin = piece.Thin });
+            var cover = new Cover { Centre = piece.At + new Vector3(0f, solid.y * 0.5f, 0f), Size = solid, YawDeg = piece.YawDeg, Thin = piece.Thin };
+            if (piece.Explosive)
+            {
+                cover.Explosive = true;
+                cover.Tag = _drums.Count;
+                _drums.Add(holder.gameObject);
+                // Marked, so the shooter can tell a drum of fuel from a drum of water.
+                foreach (Renderer renderer in holder.GetComponentsInChildren<Renderer>()) renderer.sharedMaterial = DrumPaint;
+            }
+            Covers.Add(cover);
+        }
+
+        readonly List<GameObject> _drums = new List<GameObject>();
+        static Material _drumPaint;
+        static Material DrumPaint => _drumPaint != null ? _drumPaint : _drumPaint = GameMaterials.Lit(new Color(0.78f, 0.12f, 0.08f), 0.3f);
+
+        /// <summary>The drum that went up is gone from the scene.</summary>
+        public void Blow(int tag)
+        {
+            if (tag >= 0 && tag < _drums.Count && _drums[tag] != null) _drums[tag].SetActive(false);
         }
 
         /// <summary>A model stood on its base at its middle, scaled to a height, under a holder that can be put anywhere.</summary>
-        Transform Stand(string model, float height, out Vector3 size, out float scale)
+        Transform Stand(string model, float height, out Vector3 size, out float scale, float multiplier = 0f)
         {
             size = Vector3.one;
             scale = 1f;
@@ -125,9 +194,28 @@ namespace Sniper
             size = bounds.size;
             // Stood on its own base, at its own middle.
             made.transform.localPosition = -new Vector3(bounds.center.x, bounds.min.y, bounds.center.z);
-            scale = piece.Height > 0f && size.y > 0.001f ? piece.Height / size.y : 1f;
+            scale = multiplier > 0f ? multiplier : piece.Height > 0f && size.y > 0.001f ? piece.Height / size.y : 1f;
             holder.localScale = Vector3.one * scale;
             return holder;
+        }
+
+        bool _night;
+        int _lamps;
+
+        /// <summary>At night a lamp post lights the ground under it. A phone draws only so many lights, so the count is kept low.</summary>
+        void Lamp(Transform holder, float scale)
+        {
+            if (_lamps >= 14) return;
+            _lamps++;
+            var lamp = new GameObject("Lamp");
+            lamp.transform.SetParent(holder, false);
+            lamp.transform.localPosition = new Vector3(0f, 5.2f, 1.4f);
+            var light = lamp.AddComponent<Light>();
+            light.type = LightType.Point;
+            light.color = new Color(1f, 0.86f, 0.62f);
+            light.range = 30f / Mathf.Max(0.2f, scale);
+            light.intensity = 9f;
+            light.shadows = LightShadows.None;
         }
 
         sealed class Mover
@@ -197,7 +285,8 @@ namespace Sniper
                 if (root.gameObject.activeSelf != shown) root.gameObject.SetActive(shown);
                 if (!shown) continue;
                 root.localPosition = state.Position;
-                root.localRotation = Quaternion.Euler(0f, state.YawDeg, 0f);
+                Quaternion facing = Quaternion.Euler(0f, state.YawDeg, 0f);
+                root.localRotation = _shownClips[i] == null ? facing : Quaternion.RotateTowards(root.localRotation, facing, 420f * Time.deltaTime);
                 Actor actor = _actors[i];
                 if (actor == null || _shownClips[i] == state.Clip) continue;
                 _shownClips[i] = state.Clip;

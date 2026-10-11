@@ -33,6 +33,24 @@ namespace Sniper
             l.Pieces.Add(new Piece { Model = model, At = new Vector3(x, y, z), YawDeg = yaw, Height = height, Open = open, Thin = thin });
         }
 
+        /// <summary>A drum of fuel that a round sets off.</summary>
+        static void Boom(LocationDef l, float x, float z, string model = "barrel", float height = 0f)
+        {
+            l.Pieces.Add(new Piece { Model = model, At = new Vector3(x, 0f, z), YawDeg = x * 37f, Height = height, Explosive = true });
+        }
+
+        /// <summary>A plain painted block: a stripe, a kerb, a platform.</summary>
+        static void Slab(LocationDef l, float x, float z, float sx, float sy, float sz, string tint, float yaw = 0f, float y = 0f, bool open = true)
+        {
+            l.Pieces.Add(new Piece { Model = "box", At = new Vector3(x, y, z), YawDeg = yaw, Solid = new Vector3(sx, sy, sz), Tint = tint, Open = open });
+        }
+
+        /// <summary>A model at a plain multiple of its own size.</summary>
+        static void Scaled(LocationDef l, string model, float x, float z, float yaw, float scale, bool open = true)
+        {
+            l.Pieces.Add(new Piece { Model = model, At = new Vector3(x, 0f, z), YawDeg = yaw, Scale = scale, Open = open });
+        }
+
         /// <summary>The same thing repeated along a line, end to end.</summary>
         static void Row(LocationDef l, string model, float x, float z, float stepX, float stepZ, int count, float yaw = 0f, float height = 0f, bool open = false, bool thin = false)
         {
@@ -101,7 +119,10 @@ namespace Sniper
             Row(docks, "barrier", -6f, -30f, 2.4f, 0f, 6, 0f, 0.9f);
             Row(docks, "light", -66f, -26f, 22f, 0f, 7, 0f, 0f, true);
             Row(docks, "light", -55f, 21f, 22f, 0f, 6, 180f, 0f, true);
-            foreach (Vector3 p in new[] { V(-4f, -2f), V(-2.6f, -1.4f), V(6f, 2f), V(26f, 6f), V(27.2f, 6.6f), V(-14f, 16f), V(-30f, 4f), V(48f, 18f), V(49f, 19.2f), V(-58f, 14f), V(-57f, 15.4f), V(62f, -6f) })
+            Boom(docks, -4f, -2f);
+            Boom(docks, -2.6f, -1.4f);
+            Boom(docks, 10f, 9f);
+            foreach (Vector3 p in new[] { V(6f, 2f), V(26f, 6f), V(27.2f, 6.6f), V(-14f, 16f), V(-30f, 4f), V(48f, 18f), V(49f, 19.2f), V(-58f, 14f), V(-57f, 15.4f), V(62f, -6f) })
                 Put(docks, "barrel", p.x, p.z, p.x * 40f);
             foreach (Vector3 p in new[] { V(2f, 4f), V(3.2f, 4.2f), V(2.5f, 5.3f), V(-12f, -6f), V(18f, 18f), V(19.1f, 18.3f), V(-26f, 12f), V(-52f, 4f), V(-51f, 5.2f), V(60f, 10f), V(61.2f, 10.4f), V(40f, 20f) })
                 Put(docks, "crate", p.x, p.z, p.z * 25f, 1.1f);
@@ -156,6 +177,8 @@ namespace Sniper
             Put(town, "dumpster", -72f, 24f, 0f, 1.6f);
             Put(town, "dumpster", 34f, 24.5f, 0f, 1.6f);
             Put(town, "dumpster", 90f, 24f, 0f, 1.6f);
+            Boom(town, -12f, 21.5f);
+            Boom(town, 30f, 21.5f);
             foreach (Vector3 p in new[] { V(-30f, 23f), V(-29f, 24f), V(8f, 24f), V(54f, 23.4f), V(-88f, 10f) }) Put(town, "barrel", p.x, p.z, p.x * 31f);
             foreach (Vector3 p in new[] { V(-50f, 24f), V(-49f, 24.8f), V(70f, 24f), V(16f, 23.6f) }) Put(town, "crate", p.x, p.z, p.x * 13f, 1.1f);
             Row(town, "fence_wood", -108f, -34f, 5.9f, 0f, 16, 0f, 1.4f, false, true);
@@ -209,7 +232,11 @@ namespace Sniper
             Put(fort, "suv", -4f, 22f, 60f);
             foreach (Vector3 p in new[] { V(-56f, -20f), V(-62f, 8f), V(-52f, 40f), V(56f, -18f), V(60f, 20f), V(52f, 48f), V(-20f, -30f), V(24f, -34f), V(-70f, 70f), V(74f, 76f), V(0f, 84f), V(-30f, 90f), V(36f, 96f) })
                 Put(fort, "palm", p.x, p.z, p.x * 9f, 6.5f + Mathf.Abs(p.z) % 3f, true);
-            foreach (Vector3 p in new[] { V(-14f, 20f), V(-13f, 21.2f), V(8f, 30f), V(30f, 10f), V(31f, 11.2f), V(-32f, 30f), V(4f, 2f) }) Put(fort, "barrel", p.x, p.z, p.x * 31f);
+            Boom(fort, -14f, 20f);
+            Boom(fort, -13f, 21.2f);
+            Boom(fort, 4f, 2f);
+            Boom(fort, 12f, 32f);
+            foreach (Vector3 p in new[] { V(8f, 30f), V(30f, 10f), V(31f, 11.2f), V(-32f, 30f) }) Put(fort, "barrel", p.x, p.z, p.x * 31f);
             foreach (Vector3 p in new[] { V(-6f, 30f), V(-5f, 31f), V(16f, 24f), V(-22f, 2f), V(-21f, 3f), V(34f, 30f) }) Put(fort, "crate", p.x, p.z, p.x * 13f, 1.1f);
             Put(fort, "crate", -5.5f, 30.5f, 30f, 1.1f, false, false, 1.1f);
             Row(fort, "barrier", -4f, -16f, 2.6f, 0f, 4, 0f, 0.9f);
@@ -219,6 +246,158 @@ namespace Sniper
             fort.Ambience = "amb_wind";
             fort.AmbienceVolume = 0.5f;
             list.Add(fort);
+
+            // The airfield at night: an apron of parked aircraft under lamps, the runway behind it, hangars beyond.
+            var air = new LocationDef
+            {
+                Id = "air", NameKey = "loc.air", Ground = "asphalt", Light = "night", HalfSize = 300f,
+                MenuEye = new Vector3(-40f, 5f, -22f), MenuLook = new Vector3(6f, 3f, 16f), Ambience = "amb_wind", AmbienceVolume = 0.3f,
+            };
+            Slab(air, 0f, 46f, 520f, 0.04f, 0.5f, "e8e8e8");
+            Slab(air, 0f, 78f, 520f, 0.04f, 0.5f, "e8e8e8");
+            for (int i = -8; i <= 8; i++) Slab(air, i * 30f, 62f, 14f, 0.04f, 0.6f, "e8e8e8");
+            for (int i = -4; i <= 4; i++)
+            {
+                Slab(air, -230f, 62f + i * 3.2f, 16f, 0.04f, 1.4f, "e8e8e8");
+                Slab(air, 230f, 62f + i * 3.2f, 16f, 0.04f, 1.4f, "e8e8e8");
+            }
+            for (int i = -12; i <= 12; i++)
+            {
+                Slab(air, i * 20f, 44.5f, 0.35f, 0.35f, 0.35f, "ffd070ff");
+                Slab(air, i * 20f, 79.5f, 0.35f, 0.35f, 0.35f, "ffd070ff");
+            }
+            Slab(air, 0f, 30f, 180f, 0.04f, 0.35f, "d8b830");
+            Put(air, "warehouse", -78f, 118f, 0f, 15f);
+            Put(air, "warehouse", -26f, 120f, 0f, 16f);
+            Put(air, "warehouse", 26f, 120f, 0f, 16f);
+            Put(air, "warehouse", 78f, 118f, 0f, 15f);
+            Put(air, "block", 150f, 104f, 180f, 18f);
+            Put(air, "shed", -152f, 104f, 180f, 16f);
+            Put(air, "depot_a", -92f, 2f, 90f, 8f);
+            Put(air, "depot_b", 94f, 0f, -90f, 8f);
+            Put(air, "tvtower", 112f, 34f, 0f, 30f, true);
+            Put(air, "lookout", -112f, 28f, 0f, 13f);
+            Put(air, "radar", 118f, 14f, 0f, 9f, true);
+            Put(air, "plane_big", -120f, 62f, 90f, 13f);
+            Put(air, "plane_small", -46f, 16f, 160f, 3.8f);
+            Put(air, "plane_prop", -16f, 20f, 200f, 3.6f);
+            Put(air, "jet", 30f, 18f, 180f, 5f);
+            Put(air, "heli", 62f, 10f, 30f, 4.2f);
+            Put(air, "truck", -66f, 24f, 80f);
+            Put(air, "pickup", 8f, 2f, 110f);
+            Put(air, "suv", 46f, -4f, 20f);
+            Put(air, "armored", -30f, -6f, 190f);
+            Row(air, "gastank", -84f, 26f, 2.6f, 0f, 4, 0f, 3.6f);
+            Boom(air, -40f, 10f);
+            Boom(air, -38.8f, 10.8f);
+            Boom(air, 22f, 10f);
+            Boom(air, 56f, 14f);
+            foreach (Vector3 p in new[] { V(-22f, 12f), V(-21f, 13f), V(40f, 8f), V(70f, 18f), V(0f, 12f), V(1.2f, 12.4f), V(-58f, 6f) }) Put(air, "crate", p.x, p.z, p.x * 13f, 1.1f);
+            foreach (Vector3 p in new[] { V(14f, 8f), V(-8f, 26f), V(52f, 22f) }) Put(air, "pallet", p.x, p.z, p.x * 17f);
+            Row(air, "light", -78f, -8f, 26f, 0f, 7, 0f, 0f, true);
+            Row(air, "light", -66f, 31f, 44f, 0f, 4, 180f, 0f, true);
+            Row(air, "fence_metal", -110f, -24f, 3.56f, 0f, 62, 0f, 0f, false, true);
+            Row(air, "barrier", -8f, -20f, 2.6f, 0f, 6, 0f, 0.9f);
+            air.Traffic.Add(new Traffic { Model = "pickup", From = new Vector3(-220f, 0f, 36f), To = new Vector3(220f, 0f, 36f), Speed = 9f, Offset = 0.1f });
+            air.Traffic.Add(new Traffic { Model = "plane_small", From = new Vector3(-280f, 0f, 62f), To = new Vector3(280f, 0f, 62f), Speed = 14f, Height = 3.8f, Offset = 0.55f });
+            list.Add(air);
+
+            // The station: a square, two platforms, a train standing and another passing behind it.
+            var rail = new LocationDef
+            {
+                Id = "rail", NameKey = "loc.rail", Ground = "concrete", Light = "overcast", HalfSize = 300f,
+                MenuEye = new Vector3(-36f, 4f, -8f), MenuLook = new Vector3(4f, 3f, 30f), Ambience = "amb_town", AmbienceVolume = 0.3f,
+            };
+            foreach (float z in new[] { 20f, 40f, 47f })
+                for (int i = -10; i <= 10; i++) Scaled(rail, "track", i * 24.8f, z, 0f, 1.38f);
+            Slab(rail, 0f, 12f, 170f, 0.3f, 8f, "8f8f8a", 0f, 0f, true);
+            Slab(rail, 0f, 15.8f, 170f, 0.31f, 0.35f, "d8b830");
+            Slab(rail, 0f, 30f, 170f, 0.3f, 7f, "8f8f8a", 0f, 0f, true);
+            Slab(rail, 0f, 26.7f, 170f, 0.31f, 0.35f, "d8b830");
+            Slab(rail, 0f, 33.3f, 170f, 0.31f, 0.35f, "d8b830");
+            // The train at the far platform, and wagons in the siding beyond.
+            Put(rail, "loco", -34f, 40f, 0f, 4.4f);
+            for (int i = 0; i < 4; i++) Put(rail, "carriage", -22f + i * 11.4f, 40f, 0f, 4f);
+            Put(rail, "cargo_loco", 96f, 47f, 180f, 4.2f);
+            for (int i = 0; i < 3; i++) Put(rail, i == 1 ? "cargo_box" : "cargo_wagon", 110f + i * 14.4f, 47f, 0f, 4f);
+            Put(rail, "station", 0f, 66f, 180f, 13f);
+            Put(rail, "shed", -60f, 68f, 180f, 15f);
+            Put(rail, "block", 58f, 70f, 180f, 17f);
+            Put(rail, "warehouse", -124f, 30f, 90f, 12f);
+            Put(rail, "depot_a", 104f, 14f, -90f, 8f);
+            string[] beyond = { "kay_b", "sky_b", "kay_c", "sky_a", "kay_f", "sky_b", "kay_a", "kay_d" };
+            for (int i = 0; i < beyond.Length; i++) Put(rail, beyond[i], -140f + i * 40f, 110f + (i % 2) * 16f, i * 90f, 30f + (i * 13) % 26, true);
+            Row(rail, "light", -72f, 9f, 24f, 0f, 7, 0f, 0f, true);
+            Row(rail, "light", -60f, 30f, 30f, 0f, 5, 0f, 0f, true);
+            Row(rail, "bench", -50f, 9.5f, 25f, 0f, 5, 0f, 0.9f);
+            Row(rail, "bench", -38f, 30f, 38f, 0f, 3, 0f, 0.9f);
+            string[] taxis = { "car", "suv", "police", "sports", "car", "pickup" };
+            for (int i = 0; i < taxis.Length; i++) Put(rail, taxis[i], -62f + i * 24f, -14f, 90f + (i % 2) * 180f);
+            Put(rail, "truck", -92f, -6f, 30f);
+            Put(rail, "armored", 86f, -10f, 200f);
+            Row(rail, "barrier", -12f, -24f, 2.6f, 0f, 9, 0f, 0.9f);
+            Row(rail, "fence_metal", -110f, 51f, 3.56f, 0f, 62, 0f, 0f, false, true);
+            Boom(rail, -30f, 3f);
+            Boom(rail, 44f, 4f);
+            Boom(rail, 12f, 28.6f);
+            foreach (Vector3 p in new[] { V(-56f, 4f), V(-55f, 5f), V(20f, 4f), V(66f, 6f), V(-12f, 3f) }) Put(rail, "crate", p.x, p.z, p.x * 13f, 1.1f);
+            Put(rail, "dumpster", -78f, 4f, 0f, 1.6f);
+            Put(rail, "dumpster", 76f, 3f, 0f, 1.6f);
+            rail.Traffic.Add(new Traffic { Model = "cargo_loco", From = new Vector3(-320f, 0f, 53.5f), To = new Vector3(320f, 0f, 53.5f), Speed = 12f, Height = 4.2f, Offset = 0.2f });
+            rail.Traffic.Add(new Traffic { Model = "cargo_wagon", From = new Vector3(-334.6f, 0f, 53.5f), To = new Vector3(305.4f, 0f, 53.5f), Speed = 12f, Height = 4f, Offset = 0.2f });
+            rail.Traffic.Add(new Traffic { Model = "cargo_box", From = new Vector3(-349f, 0f, 53.5f), To = new Vector3(291f, 0f, 53.5f), Speed = 12f, Height = 4f, Offset = 0.2f });
+            rail.Traffic.Add(new Traffic { Model = "car", From = new Vector3(-200f, 0f, -30f), To = new Vector3(200f, 0f, -30f), Speed = 10f, Offset = 0.6f });
+            rail.Crowd.Add(Walker("casual", new Vector3(-60f, 0.3f, 13f), new Vector3(-20f, 0.3f, 14f)));
+            rail.Crowd.Add(Walker("worker", new Vector3(64f, 0.3f, 12f), new Vector3(30f, 0.3f, 13.5f)));
+            rail.Crowd.Add(Walker("farmer", new Vector3(-10f, 0.3f, 31f), new Vector3(40f, 0.3f, 30f)));
+            list.Add(rail);
+
+            // A village in the snow: a square with a well, houses round it, a church behind, pines all about.
+            var snow = new LocationDef
+            {
+                Id = "snow", NameKey = "loc.snow", Ground = "snow", Light = "day", HalfSize = 300f,
+                MenuEye = new Vector3(-30f, 4f, -16f), MenuLook = new Vector3(4f, 4f, 30f), Ambience = "amb_wind", AmbienceVolume = 0.6f,
+            };
+            Put(snow, "cabin", -36f, 30f, 150f, 7f);
+            Put(snow, "cottage", -12f, 42f, 180f, 7.5f);
+            Put(snow, "house", 16f, 40f, 180f, 8.5f);
+            Put(snow, "hut", 38f, 28f, 210f, 6f);
+            Put(snow, "cabin", 52f, 4f, -90f, 7f);
+            Put(snow, "cottage", -56f, 2f, 90f, 7f);
+            Put(snow, "hut", -64f, 32f, 120f, 6f);
+            Put(snow, "house", 66f, 34f, 230f, 8f);
+            Put(snow, "church", 2f, 76f, 180f, 20f);
+            Put(snow, "sawmill", 74f, 60f, 200f, 6f);
+            Put(snow, "well", 0f, 12f, 0f, 2.8f);
+            Scaled(snow, "logs", -24f, 14f, 30f, 2.6f, false);
+            Scaled(snow, "logs", 28f, 12f, 100f, 2.6f, false);
+            Scaled(snow, "logs", 60f, 48f, 10f, 3f, false);
+            Scaled(snow, "logs", -44f, 16f, 80f, 2.6f, false);
+            for (int i = 0; i < 9; i++) Put(snow, "woodwall", -70f + i * 4.6f, -14f, 0f, 1.6f, false, true);
+            for (int i = 0; i < 9; i++) Put(snow, "woodwall", 30f + i * 4.6f, -14f, 0f, 1.6f, false, true);
+            Put(snow, "pickup", -14f, 2f, 40f);
+            Put(snow, "armored", 24f, -6f, 160f);
+            Put(snow, "suv", 44f, 16f, 250f);
+            Put(snow, "truck", -44f, -4f, 100f);
+            Boom(snow, -10f, 24f);
+            Boom(snow, -8.8f, 24.8f);
+            Boom(snow, 30f, 20f);
+            foreach (Vector3 p in new[] { V(6f, 22f), V(7f, 23f), V(-28f, 4f), V(36f, 2f), V(-4f, 30f) }) Put(snow, "crate", p.x, p.z, p.x * 13f, 1.1f);
+            Put(snow, "tower", -78f, -16f, 0f, 10f);
+            Put(snow, "tower", 78f, -16f, 0f, 10f);
+            // Pines: a ring far enough to close the horizon, and a few among the houses.
+            for (int i = 0; i < 46; i++)
+            {
+                float angle = i * 0.137f * 6.2832f, ring = 96f + (i * 37) % 70;
+                float x = Mathf.Cos(angle) * ring * 1.5f, z = 40f + Mathf.Sin(angle) * ring;
+                if (z < -30f) continue;
+                Put(snow, i % 5 == 0 ? "birch_snow" : i % 7 == 0 ? "dead_snow" : "pine_snow", x, z, i * 50f, i % 5 == 0 ? 9f : i % 7 == 0 ? 6f : 9f + (i * 13) % 6, true);
+            }
+            foreach (Vector3 p in new[] { V(-22f, 50f), V(30f, 52f), V(-48f, 44f), V(50f, 46f), V(-70f, 14f), V(72f, 12f), V(-6f, 58f) }) Put(snow, "pine_snow", p.x, p.z, p.x * 7f, 8f + Mathf.Abs(p.x) % 4f, true);
+            snow.Traffic.Add(new Traffic { Model = "pickup", From = new Vector3(-220f, 0f, -34f), To = new Vector3(220f, 0f, -34f), Speed = 8f, Offset = 0.7f });
+            snow.Crowd.Add(Walker("farmer", V(-46f, 22f), V(-30f, 8f)));
+            snow.Crowd.Add(Walker("worker", V(54f, 22f), V(40f, 8f)));
+            list.Add(snow);
             return list;
         }
 
@@ -368,6 +547,9 @@ namespace Sniper
 
             AddTown(list);
             AddFort(list);
+            AddAir(list);
+            AddRail(list);
+            AddSnow(list);
             // The people of each place are in every contract there.
             foreach (MissionDef mission in list)
             {
@@ -493,6 +675,209 @@ namespace Sniper
             Guard(m, V(-40f, 12f)).YawDeg = 180f;
             Passer(m, "casual", V(-70f, 19f), V(-40f, 19f));
             Passer(m, "farmer", V(80f, 19f), V(50f, 19f));
+        }
+
+        static void AddAir(List<MissionDef> list)
+        {
+            // 19. A pilot checks his aircraft.
+            MissionDef m = New(list, "air", new Vector3(-30f, 28f, -140f), new Vector3(-16f, 1.4f, 12f), 8, 9000, 25f, "headshots");
+            ActorDef pilot = Target(m, "adventurer", "name.pilot", 900, V(-20f, 12f), V(-12f, 14f));
+            pilot.Wait = 6f;
+            pilot.Escape = V(-16f, 19f);
+            pilot.LeavesAt = 50f;
+            Passer(m, "worker", V(-60f, 8f), V(-52f, 20f));
+
+            // 20. Crates change hands under the lamp.
+            m = New(list, "air", new Vector3(20f, 30f, -145f), new Vector3(0f, 1.4f, 8f), 9, 9600, 30f, "clean");
+            Target(m, "suit", "name.smuggler", 800, V(-2f, 9f)).YawDeg = 90f;
+            ActorDef other = Target(m, "hoodie", "name.buyer", 600, V(3.5f, 9f));
+            other.YawDeg = -90f;
+            other.Escape = V(46f, -2f);
+            Guard(m, V(12f, 4f), V(-10f, 4f));
+            Guard(m, V(-26f, -2f)).YawDeg = 180f;
+
+            // 21. Three of them between the aircraft; one round into the right drum does for two.
+            m = New(list, "air", new Vector3(-60f, 32f, -150f), new Vector3(-30f, 1.4f, 10f), 8, 10400, 30f, "clean");
+            Target(m, "swat", "name.sentry", 400, V(-42f, 12.5f)).Idle = "Idle_Gun";
+            Target(m, "swat", "name.sentry", 400, V(-36f, 8f)).Idle = "Idle_Gun";
+            ActorDef third = Target(m, "swat", "name.sentry", 400, V(24f, 13f), V(34f, 6f));
+            third.Idle = "Idle_Gun";
+            third.Wait = 4f;
+            Passer(m, "worker", V(60f, 20f), V(68f, 6f));
+
+            // 22. Our man waits by the helicopter; they are coming for him out of the dark.
+            m = New(list, "air", new Vector3(50f, 30f, -140f), new Vector3(58f, 1.4f, 6f), 9, 11200, 26f, "headshots");
+            m.Wind = new Vector3(-2.5f, 0f, 0f);
+            m.Actors.Add(Man("ally", "casual", Role.Ally, "name.agent", V(58f, 4f)));
+            foreach (Vector3 from in new[] { V(10f, 24f), V(100f, 20f), V(40f, 30f) })
+            {
+                ActorDef hunter = Target(m, "punk", "name.killer", 500, from, V((from.x + 58f) * 0.5f, 14f), V(58f + Mathf.Sign(from.x - 58f) * 2f, 5f));
+                hunter.Wait = 0.4f;
+                hunter.Assassin = true;
+            }
+
+            // 23. The general boards in forty seconds.
+            m = New(list, "air", new Vector3(0f, 34f, -150f), new Vector3(20f, 1.4f, 10f), 10, 12400, 35f, "headshots");
+            m.Seconds = 70f;
+            m.Wind = new Vector3(3f, 0f, 0f);
+            ActorDef general = Target(m, "suit", "name.general", 2500, V(4f, 6f), V(20f, 10f));
+            general.Wait = 5f;
+            general.Health = 220f;
+            general.Escape = V(30f, 15f);
+            general.LeavesAt = 36f;
+            Guard(m, V(2f, 8f), V(18f, 12f));
+            Guard(m, V(6f, 4f), V(22f, 8f));
+            Guard(m, V(44f, 4f)).YawDeg = 180f;
+            Guard(m, V(-24f, 6f)).YawDeg = 180f;
+
+            // 24. Everyone on the apron.
+            m = New(list, "air", new Vector3(-10f, 36f, -150f), new Vector3(0f, 1.4f, 10f), 14, 14000, 60f, "headshots");
+            m.Wind = new Vector3(-2f, 0f, 0f);
+            foreach (Vector3 post in new[] { V(-44f, 6f), V(-18f, 26f), V(2f, 4f), V(26f, 24f), V(48f, 8f), V(70f, 22f) })
+            {
+                ActorDef man = Target(m, "swat", "name.sentry", 350, post, post + new Vector3(6f, 0f, -3f));
+                man.Idle = "Idle_Gun";
+                man.Wait = 5f;
+            }
+        }
+
+        static Vector3 P(float x, float z) => new Vector3(x, 0.3f, z);
+
+        static void AddRail(List<MissionDef> list)
+        {
+            // 25. A man with a suitcase on platform one.
+            MissionDef m = New(list, "rail", new Vector3(-20f, 30f, -140f), new Vector3(-10f, 1.6f, 12f), 8, 15000, 25f, "headshots");
+            ActorDef traveller = Target(m, "suit", "name.courier", 1200, P(-10f, 12f), P(8f, 13f));
+            traveller.Wait = 7f;
+            traveller.Escape = P(60f, 12f);
+            traveller.LeavesAt = 48f;
+            Passer(m, "casual", P(30f, 11f), P(-40f, 11f));
+
+            // 26. Two on the far platform, with the near one in the way of nothing.
+            m = New(list, "rail", new Vector3(30f, 34f, -145f), new Vector3(10f, 1.6f, 30f), 8, 16000, 30f, "clean");
+            m.Wind = new Vector3(2f, 0f, 0f);
+            Target(m, "hoodie", "name.lookout", 600, P(-6f, 30f)).YawDeg = 180f;
+            ActorDef broker = Target(m, "suit", "name.fixer", 1200, P(20f, 30f), P(34f, 31f));
+            broker.Wait = 5f;
+            broker.Escape = P(80f, 30f);
+            Guard(m, P(8f, 12f), P(28f, 13f));
+
+            // 27. The meeting in the square.
+            m = New(list, "rail", new Vector3(-50f, 30f, -150f), new Vector3(-20f, 1.4f, 0f), 9, 17000, 28f, "headshots");
+            Target(m, "punk", "name.thug", 500, V(-26f, 0f)).YawDeg = 90f;
+            Target(m, "hoodie", "name.thug", 500, V(-22f, 0f)).YawDeg = -90f;
+            ActorDef third = Target(m, "suit", "name.banker", 1400, V(-24f, -3f));
+            third.Escape = V(-62f, -12f);
+            Guard(m, V(-40f, 2f), V(-8f, 2f));
+            Passer(m, "worker", V(30f, -4f), V(60f, 0f));
+
+            // 28. The witness waits for the evening train.
+            m = New(list, "rail", new Vector3(10f, 32f, -140f), new Vector3(0f, 1.6f, 12f), 9, 18000, 26f, "headshots");
+            m.Wind = new Vector3(-3f, 0f, 0f);
+            m.Actors.Add(Man("ally", "casual", Role.Ally, "name.witness", P(0f, 12f)));
+            foreach (float from in new[] { -70f, 72f, -40f })
+            {
+                ActorDef hunter = Target(m, from < -50f ? "punk" : "hoodie", "name.killer", 600, P(from, 13f), P(from * 0.5f, 12.5f), P(Mathf.Sign(from) * 2f, 12.2f));
+                hunter.Wait = 0.4f;
+                hunter.Assassin = true;
+            }
+
+            // 29. Six guards down both platforms.
+            m = New(list, "rail", new Vector3(-30f, 36f, -150f), new Vector3(0f, 1.6f, 20f), 12, 19500, 50f, "clean");
+            foreach (float x in new[] { -50f, -10f, 36f })
+            {
+                ActorDef near = Target(m, "swat", "name.sentry", 400, P(x, 11f), P(x + 12f, 13f));
+                near.Idle = "Idle_Gun";
+                near.Wait = 4f;
+                ActorDef far = Target(m, "swat", "name.sentry", 400, P(x + 20f, 30f), P(x + 8f, 31f));
+                far.Idle = "Idle_Gun";
+                far.Wait = 5f;
+            }
+
+            // 30. The minister's train leaves in a minute.
+            m = New(list, "rail", new Vector3(40f, 36f, -150f), new Vector3(10f, 1.6f, 30f), 10, 21000, 40f, "headshots");
+            m.Seconds = 75f;
+            m.Wind = new Vector3(3.5f, 0f, 0f);
+            ActorDef minister = Target(m, "suit", "name.minister", 3500, P(30f, 30f), P(6f, 31f));
+            minister.Wait = 6f;
+            minister.Health = 220f;
+            minister.Escape = P(-12f, 33f);
+            minister.LeavesAt = 40f;
+            Guard(m, P(34f, 29f), P(10f, 30f));
+            Guard(m, P(26f, 32f), P(2f, 32.5f));
+            Guard(m, P(-20f, 12f)).YawDeg = 180f;
+            Guard(m, P(50f, 12f)).YawDeg = 180f;
+        }
+
+        static void AddSnow(List<MissionDef> list)
+        {
+            // 31. The contact at the well.
+            MissionDef m = New(list, "snow", new Vector3(-10f, 30f, -140f), new Vector3(0f, 1.4f, 10f), 8, 22000, 25f, "headshots");
+            m.Wind = new Vector3(4f, 0f, 0f);
+            ActorDef contact = Target(m, "farmer", "name.contact", 1500, V(3f, 10f));
+            contact.YawDeg = 200f;
+            contact.Escape = V(-32f, 24f);
+            contact.LeavesAt = 45f;
+            Guard(m, V(-20f, 6f), V(16f, 4f));
+
+            // 32. A patrol between the houses.
+            m = New(list, "snow", new Vector3(40f, 32f, -150f), new Vector3(0f, 1.4f, 16f), 9, 23500, 35f, "clean");
+            m.Wind = new Vector3(-4.5f, 0f, 0f);
+            foreach (Vector3 post in new[] { V(-40f, 14f), V(-6f, 28f), V(28f, 24f), V(44f, 8f) })
+            {
+                ActorDef man = Target(m, "swat", "name.sentry", 500, post, post + new Vector3(8f, 0f, -4f));
+                man.Idle = "Idle_Gun";
+                man.Wait = 4f;
+            }
+
+            // 33. The drums behind the pickup.
+            m = New(list, "snow", new Vector3(-40f, 30f, -145f), new Vector3(-10f, 1.4f, 22f), 6, 25000, 20f, "clean");
+            m.Wind = new Vector3(3f, 0f, 0f);
+            Target(m, "punk", "name.thug", 600, V(-12f, 22f)).YawDeg = 90f;
+            Target(m, "hoodie", "name.thug", 600, V(-7f, 23f)).YawDeg = -90f;
+            ActorDef boss = Target(m, "suit", "name.smuggler", 1800, V(-10f, 20.5f));
+            boss.Escape = V(-36f, 24f);
+            Guard(m, V(20f, 8f)).YawDeg = 180f;
+
+            // 34. The prisoner in the square.
+            m = New(list, "snow", new Vector3(10f, 32f, -140f), new Vector3(0f, 1.4f, 4f), 9, 26500, 26f, "headshots");
+            m.Wind = new Vector3(-5f, 0f, 0f);
+            m.Actors.Add(Man("ally", "casual", Role.Ally, "name.prisoner", V(0f, 2f)));
+            foreach (Vector3 from in new[] { V(-34f, 24f), V(36f, 22f), V(4f, 34f) })
+            {
+                ActorDef jailer = Target(m, "swat", "name.jailer", 700, from, V(from.x * 0.5f, 12f), V(Mathf.Sign(from.x) * 1.6f, 3f));
+                jailer.Idle = "Idle_Gun";
+                jailer.Wait = 0.5f;
+                jailer.Assassin = true;
+            }
+
+            // 35. The commander leaves his headquarters.
+            m = New(list, "snow", new Vector3(-30f, 36f, -150f), new Vector3(10f, 1.4f, 24f), 10, 28000, 40f, "headshots");
+            m.Seconds = 75f;
+            m.Wind = new Vector3(5f, 0f, 0f);
+            ActorDef commander = Target(m, "suit", "name.commander", 4000, V(16f, 32f), V(4f, 18f));
+            commander.Wait = 5f;
+            commander.Health = 220f;
+            commander.Escape = V(22f, -4f);
+            commander.LeavesAt = 38f;
+            Guard(m, V(20f, 30f), V(8f, 16f));
+            Guard(m, V(12f, 30f), V(0f, 16f));
+            Guard(m, V(26f, -2f)).YawDeg = 180f;
+            Guard(m, V(-30f, 10f)).YawDeg = 180f;
+
+            // 36. The last contract.
+            m = New(list, "snow", new Vector3(0f, 40f, -150f), new Vector3(0f, 1.4f, 16f), 16, 32000, 70f, "headshots");
+            m.Wind = new Vector3(-4f, 0f, 0f);
+            ActorDef last = Target(m, "suit", "name.warlord", 6000, V(0f, 34f), V(10f, 16f), V(-10f, 16f));
+            last.Wait = 4f;
+            last.Health = 220f;
+            last.Escape = V(2f, 60f);
+            foreach (Vector3 post in new[] { V(-44f, 10f), V(-20f, 30f), V(24f, 30f), V(46f, 12f), V(-6f, 2f), V(14f, 4f) })
+            {
+                ActorDef man = Target(m, "swat", "name.sentry", 450, post, post + new Vector3(6f, 0f, 3f));
+                man.Idle = "Idle_Gun";
+                man.Wait = 5f;
+            }
         }
 
         static void AddFort(List<MissionDef> list)

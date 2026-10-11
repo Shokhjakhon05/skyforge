@@ -50,6 +50,8 @@ namespace Sniper
         float _slow;
         float _punch;
         bool _wasReloading, _dailyRun;
+        int _streak, _streakBonus;
+        readonly List<string> _news = new List<string>();
 
         public bool SkipIntro;
         public Camera AutomationCamera => _cam;
@@ -81,6 +83,7 @@ namespace Sniper
             _hud.PausePressed += Pause;
             _hud.Visible = false;
             ShowMenu();
+            if (ShotDirector.OutputDir == null) SniperSplash.Create(transform, _sfx);
         }
 
         static string DeviceLanguage()
@@ -125,6 +128,8 @@ namespace Sniper
             _following = false;
             _afterShot = 0f;
             _result = null;
+            _streak = 0;
+            _streakBonus = 0;
             _slow = 0f;
             _punch = 0f;
             Time.timeScale = 1f;
@@ -246,9 +251,17 @@ namespace Sniper
                     _lastMouse = Input.mousePosition;
                 }
             }
+            if (_save.Gyro && SystemInfo.supportsGyroscope)
+            {
+                if (!Input.gyro.enabled) Input.gyro.enabled = true;
+                Vector3 turn = Input.gyro.rotationRateUnbiased;
+                float gain = Mathf.Rad2Deg * Time.unscaledDeltaTime * Mathf.Clamp(_cam.fieldOfView / 20f, 0.08f, 1f);
+                _yaw -= turn.y * gain;
+                _pitch = Mathf.Clamp(_pitch - turn.x * gain, -20f, 60f);
+            }
             if (drag.sqrMagnitude <= 0f) return;
             // A finger's width moves the cross the same distance on the glass at any magnification.
-            float degreesPerPixel = _cam.fieldOfView / Mathf.Max(1, Screen.height) * 1.15f;
+            float degreesPerPixel = _cam.fieldOfView / Mathf.Max(1, Screen.height) * 1.15f * _save.Sensitivity;
             _yaw += drag.x * degreesPerPixel;
             _pitch = Mathf.Clamp(_pitch - drag.y * degreesPerPixel, -20f, 60f);
         }
@@ -344,7 +357,19 @@ namespace Sniper
                     }
                     bool head = e.Zone == Zone.Head;
                     string name = string.IsNullOrEmpty(def.NameKey) ? "" : Loc.T(def.NameKey);
-                    _hud.Message(Loc.T(head ? "sn.headshot" : "sn.down"), def.Bounty > 0 ? name + "   +$" + (def.Bounty + (head ? 60 : 0)) : name, head ? UiKit.Accent : Color.white);
+                    int metres = Mathf.RoundToInt(Vector3.Distance(e.Position, _mission.Perch));
+                    _streak = head ? _streak + 1 : 0;
+                    int extra = head ? 60 : 0;
+                    if (_streak >= 2)
+                    {
+                        extra += 40 * _streak;
+                        _streakBonus += 40 * _streak;
+                    }
+                    bool record = metres > _save.LongestShot + 0.5f && _save.Kills + _sim.Kills > 3;
+                    if (metres > _save.LongestShot) _save.LongestShot = metres;
+                    string title = _streak >= 2 ? Loc.T("sn.streak", _streak) : Loc.T(head ? "sn.headshot" : "sn.down");
+                    string sub = name + "   " + metres + " " + Loc.T("sn.m") + (def.Bounty + extra > 0 ? "   +$" + (def.Bounty + extra) : "") + (record ? "   " + Loc.T("sn.record") : "");
+                    _hud.Message(title, sub, head ? UiKit.Accent : Color.white);
                     _sfx.Play(Sound.Success, head ? 0.6f : 0.35f);
                     if (head && !_following) _slow = 0.5f;
                     Buzz();
@@ -355,7 +380,16 @@ namespace Sniper
                     _audio.Play("hit_body", 0.8f);
                     _hud.Message(Loc.T("sn.hit"), null, Color.white);
                     break;
+                case SimEventType.Explosion:
+                    _world.Blow(e.Actor);
+                    _effects.Explosion(e.Position, 8f, false);
+                    _sfx.Play(Sound.Explosion, 1f);
+                    _hud.Message(Loc.T("sn.boom"), null, UiKit.Accent);
+                    _recoil = Mathf.Max(_recoil, 0.6f);
+                    Buzz();
+                    break;
                 case SimEventType.Miss:
+                    _streak = 0;
                     _followPoint = e.Position;
                     _effects.Dust(e.Position + Vector3.up * 0.1f, 0.7f, Vector3.up * 1.2f);
                     _audio.Play(e.Position.y > 0.25f ? "miss_metal" : "miss_ground", 0.7f, Random.Range(0.9f, 1.15f));
@@ -426,17 +460,21 @@ namespace Sniper
                 if (_following) continue;
                 Vector3 screen = _cam.WorldToScreenPoint(head);
                 if (screen.z <= 0f || screen.x < 0f || screen.x > Screen.width || screen.y < 0f || screen.y > Screen.height) continue;
-                // Targets are named for the shooter; anyone else has to be looked at to be told apart.
+                // A man is named when the cross is laid on him. A target also carries a small red mark, so the square can be read at a glance.
+                // "Pro" takes both away: the briefing said what he looks like.
+                if (_save.Pro) continue;
                 bool aimed = off < Mathf.Max(0.5f, _cam.fieldOfView * 0.1f);
                 if (def.Role == Role.Target)
-                    _hud.Tag(used++, screen, "<color=#ff5a40>" + Loc.T(def.NameKey).ToUpperInvariant() + "</color>" + (def.Bounty > 0 && aimed ? "\n<size=20>$" + def.Bounty + "</size>" : ""));
+                    _hud.Tag(used++, screen, aimed ? "<color=#ff5a40>" + Loc.T(def.NameKey).ToUpperInvariant() + "</color>" + (def.Bounty > 0 ? "\n<size=20>$" + def.Bounty + "</size>" : "") : "<color=#ff5a40><size=30>v</size></color>");
                 else if (aimed && scoped)
-                    _hud.Tag(used++, screen, def.Role == Role.Civilian ? "<color=#6fe08a>" + Loc.T("sn.tag.civilian") + "</color>" : "<color=#ffb040>" + Loc.T("sn.tag.guard") + "</color>");
+                    _hud.Tag(used++, screen, def.Role == Role.Civilian ? "<color=#6fe08a>" + Loc.T("sn.tag.civilian") + "</color>" : def.Role == Role.Ally ? "<color=#60a0ff>" + Loc.T("sn.tag.ally") + "</color>" : "<color=#ffb040>" + Loc.T("sn.tag.guard") + "</color>");
             }
             _hud.EndTags(used);
             _hud.SetHint(Lesson());
             Vector3 wind = _mission.Wind;
-            _hud.SetData(Loc.T("sn.data", Mathf.RoundToInt(Mathf.Min(range, 999f)), wind.magnitude.ToString("0.0"), wind.magnitude < 0.1f ? "" : wind.x > 0f ? ">>" : "<<"));
+            _hud.SetData(_save.Pro ? Loc.T("sn.data.pro", wind.magnitude.ToString("0.0"), wind.magnitude < 0.1f ? "" : wind.x > 0f ? ">>" : "<<")
+                : Loc.T("sn.data", Mathf.RoundToInt(Mathf.Min(range, 999f)), wind.magnitude.ToString("0.0"), wind.magnitude < 0.1f ? "" : wind.x > 0f ? ">>" : "<<"));
+            _hud.SetButtons(!_following || _afterShot > 0f);
         }
 
         /// <summary>The first contract of a new player: one line that says what to do next with the rifle.</summary>
@@ -550,7 +588,7 @@ namespace Sniper
             foreach (LocationDef location in Campaign.Locations)
             {
                 string id = location.Id;
-                Press(s, Loc.T(location.NameKey).ToUpperInvariant(), id == _menuPlace ? UiKit.Lit : UiKit.SolidPanelColor, 28, new Vector2(0f, 0f), new Vector2(70f + tab * 330f, 520f), new Vector2(316f, 74f), () =>
+                Press(s, Loc.T(location.NameKey).ToUpperInvariant(), id == _menuPlace ? UiKit.Lit : UiKit.SolidPanelColor, 24, new Vector2(0f, 0f), new Vector2(70f + tab * 298f, 520f), new Vector2(288f, 70f), () =>
                 {
                     _menuPlace = id;
                     ShowMenu();
@@ -592,14 +630,102 @@ namespace Sniper
                 });
             }
             if (_save.DayStamp != Today) ShowDayPay();
-            Press(s, Loc.Language.ToUpperInvariant(), UiKit.SolidPanelColor, 28, new Vector2(1f, 0f), new Vector2(-450f, 60f), new Vector2(120f, 96f), NextLanguage);
-            Press(s, _save.Muted ? Loc.T("sn.sound.off") : Loc.T("sn.sound.on"), UiKit.SolidPanelColor, 26, new Vector2(1f, 0f), new Vector2(-590f, 60f), new Vector2(220f, 96f), () =>
+            Press(s, Loc.T("sn.settings"), UiKit.SolidPanelColor, 26, new Vector2(1f, 0f), new Vector2(-450f, 60f), new Vector2(250f, 96f), ShowSettings);
+            Press(s, Loc.T("sn.career"), UiKit.SolidPanelColor, 26, new Vector2(1f, 0f), new Vector2(-720f, 60f), new Vector2(250f, 96f), ShowCareer);
+            bool hunting = _save.Completed >= 6;
+            Press(s, hunting ? Loc.T("sn.hunt") + "  " + _save.HuntLevel : Loc.T("sn.hunt.locked"), hunting ? UiKit.Accent : UiKit.Faint, 26, new Vector2(1f, 0f), new Vector2(-990f, 60f), new Vector2(330f, 96f), () =>
+            {
+                if (hunting) StartHunt();
+                else _sfx.Play(Sound.Warning, 0.5f);
+            });
+        }
+
+        string MissionTitle(MissionDef mission) => mission.Id == Hunt.Id ? Loc.T("sn.hunt") + " " + _save.HuntLevel : Loc.T(mission.TitleKey);
+
+        /// <summary>A contract made up on the spot, in a place the player has already worked.</summary>
+        void StartHunt()
+        {
+            var places = new List<string>();
+            foreach (MissionDef mission in Campaign.Missions)
+                if ((_save.Record(mission.Id)?.Stars ?? 0) > 0 && !places.Contains(mission.LocationId)) places.Add(mission.LocationId);
+            if (places.Count == 0) places.Add(Campaign.Missions[0].LocationId);
+            string place = places[(_save.HuntLevel * 7 + _save.Hunts) % places.Count];
+            MissionDef hunt = Hunt.Make(place, _save.HuntLevel, _save.Hunts * 13 + _save.HuntLevel);
+            if (hunt == null) return;
+            ShowBriefing(hunt, false);
+        }
+
+        void ShowSettings()
+        {
+            RectTransform s = Screen_("Settings", true);
+            Words(s, Loc.T("sn.settings"), 64, new Vector2(0.5f, 1f), new Vector2(0f, -70f), new Vector2(1200f, 80f), TextAnchor.MiddleCenter, Color.white);
+            float y = 190f;
+            void Line(string label, string value, System.Action less, System.Action more)
+            {
+                Words(s, label, 32, new Vector2(0.5f, 0.5f), new Vector2(-330f, y), new Vector2(500f, 44f), TextAnchor.MiddleLeft, Color.white);
+                Press(s, less != null ? "–" : value, UiKit.SolidPanelColor, less != null ? 44 : 30, new Vector2(0.5f, 0.5f), new Vector2(less != null ? 150f : 330f, y), less != null ? new Vector2(110f, 84f) : new Vector2(470f, 84f), less ?? more);
+                if (less == null) return;
+                Words(s, value, 32, new Vector2(0.5f, 0.5f), new Vector2(330f, y), new Vector2(240f, 44f), TextAnchor.MiddleCenter, UiKit.Cyan);
+                Press(s, "+", UiKit.SolidPanelColor, 44, new Vector2(0.5f, 0.5f), new Vector2(510f, y), new Vector2(110f, 84f), more);
+            }
+            Line(Loc.T("sn.set.sense"), Mathf.RoundToInt(_save.Sensitivity * 100f) + "%", () => Sense(-0.1f), () => Sense(0.1f));
+            y -= 110f;
+            Line(Loc.T("sn.set.gyro"), Loc.T(_save.Gyro ? "sn.on" : "sn.off"), null, () =>
+            {
+                _save.Gyro = !_save.Gyro;
+                _save.Store();
+                ShowSettings();
+            });
+            y -= 110f;
+            Line(Loc.T("sn.set.sound"), Loc.T(_save.Muted ? "sn.off" : "sn.on"), null, () =>
             {
                 _save.Muted = !_save.Muted;
                 AudioListener.volume = _save.Muted ? 0f : 1f;
                 _save.Store();
-                ShowMenu();
+                ShowSettings();
             });
+            y -= 110f;
+            Line(Loc.T("sn.set.language"), Loc.Language.ToUpperInvariant(), null, () =>
+            {
+                int index = System.Array.IndexOf(Loc.Languages, Loc.Language);
+                _save.Language = Loc.Languages[(index + 1) % Loc.Languages.Length];
+                Loc.SetLanguage(_save.Language);
+                _save.Store();
+                ShowSettings();
+            });
+            Press(s, Loc.T("sn.back"), UiKit.Accent, 34, new Vector2(0.5f, 0f), new Vector2(0f, 70f), new Vector2(360f, 96f), _phase == Phase.Paused ? (System.Action)Pause_ : ShowMenu);
+        }
+
+        void Sense(float by)
+        {
+            _save.Sensitivity = Mathf.Clamp(Mathf.Round((_save.Sensitivity + by) * 10f) / 10f, 0.4f, 2.5f);
+            _save.Store();
+            ShowSettings();
+        }
+
+        /// <summary>The career in numbers, what has been earned for it, and whose work the game is built from.</summary>
+        void ShowCareer()
+        {
+            RectTransform s = Screen_("Career", true);
+            Words(s, Loc.T("sn.career"), 60, new Vector2(0f, 1f), new Vector2(70f, -36f), new Vector2(900f, 76f), TextAnchor.UpperLeft, Color.white);
+            int accuracy = _save.Shots > 0 ? Mathf.Clamp(Mathf.RoundToInt(100f * _save.Kills / _save.Shots), 0, 100) : 0;
+            string stats = Loc.T("sn.stat.contracts", _save.Completed, Campaign.Missions.Count) + "\n" + Loc.T("sn.stat.stars", _save.Stars, Campaign.Missions.Count * 3) + "\n" +
+                Loc.T("sn.stat.kills", _save.Kills, _save.Headshots) + "\n" + Loc.T("sn.stat.accuracy", accuracy) + "\n" +
+                Loc.T("sn.stat.far", Mathf.RoundToInt(_save.LongestShot)) + "\n" + Loc.T("sn.stat.hunts", _save.Hunts) + "\n" + Loc.T("sn.stat.days", _save.Streak);
+            Words(s, stats, 30, new Vector2(0f, 1f), new Vector2(74f, -140f), new Vector2(760f, 330f), TextAnchor.UpperLeft, new Color(1f, 1f, 1f, 0.9f));
+            int row = 0;
+            foreach (Feat feat in Feats.All)
+            {
+                bool done = _save.Feats.Contains(feat.Id);
+                int have = Mathf.Min(feat.Goal, FeatValue(feat.Kind));
+                var at = new Vector2(-70f - (row % 2) * 480f, -140f - (row / 2) * 62f);
+                Words(s, (done ? "+  " : "") + Loc.T("sn.feat." + feat.Kind, feat.Goal) + (done ? "" : "   " + have + "/" + feat.Goal) + "   $" + feat.Cash.ToString("N0"), 22, new Vector2(1f, 1f), at, new Vector2(460f, 54f),
+                    TextAnchor.MiddleLeft, done ? UiKit.Accent : new Color(1f, 1f, 1f, 0.75f));
+                row++;
+            }
+            var credits = Resources.Load<TextAsset>("sniper_credits");
+            Words(s, credits != null ? credits.text : "", 17, new Vector2(0f, 0f), new Vector2(74f, 60f), new Vector2(1320f, 300f), TextAnchor.LowerLeft, new Color(1f, 1f, 1f, 0.6f), true);
+            Press(s, Loc.T("sn.back"), UiKit.Accent, 32, new Vector2(1f, 0f), new Vector2(-70f, 50f), new Vector2(300f, 96f), ShowMenu);
         }
 
         /// <summary>One contract a day pays double: today's is picked by the date among those already won.</summary>
@@ -664,7 +790,7 @@ namespace Sniper
                 Vector3 side = Vector3.Cross(Vector3.up, line).normalized;
                 // Looked at a little to one side, so he stands in the right half of the screen, clear of the orders.
                 _cam.transform.position = mission.Perch;
-                _cam.transform.rotation = Quaternion.LookRotation(line - side * line.magnitude * 0.019f, Vector3.up);
+                _cam.transform.rotation = Quaternion.LookRotation(line - side * line.magnitude * 0.049f, Vector3.up);
                 _cam.fieldOfView = 4.4f;
             }
             RectTransform s = Screen_("Briefing", false);
@@ -676,7 +802,7 @@ namespace Sniper
             UiKit.Place(panel.rectTransform, new Vector2(0f, 0.5f), new Vector2(60f, 0f), new Vector2(980f, 760f));
             Transform p = panel.transform;
             Words(p, (daily ? Loc.T("sn.daily") + "  ·  " : "") + Loc.T("sn.contract", mission.Order) + "  ·  " + Loc.T(Campaign.Location(mission.LocationId).NameKey), 26, new Vector2(0f, 1f), new Vector2(46f, -40f), new Vector2(880f, 34f), TextAnchor.UpperLeft, daily ? UiKit.Accent : UiKit.Cyan);
-            Words(p, Loc.T(mission.TitleKey), 60, new Vector2(0f, 1f), new Vector2(46f, -78f), new Vector2(880f, 76f), TextAnchor.UpperLeft, Color.white);
+            Words(p, MissionTitle(mission), 60, new Vector2(0f, 1f), new Vector2(46f, -78f), new Vector2(880f, 76f), TextAnchor.UpperLeft, Color.white);
             Words(p, Loc.T(mission.BriefKey), 29, new Vector2(0f, 1f), new Vector2(46f, -176f), new Vector2(880f, 240f), TextAnchor.UpperLeft, new Color(1f, 1f, 1f, 0.85f), true);
             int targets = 0, bounty = 0;
             foreach (ActorDef actor in mission.Actors)
@@ -691,7 +817,13 @@ namespace Sniper
                 Loc.T("sn.brief.star2." + mission.Second) + "\n" + Loc.T("sn.brief.star3", Mathf.RoundToInt(mission.Par));
             Words(p, lines, 27, new Vector2(0f, 0f), new Vector2(46f, 156f), new Vector2(880f, 170f), TextAnchor.LowerLeft, UiKit.Accent);
             Press(p, Loc.T("sn.start"), UiKit.Accent, 40, new Vector2(1f, 0f), new Vector2(-46f, 40f), new Vector2(380f, 96f), StartMission);
-            Press(p, Loc.T("sn.back"), UiKit.SolidPanelColor, 32, new Vector2(0f, 0f), new Vector2(46f, 40f), new Vector2(260f, 96f), ShowMenu);
+            Press(p, Loc.T("sn.back"), UiKit.SolidPanelColor, 32, new Vector2(0f, 0f), new Vector2(46f, 40f), new Vector2(240f, 96f), ShowMenu);
+            Press(p, Loc.T(_save.Pro ? "sn.pro.on" : "sn.pro.off"), _save.Pro ? UiKit.Bad : UiKit.SolidPanelColor, 24, new Vector2(0f, 0f), new Vector2(300f, 40f), new Vector2(250f, 96f), () =>
+            {
+                _save.Pro = !_save.Pro;
+                _save.Store();
+                ShowBriefing(mission, daily);
+            });
 
             if (subject < 0) return;
             ActorDef who = _sim.Def(subject);
@@ -701,7 +833,8 @@ namespace Sniper
             UiKit.Place(frame.rectTransform, new Vector2(1f, 0.5f), new Vector2(-150f, 20f), new Vector2(520f, 640f));
             Words(s, Loc.T("sn.brief.subject"), 26, new Vector2(1f, 0.5f), new Vector2(-150f, 366f), new Vector2(520f, 34f), TextAnchor.MiddleLeft, new Color(1f, 0.35f, 0.25f));
             Words(s, Loc.T(who.NameKey).ToUpperInvariant(), 44, new Vector2(1f, 0.5f), new Vector2(-150f, -336f), new Vector2(520f, 54f), TextAnchor.MiddleLeft, Color.white);
-            if (who.Bounty > 0) Words(s, "$" + who.Bounty.ToString("N0"), 34, new Vector2(1f, 0.5f), new Vector2(-150f, -386f), new Vector2(520f, 44f), TextAnchor.MiddleLeft, UiKit.Accent);
+            Words(s, Loc.T(Feats.LookKey(who.Model)) + (who.Health > 150f ? "  ·  " + Loc.T("sn.look.armour") : ""), 26, new Vector2(1f, 0.5f), new Vector2(-150f, -382f), new Vector2(520f, 36f), TextAnchor.MiddleLeft, new Color(1f, 1f, 1f, 0.85f));
+            if (who.Bounty > 0) Words(s, "$" + who.Bounty.ToString("N0"), 34, new Vector2(1f, 0.5f), new Vector2(-150f, -424f), new Vector2(520f, 44f), TextAnchor.MiddleLeft, UiKit.Accent);
         }
 
         void StartMission()
@@ -713,7 +846,7 @@ namespace Sniper
             _hud.Visible = true;
             _music.Battle(_mission.Order);
             SetZoom(1);
-            _hud.Message(Loc.T(_mission.TitleKey), Loc.T("sn.objective", _sim.TargetsLeft), Color.white);
+            _hud.Message(MissionTitle(_mission), _save.Completed > 0 ? Loc.T("sn.tip." + (1 + (_save.Shots + _mission.Order) % 6)) : Loc.T("sn.objective", _sim.TargetsLeft), Color.white);
         }
 
         void Pause()
@@ -730,7 +863,14 @@ namespace Sniper
                 _phase = Phase.Play;
             });
             Press(s, Loc.T("sn.retry"), UiKit.SolidPanelColor, 34, new Vector2(0.5f, 0.5f), new Vector2(0f, -50f), new Vector2(460f, 100f), StartMission);
-            Press(s, Loc.T("sn.menu"), UiKit.SolidPanelColor, 34, new Vector2(0.5f, 0.5f), new Vector2(0f, -170f), new Vector2(460f, 100f), ShowMenu);
+            Press(s, Loc.T("sn.settings"), UiKit.SolidPanelColor, 34, new Vector2(0.5f, 0.5f), new Vector2(0f, -170f), new Vector2(460f, 100f), ShowSettings);
+            Press(s, Loc.T("sn.menu"), UiKit.SolidPanelColor, 34, new Vector2(0.5f, 0.5f), new Vector2(0f, -290f), new Vector2(460f, 100f), ShowMenu);
+        }
+
+        void Pause_()
+        {
+            _phase = Phase.Play;
+            Pause();
         }
 
         bool _dailyPaid;
@@ -754,6 +894,14 @@ namespace Sniper
                 }
                 record.Stars = Mathf.Max(record.Stars, _result.Stars);
                 if (record.Best <= 0f || _result.Seconds < record.Best) record.Best = _result.Seconds;
+                _result.Cash += _streakBonus;
+                if (_save.Pro) _result.Cash = Mathf.RoundToInt(_result.Cash * 1.5f);
+                if (_mission.Id == Hunt.Id)
+                {
+                    _save.Missions.Remove(record);
+                    _save.Hunts++;
+                    _save.HuntLevel++;
+                }
                 if (_dailyRun && _save.DailyDone != Today)
                 {
                     _result.Cash *= 2;
@@ -764,9 +912,32 @@ namespace Sniper
             }
             _save.Kills += _result.Kills;
             _save.Headshots += _result.Headshots;
+            _save.Shots += _result.Shots;
+            _save.Blasts += _sim.Blasts;
+            _news.Clear();
+            foreach (Feat feat in Feats.All)
+            {
+                if (_save.Feats.Contains(feat.Id) || FeatValue(feat.Kind) < feat.Goal) continue;
+                _save.Feats.Add(feat.Id);
+                _save.Cash += feat.Cash;
+                _news.Add(Loc.T("sn.feat.done", Loc.T("sn.feat." + feat.Kind, feat.Goal), feat.Cash));
+            }
             _save.Store();
             _sfx.Play(_result.Won ? Sound.Success : Sound.Crash, 0.8f);
             ShowResult();
+        }
+
+        int FeatValue(string kind)
+        {
+            switch (kind)
+            {
+                case "kills": return _save.Kills;
+                case "heads": return _save.Headshots;
+                case "far": return Mathf.RoundToInt(_save.LongestShot);
+                case "stars": return _save.Stars;
+                case "blasts": return _save.Blasts;
+                default: return _save.Hunts;
+            }
         }
 
         void ShowResult()
@@ -778,17 +949,21 @@ namespace Sniper
             UiKit.Place(panel.rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(980f, 720f));
             Transform p = panel.transform;
             Words(p, Loc.T(r.Won ? "sn.won" : "sn.lost"), 76, new Vector2(0.5f, 1f), new Vector2(0f, -40f), new Vector2(900f, 90f), TextAnchor.UpperCenter, r.Won ? UiKit.Accent : UiKit.Bad);
-            Words(p, r.Won ? Loc.T(_mission.TitleKey) : Loc.T("sn.why." + r.Why.ToString().ToLowerInvariant()), 30, new Vector2(0.5f, 1f), new Vector2(0f, -140f), new Vector2(900f, 40f), TextAnchor.UpperCenter, new Color(1f, 1f, 1f, 0.8f));
+            Words(p, r.Won ? MissionTitle(_mission) : Loc.T("sn.why." + r.Why.ToString().ToLowerInvariant()), 30, new Vector2(0.5f, 1f), new Vector2(0f, -140f), new Vector2(900f, 40f), TextAnchor.UpperCenter, new Color(1f, 1f, 1f, 0.8f));
             if (r.Won) Stars(p, r.Stars, new Vector2(0.5f, 1f), new Vector2(0f, -250f), 96f);
             string lines = Loc.T("sn.result.kills", r.Kills, r.Headshots) + "\n" + Loc.T("sn.result.shots", r.Shots, Mathf.RoundToInt(r.Seconds));
             if (r.Won)
                 lines += "\n" + (r.SecondMet ? "+  " : "–  ") + Loc.T("sn.brief.star2." + _mission.Second) + "\n" + (r.ThirdMet ? "+  " : "–  ") + Loc.T("sn.brief.star3", Mathf.RoundToInt(_mission.Par));
-            Words(p, lines, 28, new Vector2(0.5f, 0.5f), new Vector2(0f, -40f), new Vector2(860f, 200f), TextAnchor.MiddleCenter, Color.white);
+            if (r.Won && _save.Pro) lines += "\n" + Loc.T("sn.pro.paid");
+            foreach (string line in _news) lines += "\n" + line;
+            Words(p, lines, _news.Count > 1 ? 24 : 27, new Vector2(0.5f, 0.5f), new Vector2(0f, -40f), new Vector2(880f, 230f), TextAnchor.MiddleCenter, Color.white);
             if (r.Won && _dailyPaid) Words(p, Loc.T("sn.daily.paid"), 26, new Vector2(0.5f, 0f), new Vector2(0f, 236f), new Vector2(860f, 34f), TextAnchor.MiddleCenter, UiKit.Cyan);
             if (r.Won) Words(p, "+ $" + r.Cash.ToString("N0"), 56, new Vector2(0.5f, 0f), new Vector2(0f, 170f), new Vector2(860f, 70f), TextAnchor.MiddleCenter, UiKit.Accent);
             MissionDef next = null;
             foreach (MissionDef mission in Campaign.Missions)
                 if (mission.Order == _mission.Order + 1) next = mission;
+            if (_mission.Id == Hunt.Id) next = null;
+            if (r.Won && _mission.Id == Hunt.Id) Press(p, Loc.T("sn.next"), UiKit.Accent, 36, new Vector2(1f, 0f), new Vector2(-40f, 40f), new Vector2(300f, 96f), StartHunt);
             if (r.Won && next != null) Press(p, Loc.T("sn.next"), UiKit.Accent, 36, new Vector2(1f, 0f), new Vector2(-40f, 40f), new Vector2(300f, 96f), () => ShowBriefing(next));
             Press(p, Loc.T("sn.retry"), r.Won && next != null ? UiKit.SolidPanelColor : UiKit.Accent, 32, new Vector2(0.5f, 0f), new Vector2(0f, 40f), new Vector2(280f, 96f), () => { _dailyRun = false; StartMission(); });
             Press(p, Loc.T("sn.menu"), UiKit.SolidPanelColor, 32, new Vector2(0f, 0f), new Vector2(40f, 40f), new Vector2(280f, 96f), ShowMenu);
@@ -933,6 +1108,20 @@ namespace Sniper
         public Vector3 AutomationHead(int actor) => _sim.Actor(actor).Position + new Vector3(0f, SniperSim.HeadHeight, 0f);
         public void AutomationFire() => _firePressed = true;
         public void AutomationArmory() => ShowArmory();
+        public void AutomationCareer() => ShowCareer();
+        public void AutomationSettings() => ShowSettings();
+        public void AutomationHunt() { _save.HuntLevel = 6; StartHunt(); }
+        public SniperSplash AutomationSplash(float at)
+        {
+            SniperSplash splash = SniperSplash.Create(transform, _sfx);
+            splash.Freeze(at);
+            return splash;
+        }
+        public void AutomationWin(int contracts)
+        {
+            for (int i = 0; i < contracts && i < Campaign.Missions.Count; i++)
+                if (_save.Record(Campaign.Missions[i].Id) == null) _save.Missions.Add(new MissionRecord { Id = Campaign.Missions[i].Id, Stars = 2 });
+        }
         public void AutomationCash(int cash) { _save.Cash = cash; }
         public void AutomationLanguage(string code) { Loc.SetLanguage(code); }
         public bool AutomationPlaying => _phase == Phase.Play;

@@ -32,6 +32,14 @@ namespace Sniper
         /// <summary>The last day the game was opened, the days in a row so far, and the day the daily contract was last paid.</summary>
         public string DayStamp = "", DailyDone = "";
         public int Streak;
+        /// <summary>The career in numbers.</summary>
+        public int Shots, Blasts, Hunts, HuntLevel = 1;
+        public float LongestShot;
+        public List<string> Feats = new List<string>();
+        /// <summary>"Pro": no names over heads and no range in the glass, for half as much pay again.</summary>
+        public bool Pro;
+        public float Sensitivity = 1f;
+        public bool Gyro;
         public List<RifleRecord> Rifles = new List<RifleRecord>();
         public List<MissionRecord> Missions = new List<MissionRecord>();
 
@@ -94,6 +102,9 @@ namespace Sniper
             if (save == null) save = new SniperSave();
             if (save.Rifles == null) save.Rifles = new List<RifleRecord>();
             if (save.Missions == null) save.Missions = new List<MissionRecord>();
+            if (save.Feats == null) save.Feats = new List<string>();
+            if (save.Sensitivity < 0.3f || save.Sensitivity > 3f) save.Sensitivity = 1f;
+            if (save.HuntLevel < 1) save.HuntLevel = 1;
             if (save.Owned("m24") == null) save.Rifles.Add(new RifleRecord { Id = "m24" });
             if (save.Owned(save.Rifle) == null) save.Rifle = "m24";
             return save;

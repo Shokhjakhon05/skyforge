@@ -185,6 +185,12 @@ namespace Sniper
 
         public float ScaleFactor => _canvas.scaleFactor;
 
+        public void SetButtons(bool shown)
+        {
+            // While a round is followed there is nothing to press.
+            if (_canvas.enabled != shown) _canvas.enabled = shown;
+        }
+
         public void SetScope(bool on)
         {
             if (_scope.activeSelf != on) _scope.SetActive(on);

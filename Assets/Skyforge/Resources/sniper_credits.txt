@@ -1,0 +1,5 @@
+ZERO HOUR is built from the work of people who gave it away.
+3D models (poly.pizza): characters, vehicles, containers, trains, houses, trees by Quaternius; buildings by Kay Lousberg and Kenney; crane by cg_world; helicopter by kazuma; cottages and church by CreativeTrio - all CC0.
+Under CC-BY 3.0: "Container Ship" by Alex Safayan; "Tugboat", "Airplane", "Jet" by Poly by Google; "Warehouse" by Lavender Harmony; "Small Airplane" by Vojtech Balak; "Japanese Train Station" by Andrew-John Hickman.
+Sounds: rifle recordings by Vincent Sevedge (CC-BY 3.0, opengameart.org); wind loop (CC-BY 3.0, opengameart.org); impacts by Kenney (CC0); reload and traffic (CC0, opengameart.org).
+Music (CC0, opengameart.org): Spring Spring, cynicmusic, Tsorthan Grove, Pompei2, Bubble5297. Ground textures: ambientCG (CC0). Sky: Poly Haven (CC0).
