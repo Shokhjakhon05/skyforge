@@ -32,12 +32,12 @@ namespace Sniper
 
         public static readonly List<RifleDef> All = new List<RifleDef>
         {
-            new RifleDef { Id = "m24", NameKey = "rifle.m24", Price = 0, Damage = 100f, Zoom = 6f, Stability = 0.15f, Magazine = 5, BoltSeconds = 1.25f },
-            new RifleDef { Id = "svd", NameKey = "rifle.svd", Price = 4500, MissionsRequired = 3, Damage = 110f, Zoom = 7f, Stability = 0.2f, Magazine = 10, BoltSeconds = 0.55f, MuzzleSpeed = 800f },
-            new RifleDef { Id = "vss", NameKey = "rifle.vss", Price = 12000, MissionsRequired = 7, Damage = 105f, Zoom = 6f, Stability = 0.3f, Magazine = 10, BoltSeconds = 0.5f, MuzzleSpeed = 420f, Suppressed = true },
-            new RifleDef { Id = "awm", NameKey = "rifle.awm", Price = 26000, MissionsRequired = 12, Damage = 180f, Zoom = 10f, Stability = 0.35f, Magazine = 5, BoltSeconds = 1.2f, MuzzleSpeed = 900f },
-            new RifleDef { Id = "m82", NameKey = "rifle.m82", Price = 55000, MissionsRequired = 18, Damage = 260f, Zoom = 12f, Stability = 0.3f, Magazine = 8, BoltSeconds = 0.8f, MuzzleSpeed = 850f, Piercing = true },
-            new RifleDef { Id = "ghost", NameKey = "rifle.ghost", Price = 98000, MissionsRequired = 24, Damage = 240f, Zoom = 14f, Stability = 0.5f, Magazine = 7, BoltSeconds = 0.9f, MuzzleSpeed = 880f, Suppressed = true, Piercing = true },
+            new RifleDef { Id = "m24", NameKey = "rifle.m24", Price = 0, Damage = 100f, Zoom = 8f, Stability = 0.15f, Magazine = 5, BoltSeconds = 1.25f },
+            new RifleDef { Id = "svd", NameKey = "rifle.svd", Price = 4500, MissionsRequired = 3, Damage = 110f, Zoom = 8f, Stability = 0.2f, Magazine = 10, BoltSeconds = 0.55f, MuzzleSpeed = 800f },
+            new RifleDef { Id = "vss", NameKey = "rifle.vss", Price = 12000, MissionsRequired = 7, Damage = 105f, Zoom = 8f, Stability = 0.3f, Magazine = 10, BoltSeconds = 0.5f, MuzzleSpeed = 420f, Suppressed = true },
+            new RifleDef { Id = "awm", NameKey = "rifle.awm", Price = 26000, MissionsRequired = 12, Damage = 180f, Zoom = 12f, Stability = 0.35f, Magazine = 5, BoltSeconds = 1.2f, MuzzleSpeed = 900f },
+            new RifleDef { Id = "m82", NameKey = "rifle.m82", Price = 55000, MissionsRequired = 18, Damage = 260f, Zoom = 14f, Stability = 0.3f, Magazine = 8, BoltSeconds = 0.8f, MuzzleSpeed = 850f, Piercing = true },
+            new RifleDef { Id = "ghost", NameKey = "rifle.ghost", Price = 98000, MissionsRequired = 24, Damage = 240f, Zoom = 16f, Stability = 0.5f, Magazine = 7, BoltSeconds = 0.9f, MuzzleSpeed = 880f, Suppressed = true, Piercing = true },
         };
 
         public static RifleDef Get(string id)
@@ -60,7 +60,7 @@ namespace Sniper
             return new RifleDef
             {
                 Id = b.Id, NameKey = b.NameKey, Price = b.Price, MissionsRequired = b.MissionsRequired, Suppressed = b.Suppressed, Piercing = b.Piercing,
-                Zoom = b.Zoom + scope * 1.2f,
+                Zoom = b.Zoom + scope * 0.8f,
                 Damage = b.Damage * (1f + barrel * 0.08f),
                 MuzzleSpeed = b.MuzzleSpeed * (1f + barrel * 0.04f),
                 Stability = Mathf.Min(0.92f, b.Stability + stock * 0.1f),

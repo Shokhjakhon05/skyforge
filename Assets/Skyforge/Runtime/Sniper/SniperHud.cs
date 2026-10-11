@@ -19,6 +19,7 @@ namespace Sniper
         readonly GameObject _scope;
         readonly Text _objective, _clock, _ammo, _zoom, _data, _message, _sub, _breathLabel;
         readonly RectTransform _breathFill, _healthFill;
+        readonly Text _hint;
         readonly GameObject _healthBox;
         readonly Image _hurt;
         readonly Text[] _tags = new Text[10];
@@ -80,6 +81,11 @@ namespace Sniper
             _sub = UiKit.Label(safe, 30, TextAnchor.MiddleCenter);
             UiKit.Place(_sub.rectTransform, middle, new Vector2(0f, 196f), new Vector2(1600f, 40f));
             _sub.gameObject.AddComponent<Shadow>().effectColor = new Color(0f, 0f, 0f, 0.85f);
+
+            _hint = UiKit.Label(safe, 36, TextAnchor.MiddleCenter);
+            _hint.color = UiKit.Cyan;
+            UiKit.Place(_hint.rectTransform, new Vector2(0.5f, 0f), new Vector2(0f, 60f), new Vector2(1300f, 50f));
+            _hint.gameObject.AddComponent<Shadow>().effectColor = new Color(0f, 0f, 0f, 0.9f);
 
             Text fire = UiKit.Button(safe, "Fire", UiKit.Accent, 46, () => FirePressed?.Invoke());
             fire.text = Loc.T("sn.fire");
@@ -188,6 +194,7 @@ namespace Sniper
         public void SetClock(string text) { if (_clock.text != text) _clock.text = text; }
         public void SetAmmo(string text) { if (_ammo.text != text) _ammo.text = text; }
         public void SetZoom(string text) { if (_zoom.text != text) _zoom.text = text; }
+        public void SetHint(string text) { if (_hint.text != text) _hint.text = text; }
         public void SetData(string text) { if (_data.text != text) _data.text = text; }
 
         public void SetBreath(float share, bool held)

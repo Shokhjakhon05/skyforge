@@ -460,13 +460,13 @@ namespace Sniper
         static void AddFort(List<MissionDef> list)
         {
             // 13. Two sentries on the gate.
-            MissionDef m = New(list, "fort", new Vector3(0f, 34f, -170f), new Vector3(0f, 1.4f, -8f), 8, 4200, 20f, "headshots");
+            MissionDef m = New(list, "fort", new Vector3(0f, 34f, -128f), new Vector3(0f, 1.4f, -8f), 8, 4200, 20f, "headshots");
             Target(m, "swat", "name.sentry", 300, V(-3.5f, -15f)).Idle = "Idle_Gun";
             Target(m, "swat", "name.sentry", 300, V(3.5f, -15f)).Idle = "Idle_Gun";
             Guard(m, V(-10f, 10f), V(10f, 14f));
 
             // 14. The chemist comes out for air.
-            m = New(list, "fort", new Vector3(-40f, 38f, -170f), new Vector3(-10f, 1.4f, 20f), 8, 4600, 30f, "silent");
+            m = New(list, "fort", new Vector3(-40f, 38f, -128f), new Vector3(-10f, 1.4f, 20f), 8, 4600, 30f, "silent");
             ActorDef chemist = Target(m, "worker", "name.chemist", 900, V(-20f, 22f), V(-8f, 14f));
             chemist.Wait = 6f;
             chemist.Escape = V(-26f, 36f);
@@ -475,7 +475,7 @@ namespace Sniper
             Guard(m, V(30f, 36f)).YawDeg = 200f;
 
             // 15. Five men on the wall walk, a long way off.
-            m = New(list, "fort", new Vector3(50f, 40f, -190f), new Vector3(0f, 1.4f, 10f), 10, 5000, 45f, "clean");
+            m = New(list, "fort", new Vector3(50f, 40f, -148f), new Vector3(0f, 1.4f, 10f), 10, 5000, 45f, "clean");
             m.Wind = new Vector3(-3f, 0f, 0f);
             foreach (Vector3 post in new[] { V(-30f, -4f), V(-12f, 24f), V(8f, 6f), V(24f, 30f), V(32f, -4f) })
             {
@@ -485,7 +485,7 @@ namespace Sniper
             }
 
             // 16. The prisoner is walked across the yard. He must reach the gate; the men with him must not.
-            m = New(list, "fort", new Vector3(-20f, 36f, -175f), new Vector3(0f, 1.4f, 10f), 9, 5600, 30f, "headshots");
+            m = New(list, "fort", new Vector3(-20f, 36f, -133f), new Vector3(0f, 1.4f, 10f), 9, 5600, 30f, "headshots");
             ActorDef prisoner = Man("ally", "farmer", Role.Ally, "name.prisoner", V(0f, 14f));
             m.Actors.Add(prisoner);
             foreach (Vector3 from in new[] { V(-28f, 30f), V(26f, 28f), V(-4f, 36f) })
@@ -498,7 +498,7 @@ namespace Sniper
             Guard(m, V(30f, 0f)).YawDeg = 180f;
 
             // 17. The convoy is leaving. The colonel must not be in it.
-            m = New(list, "fort", new Vector3(30f, 38f, -180f), new Vector3(0f, 1.4f, 10f), 10, 6200, 35f, "headshots");
+            m = New(list, "fort", new Vector3(30f, 38f, -138f), new Vector3(0f, 1.4f, 10f), 10, 6200, 35f, "headshots");
             m.Seconds = 70f;
             m.Wind = new Vector3(4f, 0f, 0f);
             ActorDef colonel = Target(m, "suit", "name.colonel", 1800, V(2f, 36f), V(-6f, 20f));
@@ -512,7 +512,7 @@ namespace Sniper
             Guard(m, V(18f, 6f)).YawDeg = 180f;
 
             // 18. Everyone in the yard.
-            m = New(list, "fort", new Vector3(0f, 42f, -190f), new Vector3(0f, 1.4f, 14f), 14, 8000, 60f, "headshots");
+            m = New(list, "fort", new Vector3(0f, 42f, -148f), new Vector3(0f, 1.4f, 14f), 14, 8000, 60f, "headshots");
             m.Wind = new Vector3(-2.5f, 0f, 0f);
             ActorDef warlord = Target(m, "suit", "name.warlord", 3000, V(0f, 34f), V(8f, 16f), V(-8f, 16f));
             warlord.Wait = 4f;

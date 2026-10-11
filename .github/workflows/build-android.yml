@@ -138,7 +138,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          APK="skyforge-${VERSION}-${{ github.run_number }}.${EXTENSION}"
+          APK="zerohour-${VERSION}-${{ github.run_number }}.${EXTENSION}"
           sudo cp "build/Android/Skyforge.$EXTENSION" "$APK"
           ls -lh "$APK"
           FILES=("$APK")

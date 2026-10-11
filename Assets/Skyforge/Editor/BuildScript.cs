@@ -18,7 +18,7 @@ namespace Skyforge.EditorTools
     public static class BuildScript
     {
         const string GeneratedDir = "Assets/Generated";
-        const string ApplicationId = "com.skyforge.globalops";
+        const string ApplicationId = "com.zerohour.sniper";
         /// <summary>CI passes -sfBundle to get an App Bundle for Google Play instead of an APK for a phone.</summary>
         static bool Bundle => HasArgument("-sfBundle");
         static string OutputPath => Bundle ? "build/Android/Skyforge.aab" : "build/Android/Skyforge.apk";
@@ -335,8 +335,8 @@ namespace Skyforge.EditorTools
 
         static void ApplyPlayerSettings()
         {
-            PlayerSettings.companyName = "Skyforge";
-            PlayerSettings.productName = "Skyforge";
+            PlayerSettings.companyName = "Zero Hour";
+            PlayerSettings.productName = "Zero Hour Sniper";
             PlayerSettings.bundleVersion = GetArgument("-sfVersion") ?? "0.0.1";
             PlayerSettings.Android.bundleVersionCode =
                 int.TryParse(GetArgument("-sfVersionCode"), out int code) ? code : 1;

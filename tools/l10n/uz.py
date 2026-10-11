@@ -1203,4 +1203,8 @@ T = {
 'mission.fort5.brief': "Polkovnik yarim daqiqadan so'ng kolonna bilan ketadi. U zirhda: faqat boshga yoki ikki o'q. To'rt qo'riqchi va kuchli shamol.",
 'mission.fort6.title': 'Nol soati',
 'mission.fort6.brief': "Dala qo'mondoni va uning besh eng yaxshi odami. O'n to'rt o'q, ikkinchi imkoniyat yo'q. O'rgangan hamma narsangiz.",
+'sn.lesson.zoom': 'Yaqinlashtirish uchun + ni bosing',
+'sn.lesson.aim': "Barmoqni ekran bo'ylab suring: nishonni qizil ism ostidagi boshga keltiring",
+'sn.lesson.breath': 'Nishon titramasligi uchun «NAFASNI USHLASH» ni bosing',
+'sn.lesson.fire': "«O'T OCH» ni bosing",
 }

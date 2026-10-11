@@ -402,8 +402,27 @@ namespace Sniper
                     _hud.Tag(used++, screen, def.Role == Role.Civilian ? "<color=#6fe08a>" + Loc.T("sn.tag.civilian") + "</color>" : "<color=#ffb040>" + Loc.T("sn.tag.guard") + "</color>");
             }
             _hud.EndTags(used);
+            _hud.SetHint(Lesson());
             Vector3 wind = _mission.Wind;
             _hud.SetData(Loc.T("sn.data", Mathf.RoundToInt(Mathf.Min(range, 999f)), wind.magnitude.ToString("0.0"), wind.magnitude < 0.1f ? "" : wind.x > 0f ? ">>" : "<<"));
+        }
+
+        /// <summary>The first contract of a new player: one line that says what to do next with the rifle.</summary>
+        string Lesson()
+        {
+            if (_save.Completed > 0 || _mission.Order != 1 || _following || _sim.Outcome != Outcome.Running) return "";
+            if (_sim.Shots > 0 && _sim.TargetsLeft == 0) return "";
+            if (_zoomIndex < 2) return Loc.T("sn.lesson.zoom");
+            float nearest = 999f;
+            for (int i = 0; i < _sim.ActorCount; i++)
+            {
+                if (_sim.Def(i).Role != Role.Target || _sim.Actor(i).Mood == Mood.Dead) continue;
+                Vector3 head = _sim.Actor(i).Position + new Vector3(0f, SniperSim.HeadHeight, 0f);
+                nearest = Mathf.Min(nearest, Vector3.Angle(_cam.transform.forward, head - _mission.Perch));
+            }
+            if (nearest > 0.9f) return Loc.T("sn.lesson.aim");
+            if (!_holding && _breath > 0.3f) return Loc.T("sn.lesson.breath");
+            return Loc.T("sn.lesson.fire");
         }
 
         // ---------------------------------------------------------------- screens
