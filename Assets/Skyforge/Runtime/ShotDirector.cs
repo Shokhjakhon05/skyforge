@@ -17,6 +17,8 @@ namespace Skyforge
         public static bool Finished;
         /// <summary>0: the main run in English. N: after a restart in the Nth other language, shots that check its text.</summary>
         public static int Stage;
+        /// <summary>A short run: the menu and the imported characters only.</summary>
+        public static bool Quick;
         static readonly string[] OtherLanguages = { "ru", "uz" };
 
         const int Width = 1600, Height = 720;
@@ -96,6 +98,37 @@ namespace Skyforge
             Vector3 sea = new Vector3(0f, 7f, -island.Map.HalfSize * 0.86f);
 
             yield return Shot("01_menu");
+
+            if (Quick)
+            {
+                // A short run that only answers one question: do the imported characters stand, walk and fall?
+                _game.AutomationFreeFlight(WeatherCatalog.Clear);
+                _game.AutomationSetCamera(CameraView.Fpv);
+                _game.AutomationHud(false);
+                _game.AutomationPlace(spawn + new Vector3(0f, 1.5f, -6f), 0f);
+                var actors = new System.Collections.Generic.List<Actor>();
+                string[] names = { "swat", "soldier" };
+                for (int i = 0; i < names.Length; i++)
+                {
+                    var prefab = Resources.Load<GameObject>("Chars/" + names[i]);
+                    Debug.Log("[Skyforge] quick: prefab " + names[i] + " " + (prefab != null));
+                    if (prefab == null) continue;
+                    GameObject made = Instantiate(prefab, spawn + new Vector3(i * 2.4f - 1.2f, 0.05f, 0f), Quaternion.Euler(0f, 180f, 0f));
+                    Actor actor = made.GetComponent<Actor>();
+                    made.transform.localScale = Vector3.one * (1.8f / actor.Height);
+                    actors.Add(actor);
+                }
+                string[] plays = { "Idle", "Walk", "Run", "Idle_Shoot", "Death" };
+                foreach (string play in plays)
+                {
+                    foreach (Actor actor in actors)
+                        if (!actor.Play(play, play != "Death")) actor.Play(play == "Walk" ? "Run" : "Idle", true);
+                    yield return Frames(14);
+                    yield return Shot("40_actor_" + play.ToLowerInvariant(), 1);
+                }
+                Finished = true;
+                yield break;
+            }
 
             _game.AutomationShowSettings();
             yield return Shot("02_settings");

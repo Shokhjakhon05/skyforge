@@ -62,7 +62,56 @@ namespace Skyforge.EditorTools
             Directory.CreateDirectory(GeneratedDir);
             CreateRenderPipeline();
             CreateMaterials();
+            PrepareCharacters();
             _scene = CreateBootScene();
+            AssetDatabase.SaveAssets();
+        }
+
+        /// <summary>
+        /// Characters come as glTF files with a skeleton and animation clips. Each is turned into a
+        /// prefab under Resources that carries its clips, so the game can load and animate it by name.
+        /// </summary>
+        static void PrepareCharacters()
+        {
+            const string source = "Assets/Sniper/Chars";
+            if (!Directory.Exists(source)) return;
+            string dir = GeneratedDir + "/Resources/Chars";
+            Directory.CreateDirectory(dir);
+            foreach (string file in Directory.GetFiles(source, "*.glb"))
+            {
+                string path = file.Replace('\\', '/');
+                string name = Path.GetFileNameWithoutExtension(path);
+                var model = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+                UnityEngine.Object[] all = AssetDatabase.LoadAllAssetsAtPath(path);
+                var clips = new System.Collections.Generic.List<AnimationClip>();
+                var report = new System.Text.StringBuilder();
+                foreach (UnityEngine.Object asset in all)
+                {
+                    if (asset is AnimationClip clip)
+                    {
+                        clips.Add(clip);
+                        report.Append(" clip:" + clip.name + (clip.legacy ? "(legacy " : "(") + clip.length.ToString("0.0") + "s)");
+                    }
+                    else if (asset is Material material) report.Append(" material:" + material.name + "<" + (material.shader != null ? material.shader.name : "none") + ">");
+                }
+                if (model == null)
+                {
+                    Debug.LogError("[Skyforge] CHARACTER NOT IMPORTED " + path + " (" + all.Length + " sub-assets)");
+                    continue;
+                }
+                var instance = (GameObject)UnityEngine.Object.Instantiate(model);
+                instance.name = name;
+                var bounds = new Bounds(instance.transform.position, Vector3.zero);
+                foreach (Renderer renderer in instance.GetComponentsInChildren<Renderer>()) bounds.Encapsulate(renderer.bounds);
+                foreach (SkinnedMeshRenderer skinned in instance.GetComponentsInChildren<SkinnedMeshRenderer>()) skinned.updateWhenOffscreen = true;
+                var actor = instance.AddComponent<Skyforge.Actor>();
+                actor.Clips = clips.ToArray();
+                actor.Height = Mathf.Max(0.01f, bounds.size.y);
+                Debug.Log("[Skyforge] character " + name + ": size " + bounds.size + ", renderers " + instance.GetComponentsInChildren<Renderer>().Length +
+                    ", animator " + (instance.GetComponentInChildren<Animator>() != null) + ", legacy player " + (instance.GetComponentInChildren<Animation>() != null) + "," + report);
+                PrefabUtility.SaveAsPrefabAsset(instance, dir + "/" + name + ".prefab");
+                UnityEngine.Object.DestroyImmediate(instance);
+            }
             AssetDatabase.SaveAssets();
         }
 
@@ -132,6 +181,7 @@ namespace Skyforge.EditorTools
                 ShotDirector.OutputDir = Path.GetFullPath(ScreenshotDir);
                 ShotDirector.Finished = false;
                 ShotDirector.Stage = 0;
+                ShotDirector.Quick = HasArgument("-sfQuick");
 
                 // Without a domain reload the statics above and the update hook survive entering play mode.
                 EditorSettings.enterPlayModeOptionsEnabled = true;

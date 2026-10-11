@@ -12,6 +12,10 @@ on:
         description: Run the game in the editor and attach screenshots to the release
         type: boolean
         default: true
+      quick:
+        description: Take only the first few screenshots
+        type: boolean
+        default: false
       bundle:
         description: Build an App Bundle (.aab) for Google Play instead of an APK
         type: boolean
@@ -119,6 +123,7 @@ jobs:
             -sfVersion ${{ env.VERSION }} -sfVersionCode ${{ github.run_number }}
             ${{ github.event.inputs.screenshots != 'false' && '-sfScreenshots' || '' }}
             ${{ github.event.inputs.bundle == 'true' && '-sfBundle' || '' }}
+            ${{ github.event.inputs.quick == 'true' && '-sfQuick' || '' }}
 
       - name: Check that the build exists
         run: |
