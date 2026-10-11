@@ -72,6 +72,39 @@ namespace Sniper
             yield return Frames(200);
             yield return Shot("14_under_fire", 1);
 
+            // The other two places: from above, from the street, from the rifle.
+            _game.AutomationMenu("town");
+            yield return Frames(10);
+            yield return Shot("20_town_menu");
+            _game.AutomationLook(new Vector3(-70f, 44f, -120f), new Vector3(0f, 4f, 24f), 55f);
+            yield return Shot("21_town_high");
+            _game.AutomationLook(new Vector3(-46f, 3f, 2f), new Vector3(20f, 5f, 26f), 60f);
+            yield return Shot("22_town_street");
+            _game.AutomationPlay("town3");
+            yield return Frames(60);
+            yield return Shot("23_town_wide", 1);
+            _game.AutomationZoom(2);
+            _game.AutomationAim(_game.AutomationHead(0), false);
+            yield return Frames(3);
+            yield return Shot("24_town_scope", 1);
+            _game.AutomationZoom(3);
+            yield return Shot("25_town_scope_x6", 2);
+
+            _game.AutomationMenu("fort");
+            yield return Frames(10);
+            yield return Shot("30_fort_menu");
+            _game.AutomationLook(new Vector3(-80f, 50f, -130f), new Vector3(0f, 3f, 24f), 55f);
+            yield return Shot("31_fort_high");
+            _game.AutomationLook(new Vector3(-20f, 3f, -4f), new Vector3(10f, 4f, 40f), 60f);
+            yield return Shot("32_fort_yard");
+            _game.AutomationPlay("fort6");
+            yield return Frames(60);
+            yield return Shot("33_fort_wide", 1);
+            _game.AutomationZoom(3);
+            _game.AutomationAim(_game.AutomationHead(0), false);
+            yield return Frames(3);
+            yield return Shot("34_fort_scope", 1);
+
             _game.AutomationCash(30000);
             _game.AutomationArmory();
             yield return Shot("15_armory");

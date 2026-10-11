@@ -33,6 +33,7 @@ namespace Sniper
         RifleDef _rifle;
         Phase _phase;
         GameObject _screen;
+        string _menuPlace;
 
         float _yaw, _pitch, _breath = 1f, _recoil, _accumulator, _ending, _swayClock;
         int _zoomIndex, _finger = -1;
@@ -467,10 +468,15 @@ namespace Sniper
             Time.timeScale = 1f;
             _hud.Visible = false;
             _music.Menu(0);
-            // The first place stands behind the menu.
+            // The chosen place stands behind the menu; the first time, the place of the next open contract.
+            if (_menuPlace == null)
+            {
+                foreach (MissionDef mission in Campaign.Missions)
+                    if (Unlocked(mission)) _menuPlace = mission.LocationId;
+            }
             MissionDef backdrop = null;
             foreach (MissionDef mission in Campaign.Missions)
-                if (backdrop == null || Unlocked(mission)) backdrop = mission;
+                if (mission.LocationId == _menuPlace && backdrop == null) backdrop = mission;
             LoadMission(backdrop);
             _zoomIndex = 0;
             LocationDef place = Campaign.Location(backdrop.LocationId);
@@ -487,23 +493,36 @@ namespace Sniper
             Words(s, "$ " + _save.Cash.ToString("N0"), 44, new Vector2(1f, 1f), new Vector2(-70f, -56f), new Vector2(600f, 60f), TextAnchor.UpperRight, UiKit.Accent);
             Words(s, Loc.T("sn.stars", _save.Stars, Campaign.Missions.Count * 3), 26, new Vector2(1f, 1f), new Vector2(-70f, -116f), new Vector2(600f, 36f), TextAnchor.UpperRight, Color.white);
 
+            int tab = 0;
+            foreach (LocationDef location in Campaign.Locations)
+            {
+                string id = location.Id;
+                Press(s, Loc.T(location.NameKey).ToUpperInvariant(), id == _menuPlace ? UiKit.Lit : UiKit.SolidPanelColor, 28, new Vector2(0f, 0f), new Vector2(70f + tab * 330f, 520f), new Vector2(316f, 74f), () =>
+                {
+                    _menuPlace = id;
+                    ShowMenu();
+                });
+                tab++;
+            }
+
             int shown = 0;
             foreach (MissionDef mission in Campaign.Missions)
             {
-                if (shown >= 5) break;
+                if (mission.LocationId != _menuPlace) continue;
+                if (shown >= 6) break;
                 bool open = Unlocked(mission);
                 MissionDef picked = mission;
-                var at = new Vector2(70f + shown * 350f, 250f);
+                var at = new Vector2(70f + shown * 300f, 250f);
                 Text card = UiKit.Button(s, "Mission", open ? UiKit.SolidPanelColor : new Color(0.03f, 0.04f, 0.06f, 0.7f), 30, () =>
                 {
                     if (open) ShowBriefing(picked);
                     else _sfx.Play(Sound.Warning, 0.5f);
                 });
                 var rect = (RectTransform)card.transform.parent;
-                UiKit.Place(rect, new Vector2(0f, 0f), at, new Vector2(330f, 250f));
+                UiKit.Place(rect, new Vector2(0f, 0f), at, new Vector2(288f, 250f));
                 card.text = "";
                 Words(rect, mission.Order.ToString("00"), 54, new Vector2(0f, 1f), new Vector2(22f, -14f), new Vector2(200f, 64f), TextAnchor.UpperLeft, open ? UiKit.Accent : new Color(1f, 1f, 1f, 0.3f));
-                Words(rect, open ? Loc.T(mission.TitleKey) : Loc.T("sn.locked"), 28, new Vector2(0f, 1f), new Vector2(22f, -86f), new Vector2(290f, 80f), TextAnchor.UpperLeft, open ? Color.white : new Color(1f, 1f, 1f, 0.4f), true);
+                Words(rect, open ? Loc.T(mission.TitleKey) : Loc.T("sn.locked"), 28, new Vector2(0f, 1f), new Vector2(22f, -86f), new Vector2(250f, 80f), TextAnchor.UpperLeft, open ? Color.white : new Color(1f, 1f, 1f, 0.4f), true);
                 Words(rect, "$" + mission.Reward, 24, new Vector2(1f, 1f), new Vector2(-22f, -30f), new Vector2(200f, 30f), TextAnchor.UpperRight, new Color(1f, 1f, 1f, 0.7f));
                 Stars(rect, _save.Record(mission.Id)?.Stars ?? 0, new Vector2(0.5f, 0f), new Vector2(0f, 26f), 44f);
                 shown++;
@@ -583,6 +602,7 @@ namespace Sniper
         void Finish()
         {
             _phase = Phase.Result;
+            _menuPlace = _mission.LocationId;
             Time.timeScale = 1f;
             _hud.Visible = false;
             _result = _sim.Grade();
@@ -730,7 +750,14 @@ namespace Sniper
 
         // ---------------------------------------------------------------- for the screenshot run
 
-        public void AutomationMenu() => ShowMenu();
+        public void AutomationMenu(string place = null)
+        {
+            if (place != null) _menuPlace = place;
+            ShowMenu();
+        }
+
+        public void AutomationWorld(string missionId) => LoadMission(Campaign.Mission(missionId));
+        public Vector3 AutomationPerch => _mission.Perch;
         public void AutomationBriefing(string id) => ShowBriefing(Campaign.Mission(id));
 
         public void AutomationPlay(string id)

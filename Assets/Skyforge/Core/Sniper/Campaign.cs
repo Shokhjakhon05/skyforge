@@ -85,7 +85,7 @@ namespace Sniper
             // The city across the water, far enough to be haze.
             string[] towers = { "sky_a", "kay_b", "sky_b", "kay_c", "kay_f", "sky_a", "kay_a", "sky_b", "kay_d", "sky_a", "kay_b", "sky_b", "kay_f" };
             for (int i = 0; i < towers.Length; i++)
-                Put(docks, towers[i], -330f + i * 55f, 300f + (i % 3) * 34f, i * 37f, 46f + (i * 29) % 60, true);
+                Put(docks, towers[i], -420f + i * 70f, 470f + (i % 3) * 40f, i * 37f, 70f + (i * 29) % 80, true, false, -1f);
             Put(docks, "truck", -8f, 6f, 25f);
             Put(docks, "truck", 14f, 12f, -160f);
             Put(docks, "pickup", 22f, -6f, 70f);
@@ -94,8 +94,8 @@ namespace Sniper
             Put(docks, "car", -29f, -22f, 5f);
             Put(docks, "sports", -24f, -22.4f, -3f);
             Put(docks, "police", 26f, -22f, 172f);
-            Put(docks, "tower", 9.5f, -31f, 0f, 10f);
-            Put(docks, "tower", -9.5f, -31f, 0f, 10f);
+            Put(docks, "tower", 84f, -31f, 0f, 10f);
+            Put(docks, "tower", -84f, -31f, 0f, 10f);
             Row(docks, "fence_metal", -80f, -30f, 3.56f, 0f, 19, 0f, 0f, false, true);
             Row(docks, "fence_metal", 14f, -30f, 3.56f, 0f, 19, 0f, 0f, false, true);
             Row(docks, "barrier", -6f, -30f, 2.4f, 0f, 6, 0f, 0.9f);
@@ -112,6 +112,87 @@ namespace Sniper
             Put(docks, "dumpster", 50f, -2f, 90f, 1.6f);
             Put(docks, "dumpster", -70f, 16f, 90f, 1.6f);
             list.Add(docks);
+
+            // Downtown: one long street under a wall of house fronts, with the towers of the centre behind them.
+            var town = new LocationDef
+            {
+                Id = "town", NameKey = "loc.town", Ground = "asphalt", Light = "dusk", HalfSize = 260f,
+                MenuEye = new Vector3(-34f, 4f, -18f), MenuLook = new Vector3(6f, 6f, 20f),
+            };
+            string[] fronts = { "block", "kay_b", "shed", "kay_c", "kay_f", "block", "kay_a", "shed", "kay_d", "kay_b", "block" };
+            float[] tall = { 21f, 20f, 18f, 23f, 20f, 19f, 17f, 20f, 16f, 22f, 20f };
+            for (int i = 0; i < fronts.Length; i++) Put(town, fronts[i], -100f + i * 20f, 34f, 180f, tall[i]);
+            for (int i = 0; i < 9; i++) Put(town, i % 3 == 0 ? "sky_a" : i % 3 == 1 ? "kay_c" : "sky_b", -108f + i * 27f, 66f, i * 90f, 44f + (i * 17) % 30, true);
+            for (int i = 0; i < 7; i++) Put(town, i % 2 == 0 ? "sky_b" : "sky_a", -150f + i * 50f, 120f, 0f, 70f + (i * 23) % 40, true);
+            for (int i = 0; i < 4; i++)
+            {
+                Put(town, fronts[(i + 2) % fronts.Length], -124f, -30f + i * 21f, 90f, tall[(i + 3) % tall.Length]);
+                Put(town, fronts[(i + 5) % fronts.Length], 124f, -30f + i * 21f, -90f, tall[(i + 1) % tall.Length]);
+            }
+            Row(town, "light", -90f, 20f, 20f, 0f, 10, 180f, 0f, true);
+            Row(town, "light", -80f, -24f, 20f, 0f, 9, 0f, 0f, true);
+            Row(town, "tree", -98f, 22.5f, 28f, 0f, 8, 0f, 7.5f, true);
+            Row(town, "bench", -70f, 21f, 28f, 0f, 6, 180f, 0.9f);
+            Put(town, "traffic", -42f, 18f, 90f, 0f, true);
+            Put(town, "traffic", 46f, 18f, 90f, 0f, true);
+            string[] parked = { "suv", "car", "sports", "pickup", "car", "police", "suv", "sports", "truck", "car" };
+            for (int i = 0; i < parked.Length; i++)
+            {
+                if (i == 4) continue;
+                Put(town, parked[i], -84f + i * 18.5f, 15.5f, 90f + (i % 2) * 180f);
+            }
+            Put(town, "truck", -58f, -18f, 80f);
+            Put(town, "armored", 62f, -19f, -95f);
+            Put(town, "suv", 20f, -20f, 90f);
+            Put(town, "car", -18f, -20.5f, -90f);
+            Row(town, "barrier", -10f, -27f, 2.4f, 0f, 9, 0f, 0.9f);
+            Put(town, "dumpster", -72f, 24f, 0f, 1.6f);
+            Put(town, "dumpster", 34f, 24.5f, 0f, 1.6f);
+            Put(town, "dumpster", 90f, 24f, 0f, 1.6f);
+            foreach (Vector3 p in new[] { V(-30f, 23f), V(-29f, 24f), V(8f, 24f), V(54f, 23.4f), V(-88f, 10f) }) Put(town, "barrel", p.x, p.z, p.x * 31f);
+            foreach (Vector3 p in new[] { V(-50f, 24f), V(-49f, 24.8f), V(70f, 24f), V(16f, 23.6f) }) Put(town, "crate", p.x, p.z, p.x * 13f, 1.1f);
+            Row(town, "fence_wood", -108f, -34f, 5.9f, 0f, 16, 0f, 1.4f, false, true);
+            Row(town, "fence_wood", 20f, -34f, 5.9f, 0f, 16, 0f, 1.4f, false, true);
+            list.Add(town);
+
+            // The compound: a walled yard in the sand, a tower on every corner.
+            var fort = new LocationDef
+            {
+                Id = "fort", NameKey = "loc.fort", Ground = "sand", Light = "day", HalfSize = 300f,
+                MenuEye = new Vector3(-58f, 7f, -30f), MenuLook = new Vector3(0f, 4f, 24f),
+            };
+            const float wall = 3.2f;
+            for (float x = -40f; x <= 40.1f; x += wall)
+            {
+                if (Mathf.Abs(x) > 5f) Put(fort, "wall", x, -12f, 0f, wall, false);
+                Put(fort, "wall", x, 62f, 0f, wall, false);
+            }
+            for (float z = -12f + wall; z < 62f; z += wall)
+            {
+                Put(fort, "wall", -40f, z, 90f, wall, false);
+                Put(fort, "wall", 40f, z, 90f, wall, false);
+            }
+            foreach (Vector3 corner in new[] { V(-41f, -13f), V(41f, -13f), V(-41f, 63f), V(41f, 63f) }) Put(fort, "tower", corner.x, corner.z, 0f, 11f);
+            Put(fort, "block", 0f, 46f, 180f, 15f);
+            Put(fort, "kay_e", -26f, 44f, 180f, 9f);
+            Put(fort, "kay_a", 26f, 42f, 180f, 12f);
+            Put(fort, "shed", -28f, 14f, 90f, 9f);
+            Put(fort, "watertower", 33f, 54f, 0f, 13f, true);
+            Row(fort, "tank", 22f, 20f, 4.2f, 0f, 3, 0f, 4.5f);
+            Put(fort, "armored", -10f, 4f, 200f);
+            Put(fort, "armored", 14f, 8f, 150f);
+            Put(fort, "pickup", 2f, -24f, 20f);
+            Put(fort, "truck", 28f, -2f, 100f);
+            Put(fort, "suv", -4f, 22f, 60f);
+            foreach (Vector3 p in new[] { V(-56f, -20f), V(-62f, 8f), V(-52f, 40f), V(56f, -18f), V(60f, 20f), V(52f, 48f), V(-20f, -30f), V(24f, -34f), V(-70f, 70f), V(74f, 76f), V(0f, 84f), V(-30f, 90f), V(36f, 96f) })
+                Put(fort, "palm", p.x, p.z, p.x * 9f, 6.5f + Mathf.Abs(p.z) % 3f, true);
+            foreach (Vector3 p in new[] { V(-14f, 20f), V(-13f, 21.2f), V(8f, 30f), V(30f, 10f), V(31f, 11.2f), V(-32f, 30f), V(4f, 2f) }) Put(fort, "barrel", p.x, p.z, p.x * 31f);
+            foreach (Vector3 p in new[] { V(-6f, 30f), V(-5f, 31f), V(16f, 24f), V(-22f, 2f), V(-21f, 3f), V(34f, 30f) }) Put(fort, "crate", p.x, p.z, p.x * 13f, 1.1f);
+            Put(fort, "crate", -5.5f, 30.5f, 30f, 1.1f, false, false, 1.1f);
+            Row(fort, "barrier", -4f, -16f, 2.6f, 0f, 4, 0f, 0.9f);
+            Row(fort, "fence_metal", -70f, -44f, 3.56f, 0f, 12, 0f, 0f, false, true);
+            Row(fort, "fence_metal", 30f, -44f, 3.56f, 0f, 12, 0f, 0f, false, true);
+            list.Add(fort);
             return list;
         }
 
@@ -253,7 +334,196 @@ namespace Sniper
             m.Actors.Add(Man("w1", "worker", Role.Civilian, "name.worker", V(8f, 4f), V(30f, 12f)));
             m.Actors.Add(Man("w2", "farmer", Role.Civilian, "name.worker", V(-14f, -4f), V(-34f, -10f)));
             list.Add(m);
+
+            AddTown(list);
+            AddFort(list);
             return list;
+        }
+
+        static MissionDef New(List<MissionDef> list, string place, Vector3 perch, Vector3 look, int rounds, int reward, float par, string second)
+        {
+            int order = list.Count + 1;
+            int number = 1;
+            foreach (MissionDef other in list)
+                if (other.LocationId == place) number++;
+            var mission = new MissionDef
+            {
+                Id = place + number, LocationId = place, TitleKey = "mission." + place + number + ".title", BriefKey = "mission." + place + number + ".brief", Order = order,
+                Perch = perch, LookAt = look, Rounds = rounds, Reward = reward, Par = par, Second = second,
+            };
+            list.Add(mission);
+            return mission;
+        }
+
+        static ActorDef Target(MissionDef m, string model, string name, int bounty, params Vector3[] path)
+        {
+            ActorDef actor = Man("t" + m.Actors.Count, model, Role.Target, name, path);
+            actor.Bounty = bounty;
+            m.Actors.Add(actor);
+            return actor;
+        }
+
+        static ActorDef Guard(MissionDef m, params Vector3[] path)
+        {
+            ActorDef actor = Man("g" + m.Actors.Count, "swat", Role.Guard, "name.guard", path);
+            actor.Idle = "Idle_Gun";
+            actor.Wait = 5f;
+            m.Actors.Add(actor);
+            return actor;
+        }
+
+        static ActorDef Passer(MissionDef m, string model, params Vector3[] path)
+        {
+            ActorDef actor = Man("c" + m.Actors.Count, model, Role.Civilian, "name.passer", path);
+            actor.Wait = 3f;
+            m.Actors.Add(actor);
+            return actor;
+        }
+
+        static void AddTown(List<MissionDef> list)
+        {
+            // 7. A courier on a bench with a case.
+            MissionDef m = New(list, "town", new Vector3(-20f, 30f, -150f), new Vector3(-14f, 1.4f, 20f), 8, 1900, 25f, "headshots");
+            ActorDef courier = Target(m, "hoodie", "name.courier", 500, V(-14f, 19f));
+            courier.YawDeg = 180f;
+            courier.Escape = V(-60f, 12f);
+            courier.LeavesAt = 45f;
+            Passer(m, "casual", V(-60f, 18f), V(30f, 18f));
+            Passer(m, "worker", V(50f, 19f), V(-30f, 19f));
+            Passer(m, "farmer", V(10f, 8f), V(60f, 6f));
+
+            // 8. Two lookouts and the man they look out for.
+            m = New(list, "town", new Vector3(30f, 32f, -150f), new Vector3(10f, 1.4f, 14f), 9, 2200, 35f, "clean");
+            ActorDef fixer = Target(m, "suit", "name.fixer", 700, V(4f, 18f), V(26f, 18f));
+            fixer.Wait = 5f;
+            fixer.Escape = V(90f, 12f);
+            Target(m, "punk", "name.lookout", 250, V(-22f, 12f)).YawDeg = 160f;
+            Target(m, "punk", "name.lookout", 250, V(52f, 10f)).YawDeg = 200f;
+            Passer(m, "casual", V(-70f, 19f), V(-30f, 19f));
+            Passer(m, "worker", V(70f, 6f), V(40f, 2f));
+
+            // 9. A crosswind down the street and a man who never stands still.
+            m = New(list, "town", new Vector3(-50f, 28f, -155f), new Vector3(0f, 1.4f, 10f), 10, 2500, 40f, "headshots");
+            m.Wind = new Vector3(4f, 0f, 0f);
+            ActorDef walker = Target(m, "suit", "name.banker", 900, V(-50f, 8f), V(50f, 8f));
+            walker.Wait = 1.5f;
+            walker.Escape = V(-100f, 4f);
+            Guard(m, V(-52f, 10f), V(48f, 10f)).Wait = 1.5f;
+            Guard(m, V(-48f, 6f), V(52f, 6f)).Wait = 1.5f;
+            Passer(m, "casual", V(-20f, 19f), V(40f, 19f));
+            Passer(m, "farmer", V(60f, 19f), V(10f, 19f));
+
+            // 10. Four of them on the pavement, and the street full of people.
+            m = New(list, "town", new Vector3(10f, 34f, -150f), new Vector3(0f, 1.4f, 16f), 9, 2800, 30f, "clean");
+            float[] gang = { -38f, -12f, 16f, 44f };
+            for (int i = 0; i < gang.Length; i++)
+            {
+                ActorDef thug = Target(m, i % 2 == 0 ? "punk" : "hoodie", "name.thug", 300, V(gang[i], 19f), V(gang[i] + 6f, 17f));
+                thug.Wait = 4f + i;
+                thug.Escape = V(gang[i] < 0f ? -100f : 100f, 14f);
+            }
+            Passer(m, "casual", V(-60f, 20f), V(-20f, 20f));
+            Passer(m, "worker", V(0f, 20f), V(30f, 20f));
+            Passer(m, "farmer", V(60f, 18f), V(26f, 6f));
+            Passer(m, "adventurer", V(-28f, 4f), V(20f, 0f));
+
+            // 11. The informer crosses the square. Three men mean to stop him.
+            m = New(list, "town", new Vector3(-10f, 30f, -150f), new Vector3(0f, 1.4f, 4f), 9, 3200, 26f, "headshots");
+            m.Wind = new Vector3(-3f, 0f, 0f);
+            ActorDef informer = Man("ally", "casual", Role.Ally, "name.informer", V(0f, 2f));
+            m.Actors.Add(informer);
+            foreach (Vector3 from in new[] { V(-70f, 18f), V(74f, 16f), V(8f, 22f) })
+            {
+                ActorDef hunter = Target(m, from.x < 0f ? "punk" : "hoodie", "name.killer", 400, from, V(from.x * 0.4f, 10f), V(Mathf.Sign(from.x) * 2f, 3f));
+                hunter.Wait = 0.4f;
+                hunter.Assassin = true;
+            }
+            Passer(m, "worker", V(-40f, 19f), V(-10f, 19f));
+
+            // 12. The man who runs the street, his guard, and one minute.
+            m = New(list, "town", new Vector3(60f, 36f, -160f), new Vector3(20f, 1.4f, 14f), 10, 3800, 40f, "headshots");
+            m.Seconds = 75f;
+            m.Wind = new Vector3(2f, 0f, 0f);
+            ActorDef king = Target(m, "suit", "name.kingpin", 1500, V(20f, 19f), V(-6f, 19f));
+            king.Wait = 6f;
+            king.Escape = V(62f, -12f);
+            king.LeavesAt = 40f;
+            king.Health = 220f;
+            Guard(m, V(24f, 17f), V(-2f, 17f)).Wait = 6f;
+            Guard(m, V(16f, 21f), V(-10f, 21f)).Wait = 6f;
+            Guard(m, V(60f, -14f)).YawDeg = 180f;
+            Guard(m, V(-40f, 12f)).YawDeg = 180f;
+            Passer(m, "casual", V(-70f, 19f), V(-40f, 19f));
+            Passer(m, "farmer", V(80f, 19f), V(50f, 19f));
+        }
+
+        static void AddFort(List<MissionDef> list)
+        {
+            // 13. Two sentries on the gate.
+            MissionDef m = New(list, "fort", new Vector3(0f, 34f, -170f), new Vector3(0f, 1.4f, -8f), 8, 4200, 20f, "headshots");
+            Target(m, "swat", "name.sentry", 300, V(-3.5f, -15f)).Idle = "Idle_Gun";
+            Target(m, "swat", "name.sentry", 300, V(3.5f, -15f)).Idle = "Idle_Gun";
+            Guard(m, V(-10f, 10f), V(10f, 14f));
+
+            // 14. The chemist comes out for air.
+            m = New(list, "fort", new Vector3(-40f, 38f, -170f), new Vector3(-10f, 1.4f, 20f), 8, 4600, 30f, "silent");
+            ActorDef chemist = Target(m, "worker", "name.chemist", 900, V(-20f, 22f), V(-8f, 14f));
+            chemist.Wait = 6f;
+            chemist.Escape = V(-26f, 36f);
+            Guard(m, V(12f, 6f), V(20f, 28f));
+            Guard(m, V(-30f, 4f)).YawDeg = 180f;
+            Guard(m, V(30f, 36f)).YawDeg = 200f;
+
+            // 15. Five men on the wall walk, a long way off.
+            m = New(list, "fort", new Vector3(50f, 40f, -190f), new Vector3(0f, 1.4f, 10f), 10, 5000, 45f, "clean");
+            m.Wind = new Vector3(-3f, 0f, 0f);
+            foreach (Vector3 post in new[] { V(-30f, -4f), V(-12f, 24f), V(8f, 6f), V(24f, 30f), V(32f, -4f) })
+            {
+                ActorDef sentry = Target(m, "swat", "name.sentry", 250, post, post + new Vector3(6f, 0f, 4f));
+                sentry.Idle = "Idle_Gun";
+                sentry.Wait = 4f;
+            }
+
+            // 16. The prisoner is walked across the yard. He must reach the gate; the men with him must not.
+            m = New(list, "fort", new Vector3(-20f, 36f, -175f), new Vector3(0f, 1.4f, 10f), 9, 5600, 30f, "headshots");
+            ActorDef prisoner = Man("ally", "farmer", Role.Ally, "name.prisoner", V(0f, 14f));
+            m.Actors.Add(prisoner);
+            foreach (Vector3 from in new[] { V(-28f, 30f), V(26f, 28f), V(-4f, 36f) })
+            {
+                ActorDef jailer = Target(m, "swat", "name.jailer", 450, from, V(from.x * 0.5f, 22f), V(Mathf.Sign(from.x) * 1.5f, 15f));
+                jailer.Idle = "Idle_Gun";
+                jailer.Wait = 0.6f;
+                jailer.Assassin = true;
+            }
+            Guard(m, V(30f, 0f)).YawDeg = 180f;
+
+            // 17. The convoy is leaving. The colonel must not be in it.
+            m = New(list, "fort", new Vector3(30f, 38f, -180f), new Vector3(0f, 1.4f, 10f), 10, 6200, 35f, "headshots");
+            m.Seconds = 70f;
+            m.Wind = new Vector3(4f, 0f, 0f);
+            ActorDef colonel = Target(m, "suit", "name.colonel", 1800, V(2f, 36f), V(-6f, 20f));
+            colonel.Wait = 5f;
+            colonel.Escape = V(-10f, 6f);
+            colonel.LeavesAt = 30f;
+            colonel.Health = 220f;
+            Guard(m, V(-2f, 34f), V(-10f, 18f));
+            Guard(m, V(6f, 34f), V(-2f, 18f));
+            Guard(m, V(-14f, 2f)).YawDeg = 180f;
+            Guard(m, V(18f, 6f)).YawDeg = 180f;
+
+            // 18. Everyone in the yard.
+            m = New(list, "fort", new Vector3(0f, 42f, -190f), new Vector3(0f, 1.4f, 14f), 14, 8000, 60f, "headshots");
+            m.Wind = new Vector3(-2.5f, 0f, 0f);
+            ActorDef warlord = Target(m, "suit", "name.warlord", 3000, V(0f, 34f), V(8f, 16f), V(-8f, 16f));
+            warlord.Wait = 4f;
+            warlord.Health = 220f;
+            warlord.Escape = V(0f, 40f);
+            foreach (Vector3 post in new[] { V(-24f, 6f), V(22f, 2f), V(-10f, 28f), V(16f, 30f), V(0f, -15f) })
+            {
+                ActorDef soldier = Target(m, "swat", "name.sentry", 300, post, post + new Vector3(5f, 0f, 3f));
+                soldier.Idle = "Idle_Gun";
+                soldier.Wait = 5f;
+            }
         }
     }
 }
