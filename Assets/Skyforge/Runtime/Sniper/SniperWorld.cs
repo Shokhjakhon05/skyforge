@@ -6,12 +6,6 @@ using UnityEngine.Rendering;
 
 namespace Sniper
 {
-    /// <summary>A piece of scenery made into a prefab: how large the model is as it was made.</summary>
-    public sealed class Prop : MonoBehaviour
-    {
-        public Vector3 Size = Vector3.one;
-    }
-
     /// <summary>The place a mission happens in, built from the location's list of pieces, and the people in it.</summary>
     public sealed class SniperWorld
     {

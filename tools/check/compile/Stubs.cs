@@ -37,7 +37,7 @@ namespace UnityEngine.Rendering.Universal
     public class ColorAdjustments : VolumeComponent { public VolumeParameter<float> contrast = new VolumeParameter<float>(), saturation = new VolumeParameter<float>(), postExposure = new VolumeParameter<float>(); }
     public class Vignette : VolumeComponent { public VolumeParameter<float> intensity = new VolumeParameter<float>(), smoothness = new VolumeParameter<float>(); public VolumeParameter<Color> color = new VolumeParameter<Color>(); }
     public class Bloom : VolumeComponent { public VolumeParameter<float> threshold = new VolumeParameter<float>(), intensity = new VolumeParameter<float>(), scatter = new VolumeParameter<float>(); }
-    public class UniversalRenderPipelineAsset : RenderPipelineAsset { public override RenderPipeline CreatePipeline() => null; public float renderScale; public int msaaSampleCount; public float shadowDistance; public bool supportsHDR; }
+    public class UniversalRenderPipelineAsset : RenderPipelineAsset { public override RenderPipeline CreatePipeline() => null; public float renderScale; public int msaaSampleCount; public float shadowDistance; public bool supportsHDR; public int shadowCascadeCount; }
     public enum TonemappingMode { None, Neutral, ACES }
     public class Tonemapping : VolumeComponent { public VolumeParameter<TonemappingMode> mode = new VolumeParameter<TonemappingMode>(); }
     public class UniversalAdditionalCameraData : MonoBehaviour { public bool renderPostProcessing; }
