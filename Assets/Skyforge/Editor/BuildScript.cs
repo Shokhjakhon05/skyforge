@@ -64,6 +64,7 @@ namespace Skyforge.EditorTools
             CreateMaterials();
             PrepareCharacters();
             PrepareProps();
+            PrepareAds();
             _scene = CreateBootScene();
             AssetDatabase.SaveAssets();
         }
@@ -211,6 +212,69 @@ namespace Skyforge.EditorTools
             }
             Debug.Log("[Skyforge] props prepared: " + made);
             AssetDatabase.SaveAssets();
+        }
+
+        /// <summary>
+        /// The advertising SDK needs the app's id in the manifest before the player is built, and
+        /// the game needs to know which units to ask for. Both come from the command line (CI keeps
+        /// them as secrets). Everything here goes through reflection and is allowed to fail: a build
+        /// without working ads is better than no build.
+        /// </summary>
+        static void PrepareAds()
+        {
+            try
+            {
+                string app = GetArgument("-sfAdsApp"), rewarded = GetArgument("-sfAdsRewarded"), interstitial = GetArgument("-sfAdsInterstitial");
+                bool given = !string.IsNullOrEmpty(app) && app.StartsWith("ca-app-pub-");
+                // Google's demonstration app id, so the SDK starts even when none was given.
+                if (!given) app = "ca-app-pub-3940256099942544~3347511713";
+                Directory.CreateDirectory(GeneratedDir + "/Resources");
+                File.WriteAllText(GeneratedDir + "/Resources/ads.txt", given ? "rewarded=" + rewarded + "\ninterstitial=" + interstitial + "\n" : "");
+                AssetDatabase.ImportAsset(GeneratedDir + "/Resources/ads.txt");
+
+                Type settingsType = Type.GetType("GoogleMobileAds.Editor.GoogleMobileAdsSettings, GoogleMobileAds.Editor");
+                if (settingsType == null)
+                {
+                    Debug.LogWarning("[Skyforge] ADS: no SDK in the project, the build will have no advertising.");
+                    return;
+                }
+                const string dir = "Assets/GoogleMobileAds/Resources";
+                Directory.CreateDirectory(dir);
+                string path = dir + "/GoogleMobileAdsSettings.asset";
+                ScriptableObject settings = AssetDatabase.LoadAssetAtPath<ScriptableObject>(path);
+                if (settings == null)
+                {
+                    settings = ScriptableObject.CreateInstance(settingsType);
+                    AssetDatabase.CreateAsset(settings, path);
+                }
+                var serialized = new SerializedObject(settings);
+                bool set = false;
+                SerializedProperty property = serialized.GetIterator();
+                while (property.NextVisible(true))
+                {
+                    if (property.propertyType != SerializedPropertyType.String || !property.name.ToLowerInvariant().Contains("androidappid")) continue;
+                    property.stringValue = app;
+                    set = true;
+                }
+                serialized.ApplyModifiedPropertiesWithoutUndo();
+                EditorUtility.SetDirty(settings);
+                AssetDatabase.SaveAssets();
+                Debug.Log("[Skyforge] ADS: app id " + (set ? "written" : "NOT WRITTEN (no such field)") + ", " + (given ? "the owner's units" : "Google's test units"));
+
+                // Fetch the SDK's Android libraries now rather than hope the build does.
+                Type resolver = Type.GetType("GooglePlayServices.PlayServicesResolver, Google.JarResolver");
+                System.Reflection.MethodInfo resolve = resolver != null ? resolver.GetMethod("ResolveSync", new[] { typeof(bool) }) : null;
+                if (resolve != null)
+                {
+                    object ok = resolve.Invoke(null, new object[] { true });
+                    Debug.Log("[Skyforge] ADS: Android libraries resolved: " + ok);
+                }
+                else Debug.LogWarning("[Skyforge] ADS: no resolver found; relying on the build to fetch the libraries.");
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("[Skyforge] ADS: preparation failed: " + e);
+            }
         }
 
         static void BuildPlayer()

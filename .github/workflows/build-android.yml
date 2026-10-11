@@ -124,6 +124,7 @@ jobs:
             ${{ github.event.inputs.screenshots != 'false' && '-sfScreenshots' || '' }}
             ${{ github.event.inputs.bundle == 'true' && '-sfBundle' || '' }}
             ${{ github.event.inputs.quick == 'true' && '-sfQuick' || '' }}
+            -sfAdsApp ${{ secrets.ADMOB_APP_ID || 'none' }} -sfAdsRewarded ${{ secrets.ADMOB_REWARDED_ID || 'none' }} -sfAdsInterstitial ${{ secrets.ADMOB_INTERSTITIAL_ID || 'none' }}
 
       - name: Check that the build exists
         run: |

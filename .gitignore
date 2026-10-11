@@ -19,3 +19,12 @@
 
 # Signing material written by CI from secrets
 /ci/signing/
+
+# Written by the build for the advertising SDK
+/Assets/GoogleMobileAds/
+/Assets/GoogleMobileAds.meta
+/Assets/Plugins/Android/
+/Assets/Plugins.meta
+/Assets/Plugins/
+/Assets/ExternalDependencyManager/
+/Assets/ExternalDependencyManager.meta

@@ -5,7 +5,17 @@
     "Skyforge.Core",
     "UnityEngine.UI",
     "Unity.RenderPipelines.Core.Runtime",
-    "Unity.RenderPipelines.Universal.Runtime"
+    "Unity.RenderPipelines.Universal.Runtime",
+    "GoogleMobileAds",
+    "GoogleMobileAds.Core",
+    "GoogleMobileAds.Common"
   ],
-  "autoReferenced": true
+  "autoReferenced": true,
+  "versionDefines": [
+    {
+      "name": "com.google.ads.mobile",
+      "expression": "",
+      "define": "SNIPER_ADS"
+    }
+  ]
 }
