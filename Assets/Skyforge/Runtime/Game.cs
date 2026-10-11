@@ -977,6 +977,7 @@ namespace Skyforge
 
         void Update()
         {
+            float frameStart = Time.realtimeSinceStartup;
             float deltaTime = Mathf.Min(Time.deltaTime, 0.1f);
             bool flying = _phase == Phase.Mission || _phase == Phase.FreeFlight;
 
@@ -1010,10 +1011,17 @@ namespace Skyforge
 
             // AfterFreeze may have left the flight.
             flying = _phase == Phase.Mission || _phase == Phase.FreeFlight;
+            float t0 = Time.realtimeSinceStartup;
             Present(deltaTime, flying);
+            float t1 = Time.realtimeSinceStartup;
             PresentField(deltaTime);
             _caches.Update(deltaTime);
+            float t2 = Time.realtimeSinceStartup;
             _effects.Update(deltaTime, _camera.Camera.transform);
+            float t3 = Time.realtimeSinceStartup;
+            if (t3 - frameStart > 2f)
+                Debug.Log("[Skyforge] SLOW UPDATE " + _phase + ": sim " + (t0 - frameStart).ToString("0.0") + ", present " + (t1 - t0).ToString("0.0") +
+                    ", field " + (t2 - t1).ToString("0.0") + ", effects " + (t3 - t2).ToString("0.0"));
             if (_toastTimer > 0f)
             {
                 _toastTimer -= Time.unscaledDeltaTime;

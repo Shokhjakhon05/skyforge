@@ -101,6 +101,76 @@ namespace Skyforge
             yield return Shot("02_settings");
             _game.AutomationHideSettings();
 
+            // 1.3 first, so a slow run still brings these back: the vehicles, the rifle, the instructor, loot and chains, and frames for the icon.
+            Vector3 raid = _game.AutomationGround(false, 3);
+            _game.AutomationSetCamera(CameraView.Chase);
+            yield return Frames(12);
+            yield return Shot("19a_armour_start");
+            _game.AutomationLesson("drive", 0);
+            _game.AutomationPlace(raid + new Vector3(0f, 0f, -130f), 0f);
+            yield return Frames(20);
+            yield return Shot("19b_armour_engage");
+            for (int frame = 0; frame < 70; frame++)
+            {
+                if (frame % 6 == 0) _game.AutomationFire(false);
+                yield return null;
+            }
+            yield return Shot("19c_armour_firing", 1);
+            _game.AutomationShowHangar("rhino", 0, 20000);
+            yield return Shot("19d_hangar_rhino");
+            _game.AutomationShowHangar("bulldog", 0, 20000);
+            yield return Shot("19e_hangar_bulldog");
+            Vector3 man = _game.AutomationGround(true, 6);
+            yield return Frames(10);
+            _game.AutomationSniperAim(man + Vector3.up);
+            yield return Shot("19f_sniper_scope");
+            _game.AutomationZoom();
+            _game.AutomationSniperAim(man + Vector3.up * 1.2f);
+            yield return Shot("19g_sniper_zoomed");
+            _game.AutomationFire(false);
+            yield return Frames(40);
+            yield return Shot("19h_sniper_after_shot", 1);
+            _game.AutomationShowResult();
+            yield return Shot("19i_sniper_result");
+
+            _game.AutomationUseDrone("talon");
+            Vector3 strike = _game.AutomationOperation(0, 9);
+            _game.AutomationSetCamera(CameraView.Chase);
+            _game.AutomationPlace(strike + new Vector3(0f, 26f, -95f), 0f);
+            _game.AutomationLesson("fight", 0);
+            yield return Frames(20);
+            yield return Shot("19j_coach_fight");
+            _game.AutomationLesson(null, 0);
+            int had = _game.AutomationKills;
+            for (int frame = 0; frame < 260 && _game.AutomationKills < had + 3; frame++)
+            {
+                if (frame % 5 == 0) _game.AutomationFire(frame % 40 == 0);
+                yield return null;
+            }
+            _game.AutomationBanner(3);
+            yield return Shot("19k_loot_and_chain", 2);
+            _game.AutomationPlace(strike + new Vector3(8f, 14f, -38f), -8f);
+            yield return Frames(14);
+            yield return Shot("19l_over_the_wrecks", 1);
+            _game.AutomationHud(false);
+            yield return Shot("30a_hero", 1);
+            _game.AutomationPlace(strike + new Vector3(-20f, 10f, -30f), 30f);
+            yield return Frames(10);
+            yield return Shot("30b_hero", 1);
+            _game.AutomationPlace(strike + new Vector3(0f, 18f, -60f), 0f);
+            for (int frame = 0; frame < 30; frame++)
+            {
+                if (frame % 5 == 0) _game.AutomationFire(frame == 10);
+                yield return null;
+            }
+            yield return Shot("30c_hero", 1);
+            _game.AutomationHud(true);
+            _game.AutomationUseDrone("sparrow");
+            _game.AutomationFreeFlight(WeatherCatalog.Clear);
+            _game.AutomationPlace(_game.Island.Spawn + new Vector3(-30f, 16f, -46f), 30f);
+            yield return Shot("19m_camp_by_the_pad");
+            _game.AutomationShowMenu();
+
             _game.AutomationStartMission();
             yield return Shot("03_mission_pad");
 
@@ -251,75 +321,6 @@ namespace Skyforge
             yield return Shot("18p_hangar_painted");
             _game.AutomationUseDrone("sparrow");
 
-            // 1.3: the vehicles, the rifle, the instructor, loot and chains, and frames for the icon.
-            Vector3 raid = _game.AutomationGround(false, 3);
-            _game.AutomationSetCamera(CameraView.Chase);
-            yield return Frames(12);
-            yield return Shot("19a_armour_start");
-            _game.AutomationLesson("drive", 0);
-            _game.AutomationPlace(raid + new Vector3(0f, 0f, -130f), 0f);
-            yield return Frames(20);
-            yield return Shot("19b_armour_engage");
-            for (int frame = 0; frame < 70; frame++)
-            {
-                if (frame % 6 == 0) _game.AutomationFire(false);
-                yield return null;
-            }
-            yield return Shot("19c_armour_firing", 1);
-            _game.AutomationShowHangar("rhino", 0, 20000);
-            yield return Shot("19d_hangar_rhino");
-            _game.AutomationShowHangar("bulldog", 0, 20000);
-            yield return Shot("19e_hangar_bulldog");
-            Vector3 man = _game.AutomationGround(true, 6);
-            yield return Frames(10);
-            _game.AutomationSniperAim(man + Vector3.up);
-            yield return Shot("19f_sniper_scope");
-            _game.AutomationZoom();
-            _game.AutomationSniperAim(man + Vector3.up * 1.2f);
-            yield return Shot("19g_sniper_zoomed");
-            _game.AutomationFire(false);
-            yield return Frames(40);
-            yield return Shot("19h_sniper_after_shot", 1);
-            _game.AutomationShowResult();
-            yield return Shot("19i_sniper_result");
-
-            _game.AutomationUseDrone("talon");
-            Vector3 strike = _game.AutomationOperation(0, 9);
-            _game.AutomationSetCamera(CameraView.Chase);
-            _game.AutomationPlace(strike + new Vector3(0f, 26f, -95f), 0f);
-            _game.AutomationLesson("fight", 0);
-            yield return Frames(20);
-            yield return Shot("19j_coach_fight");
-            _game.AutomationLesson(null, 0);
-            int had = _game.AutomationKills;
-            for (int frame = 0; frame < 260 && _game.AutomationKills < had + 3; frame++)
-            {
-                if (frame % 5 == 0) _game.AutomationFire(frame % 40 == 0);
-                yield return null;
-            }
-            _game.AutomationBanner(3);
-            yield return Shot("19k_loot_and_chain", 2);
-            _game.AutomationPlace(strike + new Vector3(8f, 14f, -38f), -8f);
-            yield return Frames(14);
-            yield return Shot("19l_over_the_wrecks", 1);
-            _game.AutomationHud(false);
-            yield return Shot("30a_hero", 1);
-            _game.AutomationPlace(strike + new Vector3(-20f, 10f, -30f), 30f);
-            yield return Frames(10);
-            yield return Shot("30b_hero", 1);
-            _game.AutomationPlace(strike + new Vector3(0f, 18f, -60f), 0f);
-            for (int frame = 0; frame < 30; frame++)
-            {
-                if (frame % 5 == 0) _game.AutomationFire(frame == 10);
-                yield return null;
-            }
-            yield return Shot("30c_hero", 1);
-            _game.AutomationHud(true);
-            _game.AutomationUseDrone("sparrow");
-            _game.AutomationFreeFlight(WeatherCatalog.Clear);
-            _game.AutomationPlace(_game.Island.Spawn + new Vector3(-30f, 16f, -46f), 30f);
-            yield return Shot("19m_camp_by_the_pad");
-
             _game.AutomationSelectMission("broken_arrow");
             _game.AutomationShowMenu();
             _game.AutomationShowTalk();
@@ -403,6 +404,28 @@ namespace Skyforge
             }
             yield return Shot(prefix + "_" + missionId + "_3_burning", 1);
             Debug.Log("[Skyforge] Battle " + missionId + ": kills " + _game.AutomationKills + ", lock " + _game.AutomationLock);
+        }
+
+        // Where a long frame went: scripts, drawing, or the editor between frames.
+        float _frameStart, _scriptsDone, _frameEnd;
+        readonly WaitForEndOfFrame _endOfFrame = new WaitForEndOfFrame();
+
+        void Update()
+        {
+            float now = Time.realtimeSinceStartup;
+            if (_frameStart > 0f && now - _frameStart > 3f)
+                Debug.Log("[Skyforge] SLOW FRAME " + Time.frameCount + ": scripts " + (_scriptsDone - _frameStart).ToString("0.0") + " s, drawing " +
+                    (_frameEnd - _scriptsDone).ToString("0.0") + " s, between frames " + (now - _frameEnd).ToString("0.0") + " s");
+            _frameStart = now;
+            StartCoroutine(MarkEnd());
+        }
+
+        void LateUpdate() => _scriptsDone = Time.realtimeSinceStartup;
+
+        IEnumerator MarkEnd()
+        {
+            yield return _endOfFrame;
+            _frameEnd = Time.realtimeSinceStartup;
         }
 
         static IEnumerator Frames(int count)
