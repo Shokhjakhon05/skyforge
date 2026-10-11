@@ -188,7 +188,7 @@ namespace Skyforge.UI
                 float dx = (x - 31.5f) / 31.5f, dy = (y - 31.5f) / 31.5f;
                 // Square-ish, so the corners and the edges both darken on a wide screen.
                 float d = Mathf.Pow(Mathf.Pow(Mathf.Abs(dx), 3f) + Mathf.Pow(Mathf.Abs(dy), 3f), 1f / 3f);
-                pixels[y * 64 + x] = new Color(1f, 1f, 1f, Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.55f, 1.05f, d)));
+                pixels[y * 64 + x] = new Color(1f, 1f, 1f, Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.72f, 1.1f, d)));
             }
             texture.SetPixels32(pixels);
             texture.Apply();
@@ -347,8 +347,8 @@ namespace Skyforge.UI
             }
 
             _hit = Mathf.Max(0f, _hit - deltaTime * 1.6f);
-            float low = hull < 0.34f ? 0.3f + 0.12f * Mathf.Sin(Time.unscaledTime * 5f) : 0f;
-            float wanted = Mathf.Max(low, _hit * 0.75f);
+            float low = hull < 0.34f ? 0.24f + 0.12f * Mathf.Sin(Time.unscaledTime * 5f) : 0f;
+            float wanted = Mathf.Max(low, _hit * 0.55f);
             _vignetteShown = Mathf.MoveTowards(_vignetteShown, wanted, deltaTime * 2.4f);
             Color v = _vignette.color;
             if (Mathf.Abs(v.a - _vignetteShown) > 0.004f)

@@ -20,7 +20,7 @@ namespace Skyforge.World
                 bool rock = name.StartsWith("rock");
                 bool big = house || rock || name.StartsWith("palm") || name.EndsWith("tower") || name.StartsWith("container") || name == "tent";
                 // One house in three has burnt; the rest only look lived in.
-                Transform body = model.Spawn(root, house && i % 3 == 0 ? model.Scorched : model.Scenery, big);
+                Transform body = model.Spawn(root, rock ? model.Stone : house && i % 3 == 0 ? model.Scorched : model.Scenery, big);
                 float ground = prop.Base.y;
                 if (house)
                 {

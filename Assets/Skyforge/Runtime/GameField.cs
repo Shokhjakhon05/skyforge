@@ -196,6 +196,8 @@ namespace Skyforge
         }
 
         /// <summary>Every frame: the sight, the loot, the scope, the instructor.</summary>
+        bool _fieldUsed;
+
         void PresentField(float deltaTime)
         {
             bool flying = (_phase == Phase.Mission || _phase == Phase.FreeFlight) && _hud.Visible;
@@ -203,8 +205,15 @@ namespace Skyforge
             if (!flying)
             {
                 if (_pickups != null && _phase != Phase.Mission) _pickups.Clear();
+                // Nothing from the last fight is left hanging on the glass for the next flight.
+                if (_phase != Phase.Mission && _phase != Phase.FreeFlight && _fieldUsed)
+                {
+                    _field.Reset();
+                    _fieldUsed = false;
+                }
                 return;
             }
+            _fieldUsed = true;
             bool mission = _phase == Phase.Mission && _run != null;
             bool busy = _introTimer > 0f || _freezeTimer > 0f || _photo || _killCam > 0f;
             _field.Update(_camera.Camera, mission ? _run.Hull : 1f, Time.unscaledDeltaTime);

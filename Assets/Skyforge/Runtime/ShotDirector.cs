@@ -116,6 +116,7 @@ namespace Skyforge
                 yield return null;
             }
             yield return Shot("19c_armour_firing", 1);
+            _game.AutomationShowMenu();
             _game.AutomationShowHangar("rhino", 0, 20000);
             yield return Shot("19d_hangar_rhino");
             _game.AutomationShowHangar("bulldog", 0, 20000);
@@ -404,28 +405,6 @@ namespace Skyforge
             }
             yield return Shot(prefix + "_" + missionId + "_3_burning", 1);
             Debug.Log("[Skyforge] Battle " + missionId + ": kills " + _game.AutomationKills + ", lock " + _game.AutomationLock);
-        }
-
-        // Where a long frame went: scripts, drawing, or the editor between frames.
-        float _frameStart, _scriptsDone, _frameEnd;
-        readonly WaitForEndOfFrame _endOfFrame = new WaitForEndOfFrame();
-
-        void Update()
-        {
-            float now = Time.realtimeSinceStartup;
-            if (_frameStart > 0f && now - _frameStart > 3f)
-                Debug.Log("[Skyforge] SLOW FRAME " + Time.frameCount + ": scripts " + (_scriptsDone - _frameStart).ToString("0.0") + " s, drawing " +
-                    (_frameEnd - _scriptsDone).ToString("0.0") + " s, between frames " + (now - _frameEnd).ToString("0.0") + " s");
-            _frameStart = now;
-            StartCoroutine(MarkEnd());
-        }
-
-        void LateUpdate() => _scriptsDone = Time.realtimeSinceStartup;
-
-        IEnumerator MarkEnd()
-        {
-            yield return _endOfFrame;
-            _frameEnd = Time.realtimeSinceStartup;
         }
 
         static IEnumerator Frames(int count)

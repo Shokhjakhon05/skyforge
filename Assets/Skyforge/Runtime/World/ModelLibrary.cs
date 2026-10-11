@@ -19,7 +19,25 @@ namespace Skyforge.World
         public Color32[] Palette;
         public Bounds Bounds;
 
-        Material _plain, _burnt, _scenery, _scorched;
+        Material _plain, _burnt, _scenery, _scorched, _stone;
+
+        /// <summary>The model as bare rock: its own shading kept, its colour taken down to weathered grey.</summary>
+        public Material Stone
+        {
+            get
+            {
+                if (_stone != null) return _stone;
+                var colors = new Color32[Palette.Length];
+                for (int i = 0; i < colors.Length; i++)
+                {
+                    Color original = Palette[i];
+                    float light = 0.45f + original.grayscale * 0.5f;
+                    colors[i] = Color.Lerp(original, new Color(0.56f, 0.53f, 0.48f) * light, 0.82f);
+                    colors[i].a = 255;
+                }
+                return _stone = Paint(colors, GameMaterials.Matter.Painted);
+            }
+        }
 
         /// <summary>The model as part of a town: matt paint and plaster rather than a vehicle's metal.</summary>
         public Material Scenery => _scenery != null ? _scenery : _scenery = Paint(Palette, GameMaterials.Matter.Painted);

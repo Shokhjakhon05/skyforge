@@ -599,9 +599,9 @@ namespace Skyforge.Core
                 int guards = Mathf.Clamp(1 + level / 5, 1, 4);
                 for (int i = 0; i < guards; i++)
                     marks.Add(d.Add("guard" + i, i % 2 == 0 ? "squad" : "gatling", poi, Mathf.Cos(i * 2.1f) * 24f, Mathf.Sin(i * 2.1f) * 24f));
-                d.Objectives.Add(TakeOff);
+                d.Objectives.Add(new ObjectiveData { type = "takeoff", text = "objective.op.armour.go" });
                 d.Objectives.Add(Destroy(marks, "objective.op.armour"));
-                d.Objectives.Add(new ObjectiveData { type = "land", at = Place("pad"), radius = 18f });
+                d.Objectives.Add(new ObjectiveData { type = "land", text = "objective.op.armour.back", at = Place("pad"), radius = 18f });
                 var data = new MissionData
                 {
                     id = "armour:" + region + ":" + seed + ":" + level, region = region, order = 1, template = "assault", weather = d.Weather,

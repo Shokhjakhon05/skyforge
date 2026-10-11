@@ -977,7 +977,6 @@ namespace Skyforge
 
         void Update()
         {
-            float frameStart = Time.realtimeSinceStartup;
             float deltaTime = Mathf.Min(Time.deltaTime, 0.1f);
             bool flying = _phase == Phase.Mission || _phase == Phase.FreeFlight;
 
@@ -1011,17 +1010,10 @@ namespace Skyforge
 
             // AfterFreeze may have left the flight.
             flying = _phase == Phase.Mission || _phase == Phase.FreeFlight;
-            float t0 = Time.realtimeSinceStartup;
             Present(deltaTime, flying);
-            float t1 = Time.realtimeSinceStartup;
             PresentField(deltaTime);
             _caches.Update(deltaTime);
-            float t2 = Time.realtimeSinceStartup;
             _effects.Update(deltaTime, _camera.Camera.transform);
-            float t3 = Time.realtimeSinceStartup;
-            if (t3 - frameStart > 2f)
-                Debug.Log("[Skyforge] SLOW UPDATE " + _phase + ": sim " + (t0 - frameStart).ToString("0.0") + ", present " + (t1 - t0).ToString("0.0") +
-                    ", field " + (t2 - t1).ToString("0.0") + ", effects " + (t3 - t2).ToString("0.0"));
             if (_toastTimer > 0f)
             {
                 _toastTimer -= Time.unscaledDeltaTime;
@@ -1319,9 +1311,9 @@ namespace Skyforge
             else if (_killCam > 0f) _camera.Orbit(_killPoint + Vector3.up * 3f, Time.unscaledTime * 3.5f, 0f, 30f, 0.34f);
             else _camera.Update(position, yaw, tilt, speedShare, deltaTime);
             _hud.SetTelemetry(speed * 3.6f, _sim.AltitudeAboveGround);
-            _hud.UpdateSticks(_sticks,
-                Loc.T(_save.SticksSwapped ? "hint.lift" : "hint.move"),
-                Loc.T(_save.SticksSwapped ? "hint.move" : "hint.lift"));
+            string moveLabel = Loc.T(SniperMode ? "hint.aim" : _sim.Spec.Ground ? "hint.drive.move" : "hint.move");
+            string liftLabel = Loc.T(SniperMode ? "hint.aim" : _sim.Spec.Ground ? "hint.drive.turn" : "hint.lift");
+            _hud.UpdateSticks(_sticks, _save.SticksSwapped ? liftLabel : moveLabel, _save.SticksSwapped ? moveLabel : liftLabel);
 
             if (_messageTimer > 0f)
             {
@@ -1487,13 +1479,13 @@ namespace Skyforge
             if (_run.UnderFire) return Loc.T(_run.Hull < 0.3f ? "warn.hull" : "warn.under_fire");
             if (lowSignal) return Loc.T("warn.signal");
             if (lowBattery) return Loc.T("warn.battery");
-            if (!_hasFlown) return Loc.T("hint.takeoff");
+            if (!_hasFlown) return Loc.T(_sim.Spec.Ground ? "hint.drive" : "hint.takeoff");
             if (objective == null) return "";
             if (_run.IsCombat)
             {
                 if (AllyUnderFire()) return Loc.T("warn.ally");
                 if (_run.Kamikaze) return Loc.T("hint.kamikaze");
-                if (objective.Type == ObjectiveType.Destroy && _run.Rockets <= 0 && _run.Bombs <= 0) return Loc.T("hint.rearm");
+                if (objective.Type == ObjectiveType.Destroy && _run.Rockets <= 0 && _run.Bombs <= 0 && !_run.Sniper) return Loc.T("hint.rearm");
                 // The first fight explains the two weapons; after that the player knows.
                 if (objective.Type == ObjectiveType.Destroy && _mission.Order == 1)
                     return Loc.T(_run.Rockets > 0 ? "hint.lock" : "hint.bomb");

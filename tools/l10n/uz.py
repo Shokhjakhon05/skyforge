@@ -1053,4 +1053,10 @@ T = {
 "splash.boot.1": "SUN'IY YO'LDOSH KANALI FAOL",
 "splash.boot.2": "TEXNIKA TAYYOR",
 "splash.tap": "DAVOM ETISH UCHUN BOSING",
+"objective.op.armour.go": "Yo'lga chiqing",
+"objective.op.armour.back": "Maydonchaga qayting",
+"hint.drive": "Yurish uchun bu stikni oldinga suring",
+"hint.drive.move": "YURISH · RUL",
+"hint.drive.turn": "BURILISH",
+"hint.aim": "NISHON",
 }

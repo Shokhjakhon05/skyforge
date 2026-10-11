@@ -191,6 +191,7 @@ namespace Skyforge.World
             var road = new float[size * size];
             var burn = new float[size * size];
             var rim = new float[size * size];
+            var town = new float[size * size];
 
             void Stamp(float[] mask, float x, float z, float radius, float soft)
             {
@@ -216,10 +217,17 @@ namespace Skyforge.World
                     // A track wanders a little; it is not laid with a ruler.
                     float sway = (Mathf.PerlinNoise(point.x * 0.01f + 5f, point.z * 0.01f + 9f) - 0.5f) * 14f;
                     Vector3 side = new Vector3(-path.z, 0f, path.x).normalized * sway * Mathf.Sin(Mathf.PI * i / steps);
-                    Stamp(road, point.x + side.x, point.z + side.z, 1.8f, 2.6f);
+                    Stamp(road, point.x + side.x, point.z + side.z, 2.4f, 2.8f);
                 }
             }
             foreach (Vector3 village in island.Villages) Stamp(road, village.x, village.z, 34f, 55f);
+            // Every house stands in a trodden yard, and a town's yards run together into streets of rubble and dust.
+            foreach (PropSpec prop in island.Props)
+            {
+                string name = Island.PropModels[prop.Model];
+                if (name.StartsWith("b_") || name == "apartment" || name == "warehouse" || name == "fortress") Stamp(town, prop.Base.x, prop.Base.z, 6f * prop.Scale + 3f, 9f);
+                else if (name.StartsWith("container") || name == "tent" || name.EndsWith("tower")) Stamp(town, prop.Base.x, prop.Base.z, 3f, 5f);
+            }
             foreach (RuinSpec ruin in island.Ruins) Stamp(burn, ruin.Base.x, ruin.Base.z, ruin.Width * 0.6f, 7f);
             foreach (WreckSpec wreck in island.Wrecks) Stamp(burn, wreck.Base.x, wreck.Base.z, 3.5f, 5f);
             foreach (CraterSpec crater in island.Craters)
@@ -231,16 +239,19 @@ namespace Skyforge.World
             Color dirt = Color.Lerp(paint.GroundDry, new Color(0.34f, 0.28f, 0.21f), 0.65f);
             Color thrown = Color.Lerp(paint.Sand, new Color(0.50f, 0.42f, 0.32f), 0.6f);
             var soot = new Color(0.085f, 0.08f, 0.075f);
+            var rubble = new Color(0.43f, 0.41f, 0.38f);
             for (int py = 0; py < size; py++)
             for (int px = 0; px < size; px++)
             {
                 int index = py * size + px;
-                if (road[index] <= 0f && burn[index] <= 0f && rim[index] <= 0f) continue;
+                if (road[index] <= 0f && burn[index] <= 0f && rim[index] <= 0f && town[index] <= 0f) continue;
                 float x = -map.HalfSize + (px + 0.5f) * metres, z = -map.HalfSize + (py + 0.5f) * metres;
                 if (map.Height(x, z) < 0.6f) continue;
                 float grain = 0.88f + Mathf.PerlinNoise(x * 0.45f + 3f, z * 0.45f + 8f) * 0.24f;
                 Color color = pixels[index];
-                color = Color.Lerp(color, dirt * grain, road[index] * 0.6f);
+                color = Color.Lerp(color, dirt * grain, road[index] * 0.78f);
+                float patchy = Mathf.PerlinNoise(x * 0.11f + 21f, z * 0.11f + 4f);
+                color = Color.Lerp(color, Color.Lerp(dirt, rubble, patchy) * grain, town[index] * 0.85f);
                 // Earth thrown out of a crater lies in a paler ring around the black of it.
                 color = Color.Lerp(color, thrown * grain, rim[index] * (1f - burn[index]) * 0.7f);
                 color = Color.Lerp(color, soot * grain, burn[index] * 0.85f);
