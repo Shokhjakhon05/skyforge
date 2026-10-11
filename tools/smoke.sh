@@ -25,6 +25,10 @@ shot 02_after_splash
 echo "pid after start: $(alive)"
 adb shell wm size
 
+# A new player is paid for turning up before anything else: collect it.
+adb shell input tap 1080 682
+sleep 4
+shot 02b_menu
 # The first contract's card, then "take the shot".
 adb shell input tap 214 705
 sleep 8
