@@ -422,7 +422,8 @@ namespace Sniper
             ActorDef dealer = Man("dealer", "punk", Role.Target, "name.dealer", V(-4f, 2f));
             dealer.YawDeg = 200f;
             dealer.Bounty = 250;
-            dealer.Escape = V(-8f, 8f);
+            // Far enough that a beginner who misses has three or four more rounds at a running man.
+            dealer.Escape = V(62f, 18f);
             dealer.LeavesAt = 50f;
             m.Actors.Add(dealer);
             ActorDef docker = Man("docker", "worker", Role.Civilian, "name.worker", V(20f, 16f), V(4f, 18f), V(-12f, 14f));
