@@ -71,6 +71,13 @@ namespace Sniper
             _music = Music.Create(transform);
             _look = new SceneLook(transform, _cam, null);
             _look.SetQuality(SceneLook.Recommend());
+            // The people shot at stand two hundred metres off: shadows have to reach that far or the whole scene goes flat.
+            var pipeline = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline as UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset;
+            if (pipeline != null)
+            {
+                pipeline.shadowDistance = 340f;
+                pipeline.shadowCascadeCount = 3;
+            }
             _effects = new Effects(transform);
             UiKit.Tap = () => _sfx.Play(Sound.Tap, 0.7f);
             AudioListener.volume = _save.Muted ? 0f : 1f;
