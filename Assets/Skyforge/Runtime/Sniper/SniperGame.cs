@@ -668,6 +668,7 @@ namespace Sniper
         void ShowSettings()
         {
             RectTransform s = Screen_("Settings", true);
+            Backing(s);
             Words(s, Loc.T("sn.settings"), 64, new Vector2(0.5f, 1f), new Vector2(0f, -70f), new Vector2(1200f, 80f), TextAnchor.MiddleCenter, Color.white);
             float y = 190f;
             void Line(string label, string value, System.Action less, System.Action more)
@@ -706,6 +707,17 @@ namespace Sniper
             Press(s, Loc.T("sn.back"), UiKit.Accent, 34, new Vector2(0.5f, 0f), new Vector2(0f, 70f), new Vector2(360f, 96f), _phase == Phase.Paused ? (System.Action)Pause_ : ShowMenu);
         }
 
+        /// <summary>A dark sheet behind a screen full of small print, so the place behind it does not read through.</summary>
+        static void Backing(RectTransform screen)
+        {
+            Image sheet = UiKit.Box(screen, "Backing", new Color(0.02f, 0.03f, 0.05f, 0.93f));
+            sheet.raycastTarget = false;
+            sheet.rectTransform.anchorMin = Vector2.zero;
+            sheet.rectTransform.anchorMax = Vector2.one;
+            sheet.rectTransform.offsetMin = new Vector2(30f, 24f);
+            sheet.rectTransform.offsetMax = new Vector2(-30f, -20f);
+        }
+
         void Sense(float by)
         {
             _save.Sensitivity = Mathf.Clamp(Mathf.Round((_save.Sensitivity + by) * 10f) / 10f, 0.4f, 2.5f);
@@ -717,6 +729,7 @@ namespace Sniper
         void ShowCareer()
         {
             RectTransform s = Screen_("Career", true);
+            Backing(s);
             Words(s, Loc.T("sn.career"), 60, new Vector2(0f, 1f), new Vector2(70f, -36f), new Vector2(900f, 76f), TextAnchor.UpperLeft, Color.white);
             int accuracy = _save.Shots > 0 ? Mathf.Clamp(Mathf.RoundToInt(100f * _save.Kills / _save.Shots), 0, 100) : 0;
             string stats = Loc.T("sn.stat.contracts", _save.Completed, Campaign.Missions.Count) + "\n" + Loc.T("sn.stat.stars", _save.Stars, Campaign.Missions.Count * 3) + "\n" +
@@ -729,12 +742,12 @@ namespace Sniper
                 bool done = _save.Feats.Contains(feat.Id);
                 int have = Mathf.Min(feat.Goal, FeatValue(feat.Kind));
                 var at = new Vector2(-70f - (row % 2) * 480f, -140f - (row / 2) * 62f);
-                Words(s, (done ? "+  " : "") + Loc.T("sn.feat." + feat.Kind, feat.Goal) + (done ? "" : "   " + have + "/" + feat.Goal) + "   $" + feat.Cash.ToString("N0"), 22, new Vector2(1f, 1f), at, new Vector2(460f, 54f),
+                Words(s, (done ? "+  " : "") + Loc.T("sn.feat." + feat.Kind, feat.Goal) + (done ? "" : "   " + have + "/" + feat.Goal) + "   $" + feat.Cash.ToString("N0"), 24, new Vector2(1f, 1f), at, new Vector2(460f, 54f),
                     TextAnchor.MiddleLeft, done ? UiKit.Accent : new Color(1f, 1f, 1f, 0.75f));
                 row++;
             }
             var credits = Resources.Load<TextAsset>("sniper_credits");
-            Words(s, credits != null ? credits.text : "", 17, new Vector2(0f, 0f), new Vector2(74f, 60f), new Vector2(1320f, 300f), TextAnchor.LowerLeft, new Color(1f, 1f, 1f, 0.6f), true);
+            Words(s, credits != null ? credits.text : "", 19, new Vector2(0f, 0f), new Vector2(74f, 60f), new Vector2(1380f, 330f), TextAnchor.LowerLeft, new Color(1f, 1f, 1f, 0.6f), true);
             Press(s, Loc.T("sn.back"), UiKit.Accent, 32, new Vector2(1f, 0f), new Vector2(-70f, 50f), new Vector2(300f, 96f), ShowMenu);
         }
 
