@@ -29,9 +29,13 @@ namespace Sniper
     {
         public string Model;
         public Vector3 At;
-        public float YawDeg, Scale;
-        /// <summary>The box a bullet meets; zero size for scenery bullets ignore.</summary>
+        public float YawDeg;
+        /// <summary>Height in metres the model is scaled to; zero keeps the size it was made at.</summary>
+        public float Height;
+        /// <summary>The box a bullet meets, if it is set by hand; otherwise the picture's own bounds are used.</summary>
         public Vector3 Solid;
+        /// <summary>Bullets pass: a lamp post, a tree's crown, something far in the background.</summary>
+        public bool Open;
         public bool Thin;
     }
 

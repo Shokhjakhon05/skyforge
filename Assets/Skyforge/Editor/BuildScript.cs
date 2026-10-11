@@ -63,6 +63,7 @@ namespace Skyforge.EditorTools
             CreateRenderPipeline();
             CreateMaterials();
             PrepareCharacters();
+            PrepareProps();
             _scene = CreateBootScene();
             AssetDatabase.SaveAssets();
         }
@@ -112,6 +113,49 @@ namespace Skyforge.EditorTools
                 PrefabUtility.SaveAsPrefabAsset(instance, dir + "/" + name + ".prefab");
                 UnityEngine.Object.DestroyImmediate(instance);
             }
+            AssetDatabase.SaveAssets();
+        }
+
+        /// <summary>
+        /// Scenery comes as glTF files of every size and with the origin anywhere. Each becomes a
+        /// prefab that stands on its own base at its own centre and knows how large it is.
+        /// </summary>
+        static void PrepareProps()
+        {
+            const string source = "Assets/Sniper/Props";
+            if (!Directory.Exists(source)) return;
+            string dir = GeneratedDir + "/Resources/Props";
+            Directory.CreateDirectory(dir);
+            int made = 0;
+            foreach (string file in Directory.GetFiles(source, "*.glb"))
+            {
+                string path = file.Replace('\\', '/');
+                string name = Path.GetFileNameWithoutExtension(path);
+                var model = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+                if (model == null)
+                {
+                    Debug.LogError("[Skyforge] PROP NOT IMPORTED " + path);
+                    continue;
+                }
+                var instance = (GameObject)UnityEngine.Object.Instantiate(model);
+                Renderer[] renderers = instance.GetComponentsInChildren<Renderer>();
+                if (renderers.Length == 0)
+                {
+                    Debug.LogError("[Skyforge] PROP WITHOUT A MESH " + path);
+                    UnityEngine.Object.DestroyImmediate(instance);
+                    continue;
+                }
+                Bounds bounds = renderers[0].bounds;
+                foreach (Renderer renderer in renderers) bounds.Encapsulate(renderer.bounds);
+                var root = new GameObject(name);
+                instance.transform.SetParent(root.transform, true);
+                instance.transform.position -= new Vector3(bounds.center.x, bounds.min.y, bounds.center.z);
+                root.AddComponent<Sniper.Prop>().Size = bounds.size;
+                PrefabUtility.SaveAsPrefabAsset(root, dir + "/" + name + ".prefab");
+                UnityEngine.Object.DestroyImmediate(root);
+                made++;
+            }
+            Debug.Log("[Skyforge] props prepared: " + made);
             AssetDatabase.SaveAssets();
         }
 
@@ -435,7 +479,9 @@ namespace Skyforge.EditorTools
             {
                 string path = AssetDatabase.GUIDToAssetPath(guid);
                 if (!(AssetImporter.GetAtPath(path) is TextureImporter importer)) continue;
-                bool sky = path.Contains("/Sky/"), detail = path.Contains("/Textures/detail_"), mapped = path.Contains("/Textures/map_");
+                bool sky = path.Contains("/Sky/"), detail = path.Contains("/Textures/detail_");
+                bool mapped = path.Contains("/Textures/map_") || path.Contains("/Textures/ground_");
+                bool relief = path.Contains("/Textures/ground_") && path.Contains("_n.");
                 if (!sky && !detail && !mapped) continue;
 
                 importer.textureType = TextureImporterType.Default;
@@ -453,7 +499,8 @@ namespace Skyforge.EditorTools
                 }
                 else if (mapped)
                 {
-                    importer.sRGBTexture = true;
+                    if (relief) importer.textureType = TextureImporterType.NormalMap;
+                    importer.sRGBTexture = !relief;
                     importer.mipmapEnabled = true;
                     importer.wrapMode = TextureWrapMode.Repeat;
                     importer.maxTextureSize = 1024;
@@ -527,6 +574,26 @@ namespace Skyforge.EditorTools
 
             ConfigureTextures();
             ConfigureAudio();
+
+            // The ground of each kind of place: a photographed surface with its relief.
+            foreach (string ground in new[] { "asphalt", "concrete", "sand", "grass" })
+            {
+                var colour = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Skyforge/Resources/Textures/ground_" + ground + ".jpg");
+                var relief = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Skyforge/Resources/Textures/ground_" + ground + "_n.jpg");
+                if (colour == null) continue;
+                var laid = new Material(FindShader("Universal Render Pipeline/Lit"));
+                laid.SetTexture("_BaseMap", colour);
+                laid.SetColor("_BaseColor", ground == "concrete" ? new Color(0.78f, 0.78f, 0.8f) : Color.white);
+                if (relief != null)
+                {
+                    laid.SetTexture("_BumpMap", relief);
+                    laid.SetFloat("_BumpScale", 1f);
+                    laid.EnableKeyword("_NORMALMAP");
+                }
+                laid.SetFloat("_Smoothness", ground == "asphalt" || ground == "concrete" ? 0.28f : 0.08f);
+                laid.SetFloat("_Metallic", 0f);
+                AssetDatabase.CreateAsset(laid, dir + "/Ground_" + ground + ".mat");
+            }
 
             // The photographed sky; the procedural one stands in if the shader is broken.
             Shader skyShader = Shader.Find("Skyforge/Sky");

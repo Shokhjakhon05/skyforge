@@ -122,6 +122,11 @@ namespace Sniper
             Reserve = mission.Rounds - InMagazine;
         }
 
+        /// <summary>Scenery measured after it was built: a box that stops a round.</summary>
+        public void AddCover(Cover cover) => _covers.Add(cover);
+
+        public int CoverCount => _covers.Count;
+
         public int TargetsLeft
         {
             get

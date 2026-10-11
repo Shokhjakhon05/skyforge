@@ -66,7 +66,7 @@ namespace Skyforge.Tests
         public void AWallStopsARoundAndOnlyAPiercingOneGoesThroughAThinOne()
         {
             var location = new LocationDef();
-            location.Pieces.Add(new Piece { Model = "wall", At = new Vector3(0f, 0f, -6f), Scale = 1f, Solid = new Vector3(6f, 3f, 0.3f), Thin = true });
+            location.Pieces.Add(new Piece { Model = "wall", At = new Vector3(0f, 0f, -6f), Solid = new Vector3(6f, 3f, 0.3f), Thin = true });
             MissionDef mission = Mission(Man("a", Role.Target, Vector3.zero));
             mission.Perch = new Vector3(0f, 1.4f, -150f);
             var plain = new SniperSim(mission, location, Armory.Get("awm"));

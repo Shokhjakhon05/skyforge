@@ -29,9 +29,10 @@ namespace Skyforge
 
         static void CreateGame()
         {
-            var root = new GameObject("Skyforge");
-            root.AddComponent<Game>();
-            if (ShotDirector.OutputDir != null) root.AddComponent<ShotDirector>();
+            // The sniper game is what ships; the old drone game stays in the code but is not started.
+            var root = new GameObject("Sniper");
+            root.AddComponent<Sniper.SniperGame>();
+            if (ShotDirector.OutputDir != null) root.AddComponent<Sniper.SniperShots>();
         }
     }
 }
