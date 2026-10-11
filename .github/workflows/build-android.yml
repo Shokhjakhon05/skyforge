@@ -139,7 +139,30 @@ jobs:
         if: always()
         run: sudo rm -rf ci/signing
 
+      # Whatever happens to the release below, the build and its pictures are kept with the run.
+      - name: Pack what was made
+        run: |
+          APK="zerohour-${VERSION}-${{ github.run_number }}.${EXTENSION}"
+          sudo cp "build/Android/Skyforge.$EXTENSION" "$APK"
+          sudo chmod a+r "$APK"
+          if ls build/Screenshots/*.png >/dev/null 2>&1; then
+            (cd build/Screenshots && sudo zip -q -r ../../screenshots.zip .)
+            sudo chmod a+r screenshots.zip
+          fi
+          ls -lh "$APK" screenshots.zip || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ github.run_number }}
+          path: |
+            zerohour-*.apk
+            zerohour-*.aab
+            screenshots.zip
+          retention-days: 7
+          compression-level: 0
+
       - name: Publish prerelease
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -153,7 +176,7 @@ jobs:
           fi
           gh release create "dev-${{ github.run_number }}" "${FILES[@]}" \
             --prerelease --target "$GITHUB_SHA" \
-            --title "Skyforge ${VERSION} (build ${{ github.run_number }})" \
+            --title "Zero Hour ${VERSION} (build ${{ github.run_number }})" \
             --notes "Development build from ${GITHUB_SHA::7}."
           # Keep the five newest development builds.
           gh release list --limit 100 --json tagName,createdAt \
