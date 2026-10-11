@@ -15,7 +15,7 @@
     "com.unity.modules.uielements": "1.0.0",
     "com.unity.modules.unitywebrequest": "1.0.0",
     "com.unity.cloud.gltfast": "6.9.0",
-    "com.google.ads.mobile": "10.6.0"
+    "com.google.ads.mobile": "11.5.0"
   },
   "scopedRegistries": [
     {
