@@ -1484,6 +1484,8 @@ namespace Skyforge
             if (_run.IsCombat)
             {
                 if (AllyUnderFire()) return Loc.T("warn.ally");
+                // Behind a rifle none of the aircraft's advice applies; the scope says what matters.
+                if (_run.Sniper) return "";
                 if (_run.Kamikaze) return Loc.T("hint.kamikaze");
                 if (objective.Type == ObjectiveType.Destroy && _run.Rockets <= 0 && _run.Bombs <= 0 && !_run.Sniper) return Loc.T("hint.rearm");
                 // The first fight explains the two weapons; after that the player knows.
