@@ -731,7 +731,7 @@ namespace Skyforge
             { "prologue.title", new[] { "WEAPONS FREE", "ОГОНЬ РАЗРЕШЁН" } },
             { "prologue.sub", new[] { "This is what you will fly. Destroy the position.", "Вот на чём ты будешь летать. Уничтожь позицию." } },
             { "pickup.part", new[] { "BLUEPRINT PART", "ДЕТАЛЬ ЧЕРТЕЖА" } },
-            { "result.parts", new[] { "Blueprint parts found: +{0}", "Найдено деталей чертежей: +{0}" } },
+            { "result.blueprints", new[] { "Blueprint parts found: +{0}", "Найдено деталей чертежей: +{0}" } },
             { "result.loot", new[] { "Picked up on the field: +{0} ({1} crates)", "Подобрано на поле боя: +{0} (ящиков: {1})" } },
             { "result.chain", new[] { "Best chain: {0} in a row, +{1}", "Лучшая серия: {0} подряд, +{1}" } },
             { "result.clean", new[] { "Not a round wasted: +{0}", "Ни одного промаха: +{0}" } },

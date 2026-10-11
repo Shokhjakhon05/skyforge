@@ -1061,7 +1061,7 @@ T = {
 "hint.aim": "NISHON",
 "hangar.buy.parts": "SOTIB OLISH  {0} + {1} QISM",
 "pickup.part": "CHIZMA QISMI",
-"result.parts": "Chizma qismlari topildi: +{0}",
+"result.blueprints": "Chizma qismlari topildi: +{0}",
 "prologue.title": "O'T OCHISHGA RUXSAT",
 "prologue.sub": "Mana nimada uchasiz. Pozitsiyani yo'q qiling.",
 }

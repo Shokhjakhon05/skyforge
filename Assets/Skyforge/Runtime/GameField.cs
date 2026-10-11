@@ -197,7 +197,7 @@ namespace Skyforge
             if (_run.PartsLooted > 0)
             {
                 _save.Parts += _run.PartsLooted;
-                lines.Add(Loc.T("result.parts", _run.PartsLooted));
+                lines.Add(Loc.T("result.blueprints", _run.PartsLooted));
             }
             int bonus = _run.Loot + (_run.BestChain >= 2 ? ChainBonus(_run.BestChain) * 2 : 0);
             if (_run.Sniper && _run.ShotsFired > 0 && _run.ShotsHit == _run.ShotsFired) bonus += 120;
