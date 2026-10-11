@@ -305,7 +305,7 @@ namespace Skyforge.Tests
                 Assert.LessOrEqual(weather.SignalRange, 1f);
                 Assert.Greater(weather.SignalRange, 0.5f);
             }
-            Assert.AreEqual(9, seen.Count);
+            Assert.AreEqual(10, seen.Count);
         }
 
         [Test]
