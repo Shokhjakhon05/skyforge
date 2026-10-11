@@ -1999,6 +1999,7 @@ namespace Skyforge
 
         void ToggleCamera()
         {
+            if (SniperMode) return;
             _camera.View = (CameraView)(((int)_camera.View + 1) % 4);
             _drone.Visible = _camera.View != CameraView.Fpv && _camera.View != CameraView.Gun;
             _save.CameraViewIndex = (int)_camera.View;
