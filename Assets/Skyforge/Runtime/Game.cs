@@ -482,6 +482,7 @@ namespace Skyforge
             Material sea = IslandView.Build(_island, _regionRoot);
             WarScenery.Build(_island, _regionRoot, _effects);
             PropsView.Build(_island, _regionRoot);
+            CityView.Build(_island, _regionRoot);
             _pickups = null;
             BeaconsView.Build(_island, _regionRoot);
             _course = new RingCourse(_island, _regionRoot);
@@ -723,7 +724,7 @@ namespace Skyforge
             _analytics.Event("mission_start", _mission.Id);
             _sim = CreateSim(_mission.Payload, _mission.StrikeDrones > 0);
             ResetFlight();
-            _run = new MissionRun(_mission, _sim.Spec, _island.Map);
+            _run = new MissionRun(_mission, _sim.Spec, _island.Map) { NoReturn = true };
             ApplyWeather(WeatherCatalog.Get(_mission.WeatherId));
             _world.Show(_mission);
             _course.Visible = false;

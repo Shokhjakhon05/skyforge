@@ -385,8 +385,8 @@ namespace Skyforge.EditorTools
             {
                 string path = AssetDatabase.GUIDToAssetPath(guid);
                 if (!(AssetImporter.GetAtPath(path) is TextureImporter importer)) continue;
-                bool sky = path.Contains("/Sky/"), detail = path.Contains("/Textures/detail_");
-                if (!sky && !detail) continue;
+                bool sky = path.Contains("/Sky/"), detail = path.Contains("/Textures/detail_"), mapped = path.Contains("/Textures/map_");
+                if (!sky && !detail && !mapped) continue;
 
                 importer.textureType = TextureImporterType.Default;
                 importer.textureShape = TextureImporterShape.Texture2D;
@@ -400,6 +400,15 @@ namespace Skyforge.EditorTools
                     importer.wrapModeV = TextureWrapMode.Clamp;
                     importer.maxTextureSize = 4096;
                     importer.filterMode = FilterMode.Bilinear;
+                }
+                else if (mapped)
+                {
+                    importer.sRGBTexture = true;
+                    importer.mipmapEnabled = true;
+                    importer.wrapMode = TextureWrapMode.Repeat;
+                    importer.maxTextureSize = 1024;
+                    importer.filterMode = FilterMode.Trilinear;
+                    importer.anisoLevel = 8;
                 }
                 else
                 {

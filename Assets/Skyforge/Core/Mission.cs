@@ -262,6 +262,8 @@ namespace Skyforge.Core
         public MissionStatus Status { get; private set; }
         public FailReason FailReason { get; private set; }
         public int ObjectiveIndex { get; private set; }
+        /// <summary>A combat mission ends with its last target; the closing landing on the pad is skipped.</summary>
+        public bool NoReturn;
         /// <summary>0..1 progress of the current objective, for objectives that fill up.</summary>
         public float ObjectiveProgress { get; private set; }
         public float Elapsed { get; private set; }
@@ -563,6 +565,12 @@ namespace Skyforge.Core
         {
             ObjectiveIndex++;
             if (ObjectiveIndex >= Definition.Objectives.Count) Status = MissionStatus.Succeeded;
+            // The fight is the mission: with the last target down the flight home is not asked for.
+            else if (NoReturn && IsCombat && ObjectiveIndex == Definition.Objectives.Count - 1 && CurrentObjective.Type == ObjectiveType.Land)
+            {
+                ObjectiveIndex++;
+                Status = MissionStatus.Succeeded;
+            }
             EnterObjective();
         }
 

@@ -63,12 +63,6 @@ namespace Skyforge.World
             float w = ruin.Width, h = ruin.Height;
             Vector3 foot = ruin.Base + Vector3.down * 1.5f;
             b.Box(foot + Vector3.up * (h + 1.5f) * 0.5f, new Vector3(w, h + 1.5f, w), wall);
-            // Window bands on every floor, a hand's breadth proud of the wall so they read from the air.
-            for (float y = 2.2f; y < h - 1.2f; y += 3.1f)
-            {
-                b.Box(ruin.Base + Vector3.up * y, new Vector3(w + 0.16f, 1.25f, w * 0.86f), Palette.Lens);
-                b.Box(ruin.Base + Vector3.up * y, new Vector3(w * 0.86f, 1.25f, w + 0.16f), Palette.Lens);
-            }
             // The top floors are gone on one corner, and soot runs down from the breach.
             float bite = Next(0.3f, 0.5f) * w, sx = random.Next(2) == 0 ? -1f : 1f, sz = random.Next(2) == 0 ? -1f : 1f;
             b.Box(ruin.Base + new Vector3(sx * (w - bite) * 0.5f, h - bite * 0.4f, sz * (w - bite) * 0.5f), new Vector3(bite + 0.3f, bite * 0.9f, bite + 0.3f), Palette.Soot);

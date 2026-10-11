@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Skyforge.World;
 using UnityEngine;
 
@@ -63,6 +64,26 @@ namespace Skyforge
                 material.SetFloat("_Macro", 0.7f);
             }
             return material;
+        }
+
+        static readonly Dictionary<string, Material> MappedCache = new Dictionary<string, Material>();
+
+        /// <summary>A photographed surface that repeats across a mesh by its own texture coordinates: a road, a house front.</summary>
+        public static Material Mapped(string name, float smoothness)
+        {
+            if (MappedCache.TryGetValue(name, out Material cached) && cached != null) return cached;
+            var texture = Resources.Load<Texture2D>("Textures/" + name);
+            if (texture == null)
+            {
+                Debug.LogError("[Skyforge] Missing texture " + name);
+                return null;
+            }
+            Material material = Surface(texture, Matter.Painted);
+            material.SetFloat("_Smoothness", smoothness);
+            // The photograph has its own grain; the detail layer only keeps it from going flat up close.
+            material.SetFloat("_DetailStrength", 0.3f);
+            material.SetFloat("_NormalStrength", 0.5f);
+            return MappedCache[name] = material;
         }
 
         static Texture Detail(string name)
