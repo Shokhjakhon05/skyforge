@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using Skyforge;
 using Sniper;
 using UnityEngine;
 
@@ -150,6 +151,57 @@ namespace Skyforge.Tests
             Assert.Less(fitted.BoltSeconds, b.BoltSeconds);
             Assert.AreEqual(0, Armory.UpgradePrice(b, Armory.MaxLevel));
             Assert.Greater(Armory.UpgradePrice(b, 3), Armory.UpgradePrice(b, 0));
+        }
+
+        [Test]
+        public void EveryContractHasItsTextsItsTargetsAndCanBeWonByAGoodShot()
+        {
+            foreach (string language in Loc.Languages)
+            {
+                Loc.SetLanguage(language);
+                foreach (MissionDef mission in Campaign.Missions)
+                {
+                    Assert.AreNotEqual(mission.TitleKey, Loc.T(mission.TitleKey), language);
+                    Assert.AreNotEqual(mission.BriefKey, Loc.T(mission.BriefKey), language);
+                    foreach (ActorDef actor in mission.Actors) Assert.AreNotEqual(actor.NameKey, Loc.T(actor.NameKey), language + " " + actor.Id);
+                }
+            }
+            Loc.SetLanguage("en");
+            int order = 0;
+            foreach (MissionDef mission in Campaign.Missions)
+            {
+                Assert.AreEqual(++order, mission.Order, mission.Id);
+                // A marksman who never misses a head: every target, nearest danger first, as fast as the bolt allows.
+                var sim = new SniperSim(mission, Campaign.Location(mission.LocationId), Armory.Get("m24"));
+                var before = new Vector3[sim.ActorCount];
+                for (int i = 0; i < sim.ActorCount; i++) before[i] = sim.Actor(i).Position;
+                for (float t = 0f; t < 120f && sim.Outcome == Outcome.Running; t += 0.02f)
+                {
+                    if (sim.CanFire && t > 0.1f)
+                    {
+                        int pick = -1;
+                        for (int i = 0; i < sim.ActorCount; i++)
+                        {
+                            Role role = sim.Def(i).Role;
+                            if (sim.Actor(i).Mood == Mood.Dead || sim.Actor(i).Mood == Mood.Gone) continue;
+                            if (role != Role.Target && !(role == Role.Guard && sim.Actor(i).Mood == Mood.Alarmed)) continue;
+                            if (pick < 0 || role == Role.Target && sim.Def(pick).Role != Role.Target) pick = i;
+                        }
+                        if (pick >= 0)
+                        {
+                            // Where he will be when the round gets there, not where he is.
+                            ActorState a = sim.Actor(pick);
+                            Vector3 velocity = (a.Position - before[pick]) / 0.02f;
+                            Vector3 head = a.Position + new Vector3(0f, SniperSim.HeadHeight, 0f);
+                            float flight = (head - mission.Perch).magnitude / sim.Rifle.MuzzleSpeed;
+                            sim.Fire(mission.Perch, AimAt(sim, head + velocity * flight));
+                        }
+                    }
+                    for (int i = 0; i < sim.ActorCount; i++) before[i] = sim.Actor(i).Position;
+                    sim.Step(0.02f);
+                }
+                Assert.AreEqual(Outcome.Won, sim.Outcome, mission.Id + " lost: " + sim.Why + " after " + sim.Elapsed + " s, shots " + sim.Shots + ", kills " + sim.Kills);
+            }
         }
     }
 }

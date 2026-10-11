@@ -118,11 +118,11 @@ namespace Sniper
             buyer.YawDeg = 90f;
             buyer.Idle = "Interact";
             buyer.Bounty = 300;
-            buyer.Escape = V(22f, -3f);
+            buyer.Escape = V(44f, -10f);
             ActorDef seller = Man("seller", "hoodie", Role.Target, "name.seller", V(8.6f, -1f));
             seller.YawDeg = -90f;
             seller.Bounty = 300;
-            seller.Escape = V(-20f, -7f);
+            seller.Escape = V(-44f, -12f);
             m.Actors.Add(buyer);
             m.Actors.Add(seller);
             ActorDef guard = Man("guard", "swat", Role.Guard, "name.guard", V(12f, 4f), V(0f, 6f));
@@ -157,6 +157,70 @@ namespace Sniper
             watch.Idle = "Idle_Gun";
             watch.YawDeg = 200f;
             m.Actors.Add(watch);
+            list.Add(m);
+
+            // 4. Three sentries far apart. Nobody is to hear of the others.
+            m = new MissionDef
+            {
+                Id = "docks4", LocationId = "docks", TitleKey = "mission.docks4.title", BriefKey = "mission.docks4.brief", Order = 4,
+                Perch = new Vector3(40f, 28f, -150f), LookAt = new Vector3(10f, 1.4f, 0f), Rounds = 6, Reward = 1100, Par = 35f, Second = "clean",
+            };
+            Vector3[] posts = { V(-36f, -14f), V(6f, -12f), V(44f, 6f) };
+            for (int i = 0; i < posts.Length; i++)
+            {
+                ActorDef sentry = Man("s" + i, "swat", Role.Target, "name.sentry", posts[i], posts[i] + new Vector3(i == 1 ? 8f : 0f, 0f, i == 1 ? 0f : 9f));
+                sentry.Idle = "Idle_Gun";
+                sentry.Wait = 5f + i;
+                sentry.Bounty = 200;
+                m.Actors.Add(sentry);
+            }
+            list.Add(m);
+
+            // 5. A witness waits for his ride. Two men are walking towards him, and they are not his ride.
+            m = new MissionDef
+            {
+                Id = "docks5", LocationId = "docks", TitleKey = "mission.docks5.title", BriefKey = "mission.docks5.brief", Order = 5,
+                Perch = new Vector3(-10f, 26f, -145f), LookAt = new Vector3(0f, 1.4f, -6f), Rounds = 8, Reward = 1400, Par = 22f, Second = "headshots",
+                Wind = new Vector3(-2f, 0f, 0f),
+            };
+            ActorDef witness = Man("witness", "casual", Role.Ally, "name.witness", V(0f, -8f));
+            witness.Idle = "Idle";
+            m.Actors.Add(witness);
+            ActorDef first = Man("k1", "punk", Role.Target, "name.killer", V(-44f, 14f), V(-24f, 0f), V(-2f, -7f));
+            first.Wait = 0.5f;
+            first.Assassin = true;
+            first.Bounty = 350;
+            ActorDef second = Man("k2", "hoodie", Role.Target, "name.killer", V(48f, 16f), V(30f, 2f), V(2f, -7f));
+            second.Wait = 0.5f;
+            second.Assassin = true;
+            second.Bounty = 350;
+            m.Actors.Add(first);
+            m.Actors.Add(second);
+            m.Actors.Add(Man("w1", "worker", Role.Civilian, "name.worker", V(-20f, 16f), V(14f, 18f)));
+            list.Add(m);
+
+            // 6. The accountant leaves in forty seconds, and he knows the way to his car.
+            m = new MissionDef
+            {
+                Id = "docks6", LocationId = "docks", TitleKey = "mission.docks6.title", BriefKey = "mission.docks6.brief", Order = 6,
+                Perch = new Vector3(60f, 30f, -155f), LookAt = new Vector3(20f, 1.4f, 4f), Rounds = 8, Reward = 1700, Par = 30f, Second = "headshots", Seconds = 60f,
+                Wind = new Vector3(3.5f, 0f, 0f),
+            };
+            ActorDef accountant = Man("acc", "suit", Role.Target, "name.accountant", V(-28f, 10f), V(-6f, 12f));
+            accountant.Wait = 4f;
+            accountant.Bounty = 800;
+            accountant.Escape = V(22f, -4f);
+            accountant.LeavesAt = 34f;
+            m.Actors.Add(accountant);
+            foreach (Vector3 p in new[] { V(-30f, 8f), V(-4f, 14f), V(20f, -8f) })
+            {
+                ActorDef body = Man("b" + m.Actors.Count, "swat", Role.Guard, "name.guard", p);
+                body.Idle = "Idle_Gun";
+                body.YawDeg = 180f;
+                m.Actors.Add(body);
+            }
+            m.Actors.Add(Man("w1", "worker", Role.Civilian, "name.worker", V(8f, 4f), V(30f, 12f)));
+            m.Actors.Add(Man("w2", "farmer", Role.Civilian, "name.worker", V(-14f, -4f), V(-34f, -10f)));
             list.Add(m);
             return list;
         }
