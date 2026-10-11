@@ -284,7 +284,6 @@ namespace Sniper
                 t.position = _followFrom;
                 t.rotation = Quaternion.LookRotation(b.Position + forward * 6f - _followFrom, Vector3.up);
                 _cam.fieldOfView = 44f;
-                _effects.Trail(b.Position);
                 return;
             }
             // It has landed: stay a moment on what it did.
@@ -474,8 +473,10 @@ namespace Sniper
                 if (backdrop == null || Unlocked(mission)) backdrop = mission;
             LoadMission(backdrop);
             _zoomIndex = 0;
-            PlaceCamera(0f);
-            _cam.fieldOfView = 38f;
+            LocationDef place = Campaign.Location(backdrop.LocationId);
+            _cam.transform.position = place.MenuEye;
+            _cam.transform.rotation = Quaternion.LookRotation(place.MenuLook - place.MenuEye, Vector3.up);
+            _cam.fieldOfView = 46f;
 
             RectTransform s = Screen_("Menu", false);
             Image shade = UiKit.Box(s, "Shade", new Color(0.01f, 0.02f, 0.04f, 0.55f), UiKit.Gradient);

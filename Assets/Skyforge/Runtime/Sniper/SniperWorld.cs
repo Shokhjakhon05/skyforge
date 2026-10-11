@@ -65,17 +65,35 @@ namespace Sniper
             renderer.shadowCastingMode = ShadowCastingMode.Off;
         }
 
+        /// <summary>What a model measures as it stands in the scene, and where its middle is: found once per model.</summary>
+        static readonly Dictionary<string, Bounds> Measured = new Dictionary<string, Bounds>();
+
         void Place(Piece piece)
         {
             GameObject prefab = Load("Props", piece.Model);
             if (prefab == null) return;
-            GameObject made = Object.Instantiate(prefab, _root);
-            Prop prop = made.GetComponent<Prop>();
-            Vector3 size = prop != null ? prop.Size : Vector3.one;
+            Transform holder = new GameObject(piece.Model).transform;
+            holder.SetParent(_root, false);
+            GameObject made = Object.Instantiate(prefab, holder);
+            made.transform.localPosition = Vector3.zero;
+            made.transform.localRotation = Quaternion.identity;
+            made.transform.localScale = Vector3.one;
+            if (!Measured.TryGetValue(piece.Model, out Bounds bounds))
+            {
+                // Measured here, on the thing as it will be drawn, rather than trusted from the import.
+                Renderer[] renderers = made.GetComponentsInChildren<Renderer>();
+                bounds = renderers.Length > 0 ? renderers[0].bounds : new Bounds(Vector3.zero, Vector3.one);
+                foreach (Renderer renderer in renderers) bounds.Encapsulate(renderer.bounds);
+                Measured[piece.Model] = bounds;
+                Debug.Log("[Sniper] prop " + piece.Model + " measures " + bounds.size + " about " + bounds.center);
+            }
+            Vector3 size = bounds.size;
+            // Stood on its own base, at its own middle.
+            made.transform.localPosition = -new Vector3(bounds.center.x, bounds.min.y, bounds.center.z);
             float scale = piece.Height > 0f && size.y > 0.001f ? piece.Height / size.y : 1f;
-            made.transform.localPosition = piece.At;
-            made.transform.localRotation = Quaternion.Euler(0f, piece.YawDeg, 0f);
-            made.transform.localScale = Vector3.one * scale;
+            holder.localPosition = piece.At;
+            holder.localRotation = Quaternion.Euler(0f, piece.YawDeg, 0f);
+            holder.localScale = Vector3.one * scale;
             if (piece.Open) return;
             Vector3 solid = piece.Solid.x > 0f ? piece.Solid : size * scale;
             if (solid.y < 0.35f) return;

@@ -203,8 +203,8 @@ namespace Skyforge.EditorTools
                 Repaint(instance, name);
                 var root = new GameObject(name);
                 instance.transform.SetParent(root.transform, true);
-                instance.transform.position -= new Vector3(bounds.center.x, bounds.min.y, bounds.center.z);
                 root.AddComponent<Sniper.Prop>().Size = bounds.size;
+                Debug.Log("[Skyforge] prop " + name + ": size " + bounds.size + " centre " + bounds.center + ", renderers " + renderers.Length);
                 PrefabUtility.SaveAsPrefabAsset(root, dir + "/" + name + ".prefab");
                 UnityEngine.Object.DestroyImmediate(root);
                 made++;

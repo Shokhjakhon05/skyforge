@@ -125,7 +125,7 @@ namespace Skyforge
             { "rifle.awm", new[] { "AWM Magnum", "AWM «Магнум»" } },
             { "rifle.m82", new[] { "M82 Hammer", "M82 «Молот»" } },
             { "rifle.ghost", new[] { "GM6 Ghost", "GM6 «Призрак»" } },
-            { "loc.docks", new[] { "Night Docks", "Ночные доки" } },
+            { "loc.docks", new[] { "The Docks", "Доки" } },
             { "name.dealer", new[] { "The Dealer", "Торговец" } },
             { "name.worker", new[] { "Docker", "Докер" } },
             { "name.buyer", new[] { "The Buyer", "Покупатель" } },

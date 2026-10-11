@@ -44,7 +44,7 @@ namespace Sniper
             var list = new List<LocationDef>();
 
             // The docks: a quay of stacked containers between two sheds, a ship alongside.
-            var docks = new LocationDef { Id = "docks", NameKey = "loc.docks", Ground = "concrete", Light = "dusk" };
+            var docks = new LocationDef { Id = "docks", NameKey = "loc.docks", Ground = "concrete", Light = "day", MenuEye = new Vector3(24f, 5f, -26f), MenuLook = new Vector3(-2f, 2.5f, 10f) };
             string[] boxes = { "container_red", "container_green", "container_plain" };
             for (int row = 0; row < 3; row++)
             for (int i = 0; i < 7; i++)

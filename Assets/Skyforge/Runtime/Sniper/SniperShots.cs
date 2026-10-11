@@ -43,6 +43,7 @@ namespace Sniper
             yield return Frames(4);
             yield return Shot("08_scope_x6", 2);
             _game.AutomationFollow = true;
+            yield return Frames(2);
             _game.AutomationFire();
             yield return Frames(3);
             yield return Shot("09_bullet_cam", 1);
@@ -59,6 +60,7 @@ namespace Sniper
             yield return Shot("12_boss_walk", 1);
             _game.AutomationFollow = false;
             _game.AutomationAim(new Vector3(-30f, 1f, 30f), false);
+            yield return Frames(3);
             _game.AutomationFire();
             yield return Frames(200);
             _game.AutomationAim(_game.AutomationHead(1), false);
