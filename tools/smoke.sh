@@ -6,6 +6,8 @@ PKG=com.zerohour.sniper
 OUT=smoke
 mkdir -p $OUT
 shot() { adb exec-out screencap -p > "$OUT/$1.png" 2>/dev/null; echo "shot $1: $(stat -c %s "$OUT/$1.png" 2>/dev/null) bytes"; }
+# The emulator draws a frame or two a second, so a touch is held long enough to be seen in several of them.
+press() { adb shell input swipe $1 $2 $1 $2 1800; sleep 2; }
 alive() { adb shell pidof $PKG | tr -d '\r'; }
 
 adb logcat -c
@@ -19,37 +21,38 @@ adb shell monkey -p $PKG -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1
 sleep 12
 shot 01_starting
 # In case the card came up anyway: its "Got it".
-adb shell input tap 1930 553
-sleep 30
+press 1930 553
+press 300 200
+sleep 40
 shot 02_after_splash
 echo "pid after start: $(alive)"
 adb shell wm size
 
 # A new player is paid for turning up before anything else: collect it.
-adb shell input tap 1080 682
+press 1080 682
 sleep 4
 shot 02b_menu
 # The first contract's card, then "take the shot".
-adb shell input tap 214 705
-sleep 8
+press 214 705
+sleep 14
 shot 03_briefing
-adb shell input tap 804 832
-sleep 12
+press 804 832
+sleep 20
 shot 04_in_position
 # Zoom in twice, drag the cross, hold breath, fire.
-adb shell input tap 2030 390
+press 2030 390
 sleep 1
-adb shell input tap 2030 390
+press 2030 390
 sleep 2
-adb shell input swipe 700 500 760 470 400
+adb shell input swipe 700 500 760 470 2500
 sleep 2
 shot 05_zoomed
-adb shell input tap 220 870
+press 220 870
 sleep 1
-adb shell input tap 1940 835
-sleep 3
+press 1940 835
+sleep 8
 shot 06_after_shot
-sleep 10
+sleep 25
 shot 07_later
 echo "pid at the end: $(alive)"
 
