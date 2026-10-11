@@ -20,8 +20,12 @@
 
 НЕ проверено (нужен телефон): управление пальцем, частота кадров, звук, читаемость целей на маленьком экране, метки имён над целями (на кадрах CI они смещены — особенность съёмки).
 
-Не сделано: реклама и покупки, ежедневные награды, звук выстрела с глушителем, отдельный репозиторий, текст авторства в самой игре.
+Сделано после 0.3.0 (в сборке 45): записанные звуки (`Resources/Audio`, играет `SniperAudio`), замедление на попадании в голову, облачко попадания, реакция на ранение, движущиеся машины и буксир (`LocationDef.Traffic`), прохожие в каждом контракте (`LocationDef.Crowd`), фото цели в брифинге, контракт дня с двойной оплатой и плата за вход по дням.
+
+Не сделано: реклама и покупки, карта мира вместо вкладок, отдельный репозиторий, текст авторства в самой игре.
 
 ## Авторство моделей
 
 Персонажи, машины, контейнеры, мебель улиц — Quaternius (CC0). Дома — Kay Lousberg, Kenney, Quaternius (CC0). Кран — cg_world (CC0). По лицензии CC-BY 3.0, автора нужно указать в игре и в описании: Container Ship — Alex Safayan; Tugboat — Poly by Google; Warehouse — Lavender Harmony. Текстуры земли — ambientCG (CC0). Всё взято с poly.pizza; исходники и скрипт загрузки — в `~/sniper-assets` на ноутбуке владельца.
+
+Звуки: выстрелы Mosin и SKS — Vincent Sevedge (CC-BY 3.0, opengameart.org/content/gunshot-sounds); перезарядка — opengameart.org/content/gun-reload-sounds (CC0); удары — Kenney Impact Sounds (CC0); шум улицы — opengameart.org/content/high-traffic-road-sounds (CC0); ветер — opengameart.org/content/wind-loop (CC-BY 3.0). Исходники в `~/sniper-assets/audio`.
