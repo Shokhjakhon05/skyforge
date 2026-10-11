@@ -10,6 +10,8 @@ namespace Skyforge.Core
         public float Z;
         public float Radius;
         public float Top;
+        /// <summary>A tree: an aircraft breaks on it, a tank drives through it.</summary>
+        public bool Soft;
     }
 
     /// <summary>Obstacles in a coarse grid, so a collision check looks at a handful of them.</summary>
@@ -31,7 +33,7 @@ namespace Skyforge.Core
             Count++;
         }
 
-        public bool Hits(Vector3 position, float radius)
+        public bool Hits(Vector3 position, float radius, bool solidOnly = false)
         {
             float reach = radius + _largestRadius;
             int minX = Cell(position.x - reach), maxX = Cell(position.x + reach);
@@ -43,7 +45,7 @@ namespace Skyforge.Core
                 for (int i = 0; i < list.Count; i++)
                 {
                     Obstacle o = list[i];
-                    if (position.y - radius > o.Top) continue;
+                    if (position.y - radius > o.Top || (solidOnly && o.Soft)) continue;
                     float dx = position.x - o.X, dz = position.z - o.Z;
                     float limit = o.Radius + radius;
                     if (dx * dx + dz * dz < limit * limit) return true;

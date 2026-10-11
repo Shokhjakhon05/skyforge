@@ -265,12 +265,17 @@ namespace Skyforge.UI
     /// </summary>
     public sealed class SplashScreen : MonoBehaviour
     {
-        const float Seconds = 3.0f;
+        const float Seconds = 4.6f;
+        const string Title = "SKYFORGE";
         CanvasGroup _group;
-        RectTransform _ring, _wing, _sweep;
-        Image _ringImage, _glow;
-        Text _name, _tag;
+        RectTransform _ring, _dashes, _wing, _sweep, _flash, _scan, _barFill;
+        Image _ringImage, _glow, _flashImage, _back;
+        Image[] _grid, _ticks;
+        Text[] _letters;
+        Text _tag, _sub, _boot, _percent;
+        string[] _bootLines;
         float _time;
+        int _shownBoot = -1;
         public Action Finished;
 
         public static SplashScreen Create(Transform parent)
@@ -279,42 +284,137 @@ namespace Skyforge.UI
             canvas.name = "Splash";
             var splash = canvas.gameObject.AddComponent<SplashScreen>();
             splash._group = canvas.gameObject.AddComponent<CanvasGroup>();
-            Image back = UiKit.Box(canvas.transform, "Back", new Color(0.01f, 0.02f, 0.035f, 1f));
-            back.raycastTarget = true;
-            UiKit.Stretch(back.rectTransform);
+            splash._back = UiKit.Box(canvas.transform, "Back", new Color(0.008f, 0.014f, 0.026f, 1f));
+            splash._back.raycastTarget = true;
+            UiKit.Stretch(splash._back.rectTransform);
             var middle = new Vector2(0.5f, 0.5f);
+            var gold = new Color(1f, 0.74f, 0.28f);
 
+            // A faint grid, like the glass of a command table coming on.
+            var grid = new System.Collections.Generic.List<Image>();
+            for (int i = -6; i <= 6; i++)
+            {
+                Image v = UiKit.Box(canvas.transform, "GridV", UiKit.Cyan);
+                UiKit.Place(v.rectTransform, middle, new Vector2(i * 180f, 0f), new Vector2(1.5f, 1200f));
+                v.rectTransform.pivot = middle;
+                grid.Add(v);
+                if (Mathf.Abs(i) > 3) continue;
+                Image h = UiKit.Box(canvas.transform, "GridH", UiKit.Cyan);
+                UiKit.Place(h.rectTransform, middle, new Vector2(0f, i * 180f), new Vector2(2600f, 1.5f));
+                h.rectTransform.pivot = middle;
+                grid.Add(h);
+            }
+            splash._grid = grid.ToArray();
+            Image scan = UiKit.Box(canvas.transform, "Scan", new Color(0.3f, 0.86f, 1f, 0.10f), UiKit.Gradient);
+            splash._scan = scan.rectTransform;
+            UiKit.Place(splash._scan, middle, Vector2.zero, new Vector2(2600f, 220f));
+            splash._scan.pivot = middle;
+
+            var centre = new Vector2(0f, 110f);
             splash._glow = UiKit.Box(canvas.transform, "Glow", new Color(1f, 0.55f, 0.10f, 0f), UiKit.Disc);
-            UiKit.Place(splash._glow.rectTransform, middle, new Vector2(0f, 70f), new Vector2(620f, 620f));
+            UiKit.Place(splash._glow.rectTransform, middle, centre, new Vector2(760f, 760f));
+            splash._glow.rectTransform.pivot = middle;
+
+            // Range marks round the ring, lit one after another.
+            var ticks = new System.Collections.Generic.List<Image>();
+            for (int i = 0; i < 36; i++)
+            {
+                RectTransform arm = UiKit.Rect("TickArm", canvas.transform);
+                UiKit.Place(arm, middle, centre, new Vector2(2f, 2f));
+                arm.pivot = middle;
+                arm.localRotation = Quaternion.Euler(0f, 0f, -i * 10f);
+                Image tick = UiKit.Box(arm, "Tick", UiKit.Cyan);
+                UiKit.Place(tick.rectTransform, middle, new Vector2(0f, 196f), new Vector2(i % 3 == 0 ? 4f : 2f, i % 3 == 0 ? 22f : 12f));
+                tick.rectTransform.pivot = middle;
+                ticks.Add(tick);
+            }
+            splash._ticks = ticks.ToArray();
+
             splash._ringImage = UiKit.Box(canvas.transform, "Ring", UiKit.Cyan, UiKit.Ring);
             splash._ringImage.type = Image.Type.Filled;
             splash._ringImage.fillMethod = Image.FillMethod.Radial360;
             splash._ring = splash._ringImage.rectTransform;
-            UiKit.Place(splash._ring, middle, new Vector2(0f, 70f), new Vector2(300f, 300f));
+            UiKit.Place(splash._ring, middle, centre, new Vector2(330f, 330f));
+            splash._ring.pivot = middle;
+            Image dashes = UiKit.Box(canvas.transform, "Dashes", new Color(1f, 0.74f, 0.28f, 0.8f), UiKit.Ring);
+            dashes.type = Image.Type.Filled;
+            dashes.fillMethod = Image.FillMethod.Radial360;
+            dashes.fillAmount = 0.22f;
+            splash._dashes = dashes.rectTransform;
+            UiKit.Place(splash._dashes, middle, centre, new Vector2(250f, 250f));
+            splash._dashes.pivot = middle;
 
             // The mark: a delta wing made of two leaning bars and a spine.
             RectTransform wing = UiKit.Rect("Wing", canvas.transform);
-            UiKit.Place(wing, middle, new Vector2(0f, 70f), new Vector2(10f, 10f));
+            UiKit.Place(wing, middle, centre, new Vector2(10f, 10f));
+            wing.pivot = middle;
             splash._wing = wing;
             foreach (float side in new[] { -1f, 1f })
             {
-                Image bar = UiKit.Box(wing, "Bar", UiKit.Accent);
+                Image bar = UiKit.Box(wing, "Bar", gold);
                 UiKit.Place(bar.rectTransform, middle, new Vector2(side * 46f, -14f), new Vector2(22f, 190f));
+                bar.rectTransform.pivot = middle;
                 bar.rectTransform.localRotation = Quaternion.Euler(0f, 0f, side * 32f);
             }
             Image spine = UiKit.Box(wing, "Spine", Color.white);
             UiKit.Place(spine.rectTransform, middle, new Vector2(0f, 10f), new Vector2(12f, 150f));
+            spine.rectTransform.pivot = middle;
 
-            splash._name = UiKit.Label(canvas.transform, 110, TextAnchor.MiddleCenter);
-            splash._name.text = "SKYFORGE";
-            UiKit.Place(splash._name.rectTransform, middle, new Vector2(0f, -170f), new Vector2(1400f, 130f));
-            splash._tag = UiKit.Label(canvas.transform, 30, TextAnchor.MiddleCenter);
-            splash._tag.text = "G L O B A L   O P E R A T I O N S";
-            splash._tag.color = UiKit.Cyan;
-            UiKit.Place(splash._tag.rectTransform, middle, new Vector2(0f, -250f), new Vector2(1400f, 44f));
+            splash._flashImage = UiKit.Box(canvas.transform, "Flash", new Color(1f, 0.95f, 0.85f, 0f), UiKit.Disc);
+            splash._flash = splash._flashImage.rectTransform;
+            UiKit.Place(splash._flash, middle, centre, new Vector2(200f, 200f));
+            splash._flash.pivot = middle;
+
+            // The name, one letter after another, each landing with a little weight.
+            splash._letters = new Text[Title.Length];
+            const float pitch = 132f;
+            for (int i = 0; i < Title.Length; i++)
+            {
+                Text letter = UiKit.Label(canvas.transform, 132, TextAnchor.MiddleCenter);
+                letter.font = UiKit.TitleFont;
+                letter.text = Title[i].ToString();
+                UiKit.Place(letter.rectTransform, middle, new Vector2((i - (Title.Length - 1) * 0.5f) * pitch, -190f), new Vector2(170f, 160f));
+                letter.rectTransform.pivot = middle;
+                letter.gameObject.AddComponent<Shadow>().effectColor = new Color(1f, 0.5f, 0.05f, 0.35f);
+                splash._letters[i] = letter;
+            }
             Image sweep = UiKit.Box(canvas.transform, "Sweep", new Color(1f, 1f, 1f, 0.5f));
             splash._sweep = sweep.rectTransform;
-            UiKit.Place(splash._sweep, middle, new Vector2(-700f, -170f), new Vector2(6f, 120f));
+            UiKit.Place(splash._sweep, middle, new Vector2(-700f, -190f), new Vector2(8f, 150f));
+            splash._sweep.pivot = middle;
+            splash._sweep.localRotation = Quaternion.Euler(0f, 0f, -18f);
+
+            splash._tag = UiKit.Label(canvas.transform, 34, TextAnchor.MiddleCenter);
+            splash._tag.text = "G L O B A L     O P E R A T I O N S";
+            splash._tag.color = UiKit.Cyan;
+            UiKit.Place(splash._tag.rectTransform, middle, new Vector2(0f, -292f), new Vector2(1500f, 46f));
+            splash._tag.rectTransform.pivot = middle;
+            splash._sub = UiKit.Label(canvas.transform, 22, TextAnchor.MiddleCenter);
+            splash._sub.text = Loc.T("splash.sub");
+            splash._sub.color = new Color(1f, 1f, 1f, 0.5f);
+            UiKit.Place(splash._sub.rectTransform, middle, new Vector2(0f, -338f), new Vector2(1500f, 32f));
+            splash._sub.rectTransform.pivot = middle;
+
+            // Systems coming up, bottom left, and the bar that fills as they do.
+            splash._bootLines = new[] { Loc.T("splash.boot.0"), Loc.T("splash.boot.1"), Loc.T("splash.boot.2") };
+            splash._boot = UiKit.Label(canvas.transform, 22, TextAnchor.LowerLeft);
+            splash._boot.color = new Color(0.3f, 0.86f, 1f, 0.75f);
+            UiKit.Place(splash._boot.rectTransform, new Vector2(0f, 0f), new Vector2(70f, 76f), new Vector2(900f, 110f));
+            splash._boot.rectTransform.pivot = new Vector2(0f, 0f);
+            Image bar2 = UiKit.Box(canvas.transform, "Bar", new Color(1f, 1f, 1f, 0.12f));
+            bar2.rectTransform.anchorMin = new Vector2(0f, 0f);
+            bar2.rectTransform.anchorMax = new Vector2(1f, 0f);
+            bar2.rectTransform.offsetMin = new Vector2(70f, 52f);
+            bar2.rectTransform.offsetMax = new Vector2(-70f, 56f);
+            Image fill = UiKit.Box(bar2.transform, "Fill", gold);
+            splash._barFill = fill.rectTransform;
+            splash._barFill.anchorMin = Vector2.zero;
+            splash._barFill.anchorMax = new Vector2(0f, 1f);
+            splash._barFill.offsetMin = splash._barFill.offsetMax = Vector2.zero;
+            splash._percent = UiKit.Label(canvas.transform, 22, TextAnchor.LowerRight);
+            splash._percent.color = gold;
+            UiKit.Place(splash._percent.rectTransform, new Vector2(1f, 0f), new Vector2(-70f, 64f), new Vector2(300f, 30f));
+            splash._percent.rectTransform.pivot = new Vector2(1f, 0f);
             splash.Apply();
             return splash;
         }
@@ -323,7 +423,7 @@ namespace Skyforge.UI
         {
             // The first frames after loading are long ones; counted in full they would eat the whole animation.
             _time += Mathf.Min(Time.unscaledDeltaTime, 0.05f);
-            if (_time > 0.4f && (Input.touchCount > 0 || Input.GetMouseButtonDown(0))) _time = Mathf.Max(_time, Seconds - 0.35f);
+            if (_time > 0.6f && (Input.touchCount > 0 || Input.GetMouseButtonDown(0))) _time = Mathf.Max(_time, Seconds - 0.5f);
             Apply();
             if (_time < Seconds) return;
             Action done = Finished;
@@ -334,27 +434,86 @@ namespace Skyforge.UI
 
         static float Ease(float t) => 1f - (1f - Mathf.Clamp01(t)) * (1f - Mathf.Clamp01(t)) * (1f - Mathf.Clamp01(t));
 
+        /// <summary>Overshoots a little before it settles: the weight of something dropped into place.</summary>
+        static float Land(float t)
+        {
+            t = Mathf.Clamp01(t);
+            const float c = 2.2f;
+            return 1f + (c + 1f) * Mathf.Pow(t - 1f, 3f) + c * Mathf.Pow(t - 1f, 2f);
+        }
+
         void Apply()
         {
-            // The ring draws itself, the wing drops into it, the name is wiped in, and it all fades.
-            _ringImage.fillAmount = Ease(_time / 0.9f);
-            _ring.localRotation = Quaternion.Euler(0f, 0f, -_time * 40f);
-            float drop = Ease((_time - 0.5f) / 0.6f);
-            _wing.localScale = Vector3.one * Mathf.Lerp(2.4f, 1f, drop);
+            // The table lights up, the ring draws itself, the wing drops into it with a flash,
+            // the name lands letter by letter, the systems report in, and the picture opens.
+            float on = Ease(_time / 0.7f);
+            for (int i = 0; i < _grid.Length; i++)
+            {
+                Color g = UiKit.Cyan;
+                g.a = 0.055f * on * (0.7f + 0.3f * Mathf.Sin(_time * 1.7f + i));
+                _grid[i].color = g;
+            }
+            _scan.anchoredPosition = new Vector2(0f, Mathf.Lerp(620f, -620f, Mathf.Repeat(_time / 2.3f, 1f)));
+
+            _ringImage.fillAmount = Ease((_time - 0.15f) / 0.9f);
+            _ring.localRotation = Quaternion.Euler(0f, 0f, -_time * 36f);
+            _dashes.localRotation = Quaternion.Euler(0f, 0f, _time * 140f);
+            _dashes.GetComponent<Image>().color = new Color(1f, 0.74f, 0.28f, 0.8f * Ease((_time - 0.5f) / 0.4f));
+            for (int i = 0; i < _ticks.Length; i++)
+            {
+                float lit = Mathf.Clamp01((_time - 0.3f - i * 0.022f) / 0.18f);
+                Color c = UiKit.Cyan;
+                c.a = lit * (0.35f + 0.45f * Mathf.Max(0f, Mathf.Sin(_time * 3f - i * 0.35f)));
+                _ticks[i].color = c;
+            }
+
+            float drop = Mathf.Clamp01((_time - 0.75f) / 0.5f);
+            _wing.localScale = Vector3.one * Mathf.Lerp(3.2f, 1f, Land(drop));
             foreach (Image part in _wing.GetComponentsInChildren<Image>())
             {
                 Color c = part.color;
-                c.a = drop;
+                c.a = Mathf.Clamp01(drop * 2.5f);
                 part.color = c;
             }
-            _glow.color = new Color(1f, 0.55f, 0.10f, 0.18f * drop * (0.8f + 0.2f * Mathf.Sin(_time * 5f)));
-            float wipe = Ease((_time - 1.0f) / 0.8f);
-            _name.color = new Color(1f, 1f, 1f, wipe);
-            _name.rectTransform.localScale = Vector3.one * Mathf.Lerp(1.12f, 1f, wipe);
-            _sweep.anchoredPosition = new Vector2(Mathf.Lerp(-700f, 700f, wipe), -170f);
-            _sweep.GetComponent<Image>().color = new Color(1f, 1f, 1f, wipe < 1f ? 0.6f * Mathf.Sin(wipe * Mathf.PI) : 0f);
-            _tag.color = new Color(UiKit.Cyan.r, UiKit.Cyan.g, UiKit.Cyan.b, Ease((_time - 1.5f) / 0.6f));
-            _group.alpha = 1f - Ease((_time - (Seconds - 0.4f)) / 0.4f);
+            float flash = Mathf.Clamp01((_time - 1.12f) / 0.55f);
+            _flash.localScale = Vector3.one * Mathf.Lerp(0.4f, 5.5f, Ease(flash));
+            _flashImage.color = new Color(1f, 0.95f, 0.85f, _time < 1.12f ? 0f : 0.55f * (1f - flash));
+            _glow.color = new Color(1f, 0.55f, 0.10f, 0.20f * Ease(drop) * (0.8f + 0.2f * Mathf.Sin(_time * 5f)));
+
+            for (int i = 0; i < _letters.Length; i++)
+            {
+                float t = Mathf.Clamp01((_time - 1.45f - i * 0.085f) / 0.34f);
+                Text letter = _letters[i];
+                letter.color = new Color(1f, 1f, 1f, Mathf.Clamp01(t * 2f));
+                letter.rectTransform.localScale = Vector3.one * Mathf.Lerp(1.9f, 1f, Land(t));
+            }
+            float wipe = Ease((_time - 2.25f) / 0.7f);
+            _sweep.anchoredPosition = new Vector2(Mathf.Lerp(-640f, 640f, wipe), -190f);
+            _sweep.GetComponent<Image>().color = new Color(1f, 1f, 1f, wipe > 0f && wipe < 1f ? 0.7f * Mathf.Sin(wipe * Mathf.PI) : 0f);
+            float tag = Ease((_time - 2.35f) / 0.6f);
+            _tag.color = new Color(UiKit.Cyan.r, UiKit.Cyan.g, UiKit.Cyan.b, tag);
+            _tag.rectTransform.localScale = new Vector3(Mathf.Lerp(1.25f, 1f, tag), 1f, 1f);
+            _sub.color = new Color(1f, 1f, 1f, 0.5f * Ease((_time - 2.7f) / 0.6f));
+
+            float load = Mathf.Clamp01((_time - 0.3f) / (Seconds - 1.1f));
+            _barFill.anchorMax = new Vector2(Ease(load), 1f);
+            int percent = Mathf.RoundToInt(Ease(load) * 100f);
+            int boot = Mathf.Min(_bootLines.Length, Mathf.FloorToInt(load * (_bootLines.Length + 0.4f)));
+            if (boot * 1000 + percent != _shownBoot)
+            {
+                _shownBoot = boot * 1000 + percent;
+                _percent.text = percent + "%";
+                string text = "";
+                for (int i = 0; i < boot; i++) text += "> " + _bootLines[i] + "\n";
+                _boot.text = text;
+            }
+
+            // The backdrop goes first, so the name hangs for a moment over the hangar behind it.
+            float open = Ease((_time - (Seconds - 0.9f)) / 0.5f);
+            Color back = _back.color;
+            back.a = 1f - open * 0.75f;
+            _back.color = back;
+            _group.alpha = 1f - Ease((_time - (Seconds - 0.45f)) / 0.45f);
         }
     }
 }

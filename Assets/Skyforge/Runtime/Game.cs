@@ -162,6 +162,7 @@ namespace Skyforge
             ShowDroneModel(Garage.Selected(_save));
 
             _hud = new Hud(transform);
+            BuildField();
             _hud.CameraPressed += ToggleCamera;
             _hud.ModePressed += ToggleMode;
             _hud.SticksPressed += ToggleSticks;
@@ -255,6 +256,7 @@ namespace Skyforge
             _settings.QualityPressed += SetQuality;
             _settings.FpsPressed += ToggleFps;
             _settings.SoundPressed += ToggleSound;
+            _settings.LessonsPressed += () => { Click(); ResetLessons(); Toast(Loc.T("msg.lessons")); };
             _settings.LanguagePressed += SetLanguage;
             _settings.ClosePressed += () => { Click(); _settings.Visible = false; };
             _settings.Visible = false;
@@ -323,7 +325,8 @@ namespace Skyforge
             SkinDefinition skin = Skins.Worn(_save, drone.Id);
             _drone = skin != null ? DroneView.Create(transform, drone.Look, skin.Body, skin.Glow) : DroneView.Create(transform, drone.Look);
             _shownDrone = drone;
-            _camera.Reach = Mathf.Clamp(_drone.Length / 1.5f, 1f, 2.2f);
+            _camera.Vehicle = drone.Spec.Ground;
+            _camera.Reach = Mathf.Clamp(_drone.Length / 1.5f, 1f, drone.Spec.Ground ? 5f : 2.2f);
         }
 
         /// <summary>The selected mission as the player's negotiation choice, if any, has left it.</summary>
@@ -478,6 +481,8 @@ namespace Skyforge
             _island = Island.Generate(region.Seed, region.Biome);
             Material sea = IslandView.Build(_island, _regionRoot);
             WarScenery.Build(_island, _regionRoot, _effects);
+            PropsView.Build(_island, _regionRoot);
+            _pickups = null;
             BeaconsView.Build(_island, _regionRoot);
             _course = new RingCourse(_island, _regionRoot);
             _world = new MissionWorld(_regionRoot, _island.Map, _effects);
@@ -626,7 +631,7 @@ namespace Skyforge
         /// <param name="strike">The mission is flown with one-way strike drones.</param>
         FlightSim CreateSim(float payload, bool strike = false)
         {
-            DroneSpec spec = _trialDrone != null ? DroneCatalog.Get(_trialDrone).Spec : Garage.SelectedSpec(_save);
+            DroneSpec spec = _trialDrone != null ? DroneCatalog.Get(_trialDrone).Spec : Garage.Spec(_save, FlyingDrone());
             spec = ArmouryRules.Outfit(spec, _save);
             if (strike) spec = spec.AsStrikeDrone();
             var sim = new FlightSim(_island, spec.WithPayload(payload));
@@ -658,7 +663,7 @@ namespace Skyforge
         }
 
         /// <summary>The aircraft that is flying: the selected one, or one being tried on the range.</summary>
-        DroneDefinition FlyingDrone() => _trialDrone != null ? DroneCatalog.Get(_trialDrone) : Garage.Selected(_save);
+        DroneDefinition FlyingDrone() => _trialDrone != null ? DroneCatalog.Get(_trialDrone) : FieldDrone() ?? Garage.Selected(_save);
 
         /// <summary>Veteran difficulty opens for a mission once it has been completed the ordinary way.</summary>
         bool CanFlyVeteran(int index)
@@ -685,6 +690,13 @@ namespace Skyforge
         /// <summary>Puts a mission in the air: the aircraft, the run, the weather, the world, the music.</summary>
         void Launch(MissionDefinition mission)
         {
+            _launching = mission;
+            LaunchPrepared(mission);
+            _launching = null;
+        }
+
+        void LaunchPrepared(MissionDefinition mission)
+        {
             _mission = mission;
             // A one-way attack drone turns a mission of pure destruction into a kamikaze sortie;
             // anything that asks for a photograph, a delivery or a landing it cannot fly at all.
@@ -701,7 +713,7 @@ namespace Skyforge
                 _mission = sortie;
             }
             // The reserve hangar's spare aircraft stand by, except on the range and for one-way drones.
-            if (_mission.StrikeDrones == 0 && _mission.Targets.Count > 0 && _mission.Mode != "range" && BaseRules.Spares(_save) > 0)
+            if (_mission.StrikeDrones == 0 && _mission.Targets.Count > 0 && _mission.Mode != "range" && _mission.Mode != "sniper" && BaseRules.Spares(_save) > 0)
             {
                 _mission = _mission.Copy();
                 _mission.Spares = BaseRules.Spares(_save);
@@ -720,6 +732,7 @@ namespace Skyforge
             if (_mission.Targets.Count > 0) _music.Battle(_mission.Order + RegionCatalog.IndexOf(_region.Id));
             else _music.Menu(RegionCatalog.IndexOf(_region.Id) + 1);
             StartIntro();
+            FieldLaunched();
         }
 
         /// <summary>
@@ -827,6 +840,7 @@ namespace Skyforge
                 _save.Stats.CreditsEarned += flair;
                 lines.Add(Loc.T("result.flair", flair));
             }
+            FieldResult(outcome, lines);
             if (gain.Xp > 0) lines.Add(Loc.T("reward.xp", gain.Xp) + "   " + Career.RankName(gain.RankAfter));
             lines.AddRange(gain.News);
             if (!gain.Rewards.Empty) lines.Add(gain.Rewards.Describe());
@@ -997,6 +1011,7 @@ namespace Skyforge
             // AfterFreeze may have left the flight.
             flying = _phase == Phase.Mission || _phase == Phase.FreeFlight;
             Present(deltaTime, flying);
+            PresentField(deltaTime);
             _caches.Update(deltaTime);
             _effects.Update(deltaTime, _camera.Camera.transform);
             if (_toastTimer > 0f)
@@ -1062,11 +1077,11 @@ namespace Skyforge
                 _simTime += StepSeconds;
                 _sim.Wind = _weather.WindAt(_simTime);
                 _previous = _sim.State;
-                SimEvent simEvent = _sim.Step(input, StepSeconds);
+                SimEvent simEvent = StepAircraft(input);
                 if (simEvent == SimEvent.TookOff) _hasFlown = true;
-                if (simEvent == SimEvent.Landed) GradeLanding();
+                if (simEvent == SimEvent.Landed && !_sim.Spec.Ground) GradeLanding();
                 // Flying fast and low is worth something at the end of a fight.
-                if (_phase == Phase.Mission && !_sim.State.Grounded && _sim.AltitudeAboveGround < 6f &&
+                if (_phase == Phase.Mission && !_sim.State.Grounded && !_sim.Spec.Ground && !_run.Sniper && _sim.AltitudeAboveGround < 6f &&
                     new Vector2(_sim.State.Velocity.x, _sim.State.Velocity.z).magnitude > _sim.Spec.MaxSpeed * 0.55f)
                     _lowSeconds += StepSeconds;
                 if (simEvent == SimEvent.Crashed && (_phase != Phase.Mission || !_run.Kamikaze)) _save.Stats.Crashes++;
@@ -1139,6 +1154,12 @@ namespace Skyforge
         {
             Vector2 move = _save.SticksSwapped ? _sticks.Right.Value : _sticks.Left.Value;
             Vector2 lift = _save.SticksSwapped ? _sticks.Left.Value : _sticks.Right.Value;
+            if (SniperMode)
+            {
+                SniperInput();
+                _guide = Vector2.zero;
+                return default;
+            }
             // While a hand-flown missile is in the air the sticks fly it and the aircraft holds where it is.
             if (_phase == Phase.Mission && _run != null && _run.GuidedActive)
             {
@@ -1160,7 +1181,7 @@ namespace Skyforge
         /// <summary>The automatic landing is offered in the air near the pad, to a drone that is coming back.</summary>
         bool CanAutoLand()
         {
-            if (_sim.State.Grounded || _freezeTimer > 0f) return false;
+            if (_sim.State.Grounded || _freezeTimer > 0f || _sim.Spec.Ground || SniperMode) return false;
             if (_phase == Phase.Mission && _run.Kamikaze) return false;
             // An aircraft that cannot hover cannot be set down on a point.
             if (_sim.Spec.MinSpeed > 0f) return false;
@@ -1185,7 +1206,7 @@ namespace Skyforge
         void PresentGunCamera()
         {
             bool riding = _phase == Phase.Mission && _run.GuidedActive;
-            bool gun = (_camera.View == CameraView.Gun || riding) && !_photo && _killCam <= 0f;
+            bool gun = (_camera.View == CameraView.Gun || riding) && !_photo && _killCam <= 0f && !SniperMode;
             // At night the sight is thermal: what is warm glows.
             bool thermal = gun && _weather != null && _weather.Id == "night";
             if (gun != _look.Scope || thermal != _look.Thermal) _look.SetScope(gun, thermal);
@@ -1286,6 +1307,7 @@ namespace Skyforge
             if (_killCam > 0f) _killCam -= Time.unscaledDeltaTime;
             if (_photo) _camera.Free(position + Vector3.up * 0.3f, _photoYaw, _photoPitch, _photoDistance);
             else if (riding) _camera.Ride(_run.GuidedPosition, _run.GuidedDirection);
+            else if (SniperMode) _camera.Scope(_mission.Perch, SniperAim, 30f / Mathf.Max(1f, _zoom));
             else if (_killCam > 0f) _camera.Orbit(_killPoint + Vector3.up * 3f, Time.unscaledTime * 3.5f, 0f, 30f, 0.34f);
             else _camera.Update(position, yaw, tilt, speedShare, deltaTime);
             _hud.SetTelemetry(speed * 3.6f, _sim.AltitudeAboveGround);
@@ -1350,7 +1372,7 @@ namespace Skyforge
             _hud.UpdateMarker(_camera.Camera, hasTarget ? MarkerPosition(objective, now.Position) : Vector3.zero,
                 hasTarget, _run.TargetFramed);
 
-            bool armed = live && _run.IsCombat && !_run.Kamikaze && objective.Type != ObjectiveType.Photo &&
+            bool armed = live && _run.IsCombat && !_run.Kamikaze && !_run.Sniper && objective.Type != ObjectiveType.Photo &&
                          objective.Type != ObjectiveType.Strike;
             if (armed)
             {
@@ -1359,10 +1381,10 @@ namespace Skyforge
                 if (ammo != _shownAmmoStamp)
                 {
                     _shownAmmoStamp = ammo;
-                    _hud.SetAction(Loc.T("hud.rockets", _run.Rockets));
-                    _hud.SetSecondary(Loc.T("hud.bombs", _run.Bombs));
+                    _hud.SetAction(Loc.T(_sim.Spec.Ground ? "hud.shells" : "hud.rockets", _run.Rockets));
+                    _hud.SetSecondary(_sim.Spec.Bombs > 0 ? Loc.T("hud.bombs", _run.Bombs) : null);
                 }
-                _hud.SetActionReady(_run.LockedTarget >= 0);
+                _hud.SetActionReady(_run.LockedTarget >= 0 || (_run.FreeAim != null && _run.Rockets > 0));
                 // The special equipment and the support, redrawn only when a number on them changes.
                 int tier = _run.SupportTier, cannon = Mathf.CeilToInt(_run.CannonSeconds);
                 int special = _run.AbilityCharges + tier * 10 + _run.Streak * 100 + cannon * 10000 + (_run.Jamming ? 1000000 : 0);
@@ -1393,6 +1415,7 @@ namespace Skyforge
                 if (live && objective.Type == ObjectiveType.Photo) action = Loc.T("hud.action.photo");
                 if (live && objective.Type == ObjectiveType.Strike && _run.ShotsLeft > 0 && !_run.Shot.Active)
                     action = Loc.T("hud.action.fire");
+                if (live && _run.Sniper) action = Loc.T("hud.action.fire");
                 _hud.SetAction(action);
                 _hud.SetActionReady(true);
                 _hud.SetSecondary(null);
@@ -1497,6 +1520,7 @@ namespace Skyforge
             foreach (CombatEvent e in _run.Events)
             {
                 float distance = Vector3.Distance(drone, e.Position);
+                FieldEvent(e, distance);
                 switch (e.Type)
                 {
                     case CombatEventType.RocketFired:
@@ -1506,7 +1530,9 @@ namespace Skyforge
                         _sfx.Play(Sound.Release);
                         break;
                     case CombatEventType.Explosion:
-                        _effects.Explosion(e.Position, e.Size);
+                        if (_island.Map.Height(e.Position.x, e.Position.z) < Island.WaterLevel - 0.3f && e.Position.y < Island.WaterLevel + 2.5f)
+                            _effects.Splash(e.Position, e.Size);
+                        else _effects.Explosion(e.Position, e.Size);
                         _sfx.Play(Sound.Explosion, Mathf.Lerp(1f, 0.25f, distance / 350f));
                         _camera.Shake(1.2f - distance / (e.Size * 9f));
                         break;

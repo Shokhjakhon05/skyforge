@@ -57,8 +57,11 @@ namespace Skyforge.Core
         // Added in version 3.
         /// <summary>Second currency: earned with stars, spent on the top upgrade levels.</summary>
         public int Parts;
-        public List<DroneRecord> Drones = new List<DroneRecord> { DroneRecord.New(DroneCatalog.Starter) };
+        public List<DroneRecord> Drones = new List<DroneRecord> { DroneRecord.New(DroneCatalog.Starter), DroneRecord.New(DroneCatalog.StarterVehicle) };
         public string SelectedDrone = DroneCatalog.Starter;
+        public string SelectedVehicle = DroneCatalog.StarterVehicle;
+        /// <summary>Lessons of the guided first flights that have been shown, by id.</summary>
+        public List<string> Lessons = new List<string>();
         public List<string> OwnedModules = new List<string>();
 
         // Added in version 4.
@@ -353,7 +356,10 @@ namespace Skyforge.Core
                     if (drone.Modules[i] == null) drone.Modules[i] = "";
             }
             if (data.FindDrone(DroneCatalog.Starter) == null) data.Drones.Insert(0, DroneRecord.New(DroneCatalog.Starter));
-            if (data.FindDrone(data.SelectedDrone) == null) data.SelectedDrone = DroneCatalog.Starter;
+            if (data.FindDrone(DroneCatalog.StarterVehicle) == null) data.Drones.Add(DroneRecord.New(DroneCatalog.StarterVehicle));
+            if (data.FindDrone(data.SelectedDrone) == null || DroneCatalog.Get(data.SelectedDrone).Spec.Ground) data.SelectedDrone = DroneCatalog.Starter;
+            if (string.IsNullOrEmpty(data.SelectedVehicle) || data.FindDrone(data.SelectedVehicle) == null) data.SelectedVehicle = DroneCatalog.StarterVehicle;
+            if (data.Lessons == null) data.Lessons = new List<string>();
         }
 
         static void TryCopy(string from, string to)

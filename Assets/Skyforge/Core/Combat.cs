@@ -102,6 +102,8 @@ namespace Skyforge.Core
                 new TargetKind { Id = "bridge", Health = 380f, Radius = 10f, Height = 6f, Structure = true },
                 new TargetKind { Id = "platform", Health = 520f, Radius = 13f, Height = 16f, Blast = 26f, Structure = true },
                 new TargetKind { Id = "dummy", Health = 80f, Radius = 3.5f },
+                new TargetKind { Id = "officer", Health = 60f, Radius = 1.2f, Height = 1.9f, Scatters = true },
+                new TargetKind { Id = "sentry", Health = 60f, Radius = 1.2f, Height = 1.9f, TakesCover = true },
             };
             var map = new Dictionary<string, TargetKind>();
             foreach (TargetKind kind in list) map[kind.Id] = kind;
@@ -165,6 +167,8 @@ namespace Skyforge.Core
         Bomb,
         /// <summary>A missile the player flies by hand through its own camera.</summary>
         Guided,
+        /// <summary>A rifle round in a sniper mission.</summary>
+        Bullet,
     }
 
     /// <summary>What did the damage; kills are counted per weapon for tasks and mastery.</summary>
@@ -178,6 +182,7 @@ namespace Skyforge.Core
         Support,
         Ram,
         Ally,
+        Rifle,
     }
 
     public struct Projectile
@@ -220,6 +225,14 @@ namespace Skyforge.Core
         SpareUsed,
         /// <summary>A target has taken fright and is moving off.</summary>
         Scattered,
+        /// <summary>Kills in quick succession; Size is how many.</summary>
+        ChainKill,
+        /// <summary>Loot: Target is the pickup's id, Size its type.</summary>
+        PickupDropped,
+        PickupTaken,
+        RifleShot,
+        /// <summary>A rifle round arrived: Target is what it hit, or -1 for the ground.</summary>
+        BulletHit,
     }
 
     public struct CombatEvent
@@ -328,14 +341,15 @@ namespace Skyforge.Core
             }
             DronesLeft = Definition.StrikeDrones;
             StartWarfare();
+            StartArsenal();
             Rearm();
         }
 
         void Rearm()
         {
             // A strike drone is the munition.
-            Rockets = Kamikaze || !IsCombat ? 0 : _spec.Rockets;
-            Bombs = Kamikaze || !IsCombat ? 0 : _spec.Bombs;
+            Rockets = Kamikaze || !IsCombat || Sniper ? 0 : _spec.Rockets;
+            Bombs = Kamikaze || !IsCombat || Sniper ? 0 : _spec.Bombs;
             RearmWarfare();
         }
 
@@ -406,6 +420,9 @@ namespace Skyforge.Core
             MoveTargets(dt);
             UpdateBehaviours(state, dt);
             UpdateProjectiles(dt);
+            if (Status != MissionStatus.InProgress) return false;
+            UpdateArsenal(state, dt);
+            CheckRounds();
             if (Status != MissionStatus.InProgress) return false;
             if (!UpdateWarfare(state, dt, tracer)) return false;
             if (!EnemyFire(state, dt, tracer)) return false;
@@ -522,7 +539,7 @@ namespace Skyforge.Core
         void UpdateLock(FlightState state)
         {
             LockedTarget = -1;
-            if ((Rockets <= 0 && CannonSeconds <= 0f) || state.Grounded) return;
+            if ((Rockets <= 0 && CannonSeconds <= 0f) || Parked(state) || Sniper) return;
             float yaw = state.YawDeg * Mathf.Deg2Rad;
             var heading = new Vector2(Mathf.Sin(yaw), Mathf.Cos(yaw));
             float best = LockHalfAngleDeg;
@@ -542,11 +559,11 @@ namespace Skyforge.Core
 
         ActionResult FireWeapons(FlightState state, bool rocket, bool bomb)
         {
-            if (!IsCombat || Kamikaze || state.Grounded) return ActionResult.None;
+            if (!IsCombat || Kamikaze || Parked(state) || Sniper) return ActionResult.None;
             if (rocket && _fireCooldown <= 0f)
             {
                 if (Rockets <= 0) return ActionResult.NoAmmo;
-                if (LockedTarget < 0) return ActionResult.NoLock;
+                if (LockedTarget < 0) return FireUnguided(state) ? ActionResult.RocketFired : ActionResult.NoLock;
                 Rockets--;
                 _fireCooldown = _spec.FireInterval;
                 Vector3 to = _targets[LockedTarget].Position + Vector3.up * 1.5f - state.Position;
@@ -586,6 +603,14 @@ namespace Skyforge.Core
                 if (p.Type == ProjectileType.Guided)
                 {
                     gone = FlyGuided(ref p, dt);
+                }
+                else if (p.Type == ProjectileType.Bullet)
+                {
+                    gone = FlyBullet(ref p, dt);
+                }
+                else if (p.Type == ProjectileType.Rocket && p.Target < 0)
+                {
+                    gone = FlyUnguided(ref p, dt);
                 }
                 else if (p.Type == ProjectileType.Rocket)
                 {

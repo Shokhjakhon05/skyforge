@@ -128,6 +128,11 @@ namespace Skyforge.Core
         public bool FreeAmmo;
         /// <summary>"campaign", "veteran", "contract", "survival", "raid", "range", "custom", "sector".</summary>
         public string Mode = "campaign";
+        /// <summary>Rounds in the rifle of a sniper mission.</summary>
+        public int Rounds;
+        /// <summary>Where the sniper watches from, and the yaw that faces the targets.</summary>
+        public Vector3 Perch;
+        public float PerchYawDeg;
         /// <summary>For a generated operation: its title as text rather than as a key.</summary>
         public string Title, Brief;
         /// <summary>For a generated operation: how hard it was made, and of which kind.</summary>
@@ -183,6 +188,8 @@ namespace Skyforge.Core
         /// <summary>A target reached the end of its road alive.</summary>
         Escaped,
         OutOfDrones,
+        /// <summary>The sniper has no rounds left and targets still stand.</summary>
+        OutOfAmmo,
     }
 
     /// <summary>What the player did with the action button on a step.</summary>

@@ -63,6 +63,7 @@ namespace Skyforge.Core
 
         public SimEvent Step(FlightInput input, float dt)
         {
+            if (Spec.Ground) return StepGround(input, dt);
             var result = SimEvent.None;
             if (State.Grounded)
             {
@@ -126,6 +127,84 @@ namespace Skyforge.Core
         /// last metre. It works in both flight modes: Sport takes away the help in the air, not the
         /// undercarriage. Over water only a drone with floats gets it.
         /// </summary>
+        /// <summary>Steepness (one minus the upward part of the normal) a tracked vehicle will not climb.</summary>
+        public const float GroundMaxSlope = 0.3f;
+        /// <summary>Water deeper than this stops a vehicle.</summary>
+        public const float FordDepth = 0.5f;
+
+        /// <summary>Whether a ground vehicle can stand at a point: dry enough, flat enough, nothing built there.</summary>
+        public static bool Drivable(Island island, float x, float z, float slope = GroundMaxSlope)
+        {
+            float ground = island.Map.Height(x, z);
+            if (ground < Island.WaterLevel - FordDepth || island.Map.Steepness(x, z) > slope) return false;
+            return !island.Obstacles.Hits(new Vector3(x, ground + 1f, z), 1.6f, true);
+        }
+
+        /// <summary>
+        /// A vehicle on tracks or wheels. The left stick drives and steers, the right stick turns
+        /// the hull too; it follows the ground, slows on a climb and stops at water, cliffs and walls.
+        /// Standing still it counts as grounded, which is how it starts, rearms and ends a mission.
+        /// </summary>
+        SimEvent StepGround(FlightInput input, float dt)
+        {
+            bool wasGrounded = State.Grounded;
+            float steer = Mathf.Clamp(input.Yaw + input.Move.x * 0.7f, -1f, 1f);
+            State.YawRateDeg = FlightModel.Approach(State.YawRateDeg, steer * Spec.YawRateDeg, Spec.YawResponse, dt);
+            State.YawDeg = Mathf.Repeat(State.YawDeg + State.YawRateDeg * dt, 360f);
+            float yaw = State.YawDeg * Mathf.Deg2Rad;
+            var forward = new Vector3(Mathf.Sin(yaw), 0f, Mathf.Cos(yaw));
+
+            Vector3 position = State.Position;
+            float ground = _island.Map.Height(position.x, position.z);
+            float ahead = _island.Map.Height(position.x + forward.x * 3f, position.z + forward.z * 3f);
+            float climb = (ahead - ground) / 3f;
+            float drive = Mathf.Clamp(input.Move.y, -0.5f, 1f);
+            // Uphill costs speed, downhill gives a little back.
+            float wanted = drive * Spec.MaxSpeed * Mathf.Clamp(1f - climb * Mathf.Sign(drive) * 1.1f, 0.35f, 1.15f);
+            float speed = Vector3.Dot(State.Velocity, forward);
+            speed = FlightModel.Approach(speed, wanted, Mathf.Abs(wanted) > Mathf.Abs(speed) ? 1.6f : 3.5f, dt);
+
+            Vector3 next = position + forward * speed * dt;
+            if (Mathf.Abs(speed) > 0.01f && !Drivable(_island, next.x, next.z))
+            {
+                // Blocked ahead: slide along whatever it is rather than stop dead against a corner.
+                bool slid = false;
+                foreach (float turn in new[] { 35f, -35f, 70f, -70f })
+                {
+                    float bent = (State.YawDeg + turn) * Mathf.Deg2Rad;
+                    var aside = new Vector3(Mathf.Sin(bent), 0f, Mathf.Cos(bent));
+                    Vector3 around = position + aside * (speed * dt * 0.6f);
+                    if (!Drivable(_island, around.x, around.z)) continue;
+                    next = around;
+                    speed *= 0.97f;
+                    slid = true;
+                    break;
+                }
+                if (!slid)
+                {
+                    speed = 0f;
+                    next = position;
+                }
+            }
+            float limit = _island.Map.HalfSize * 1.05f;
+            if (new Vector2(next.x, next.z).magnitude > limit) { speed = 0f; next = position; }
+            next.y = Mathf.Max(_island.Map.Height(next.x, next.z), Island.WaterLevel - FordDepth) + Spec.Radius;
+            State.Position = next;
+            State.Velocity = forward * speed;
+            // The hull lies on the slope: pitch along the nose, roll across it.
+            Vector3 normal = _island.Map.Normal(next.x, next.z);
+            var right = new Vector3(forward.z, 0f, -forward.x);
+            State.TiltDeg = new Vector2(
+                FlightModel.Approach(State.TiltDeg.x, Mathf.Asin(Mathf.Clamp(Vector3.Dot(normal, right), -1f, 1f)) * Mathf.Rad2Deg, 6f, dt),
+                FlightModel.Approach(State.TiltDeg.y, -Mathf.Asin(Mathf.Clamp(Vector3.Dot(normal, forward), -1f, 1f)) * Mathf.Rad2Deg, 6f, dt));
+
+            LastTouchdownSpeed = 0f;
+            State.Grounded = Mathf.Abs(speed) < 0.25f && Mathf.Abs(drive) < 0.1f;
+            if (State.Grounded && !wasGrounded) return SimEvent.Landed;
+            if (!State.Grounded && wasGrounded) return SimEvent.TookOff;
+            return SimEvent.None;
+        }
+
         void ApplyCushion(float dt)
         {
             float terrain = _island.Map.Height(State.Position.x, State.Position.z);

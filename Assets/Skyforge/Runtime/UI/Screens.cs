@@ -385,7 +385,7 @@ namespace Skyforge.UI
         public event Action<int> QualityPressed;
         /// <summary>The player picked a language; the game restarts to rebuild every screen in it.</summary>
         public event Action<string> LanguagePressed;
-        public event Action FpsPressed, SoundPressed, ClosePressed;
+        public event Action FpsPressed, SoundPressed, ClosePressed, LessonsPressed;
 
         static readonly string[] QualityKeys =
             { "quality.auto", "quality.low", "quality.medium", "quality.high", "quality.ultra" };
@@ -457,6 +457,9 @@ namespace Skyforge.UI
             close.text = Loc.T("settings.close");
             close.color = new Color(0.08f, 0.06f, 0.02f);
             UiKit.Place((RectTransform)close.transform.parent, new Vector2(0.5f, 0f), new Vector2(0f, 50f), new Vector2(460f, 110f));
+            Text lessons = UiKit.Button(p, "Lessons", UiKit.Faint, 30, () => LessonsPressed?.Invoke());
+            lessons.text = Loc.T("settings.lessons");
+            UiKit.Place((RectTransform)lessons.transform.parent, new Vector2(0f, 0f), new Vector2(60f, 50f), new Vector2(430f, 110f));
             // The authors of the 3D models, as their licences ask.
             Text credits = UiKit.Button(p, "Credits", UiKit.Faint, 30, () => _credits.SetActive(true));
             credits.text = Loc.T("settings.credits");

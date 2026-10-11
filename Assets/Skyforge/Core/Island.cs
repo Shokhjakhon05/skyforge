@@ -30,6 +30,15 @@ namespace Skyforge.Core
         public bool Burning;
     }
 
+    /// <summary>A ready-made model standing as scenery: a house, a palm, a rock, a container.</summary>
+    public struct PropSpec
+    {
+        public Vector3 Base;
+        public float YawDeg, Scale;
+        /// <summary>Index into <see cref="Island.PropModels"/>.</summary>
+        public int Model;
+    }
+
     public struct CraterSpec
     {
         public float X, Z, Radius;
@@ -65,6 +74,26 @@ namespace Skyforge.Core
         // The war: what the fighting has left on the island. Ruins are obstacles; the rest is scenery.
         public List<RuinSpec> Ruins { get; private set; }
         public List<WreckSpec> Wrecks { get; private set; }
+        /// <summary>Towns, camps and rocks built from models. The tall ones are obstacles too.</summary>
+        public List<PropSpec> Props { get; private set; }
+
+        public static readonly string[] PropModels =
+        {
+            "b_small1", "b_small2", "b_small3", "b_small4", "b_large3", "b_large5", "warehouse", "fortress",
+            "b_large1", "b_large2", "b_large4", "apartment",
+            "palm1", "palm2", "palm3", "rock1", "rock2", "rock3", "rock4",
+            "container1", "container2", "barrier1", "barrier2", "wall", "trash", "crate", "tent",
+            "guardtower", "radiotower", "watertower", "sandbags", "barrel",
+        };
+        const int PropLowCount = 8, PropTall = 8, PropTallCount = 4, PropPalm = 12, PropRock = 15,
+            PropContainer = 19, PropBarrier = 21, PropWall = 23, PropTrash = 24, PropCrate = 25, PropTent = 26,
+            PropGuard = 27, PropRadio = 28, PropWater = 29, PropSandbags = 30, PropBarrel = 31;
+        /// <summary>Height in metres of each model at scale 1, as tools/gen_models.py bakes them.</summary>
+        static readonly float[] PropHeights =
+        {
+            7f, 6.5f, 8.5f, 8f, 9.4f, 9.4f, 7f, 8f, 13.5f, 12.5f, 13f, 14f,
+            7.5f, 8.5f, 9f, 5f, 4f, 7f, 3.5f, 2.6f, 2.6f, 1.1f, 1.2f, 2.4f, 2.2f, 1.3f, 3.2f, 8.5f, 9.4f, 9f, 1.2f, 1.1f,
+        };
         public List<CraterSpec> Craters { get; private set; }
         public List<RoadSpec> Roads { get; private set; }
         /// <summary>Centres of the shelled villages.</summary>
@@ -97,6 +126,7 @@ namespace Skyforge.Core
                 Anchors = new Dictionary<string, Vector3>(),
                 Ruins = new List<RuinSpec>(),
                 Wrecks = new List<WreckSpec>(),
+                Props = new List<PropSpec>(),
                 Craters = new List<CraterSpec>(),
                 Roads = new List<RoadSpec>(),
                 Villages = new List<Vector3>(),
@@ -113,6 +143,8 @@ namespace Skyforge.Core
             island.PlaceWar(new System.Random(seed * 31 + 7));
             island.PlaceTrees(random, offsetX, offsetZ);
             island.PlaceRings();
+            // Last and from its own dice, so that everything placed before it stays where it was.
+            island.PlaceTowns(new System.Random(seed * 53 + 11));
             island.Anchors["pad"] = island.Spawn;
             for (int i = 0; i < island.Beacons.Count; i++) island.Anchors["beacon" + i] = island.Beacons[i];
             for (int i = 0; i < island.Rings.Count; i++) island.Anchors["ring" + i] = island.Rings[i];
@@ -208,7 +240,7 @@ namespace Skyforge.Core
                 float radius = 1.9f * scale;
                 bool burnt = NearVillage(x, z, 95f) && random.NextDouble() < 0.65;
                 Trees.Add(new TreeSpec { Base = new Vector3(x, ground, z), Height = height, Radius = radius, Burnt = burnt });
-                Obstacles.Add(new Obstacle { X = x, Z = z, Radius = radius * 0.6f, Top = ground + height * 0.9f });
+                Obstacles.Add(new Obstacle { X = x, Z = z, Radius = radius * 0.6f, Top = ground + height * 0.9f, Soft = true });
             }
         }
 
@@ -415,6 +447,161 @@ namespace Skyforge.Core
             Roads.Add(new RoadSpec { From = Spawn, To = Anchors["poi11"] });
         }
 
+        // ---------------------------------------------------------------- towns
+
+        void AddProp(int model, float x, float z, float yaw, float scale, float obstacle)
+        {
+            float ground = Map.Height(x, z);
+            Props.Add(new PropSpec { Base = new Vector3(x, ground, z), YawDeg = yaw, Scale = scale, Model = model });
+            if (obstacle > 0f)
+                Obstacles.Add(new Obstacle { X = x, Z = z, Radius = obstacle, Top = ground + PropHeights[model] * scale * 0.95f, Soft = model >= PropPalm && model < PropRock });
+        }
+
+        bool NearProp(float x, float z, float margin)
+        {
+            for (int i = Props.Count - 1; i >= 0; i--)
+            {
+                float dx = x - Props[i].Base.x, dz = z - Props[i].Base.z;
+                if (dx * dx + dz * dz < margin * margin) return true;
+            }
+            return false;
+        }
+
+        bool TreeAt(float x, float z, float margin)
+        {
+            foreach (TreeSpec tree in Trees)
+            {
+                float dx = x - tree.Base.x, dz = z - tree.Base.z;
+                if (dx * dx + dz * dz < margin * margin) return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Streets of houses around every village, yards full of containers and barriers, a camp by
+        /// the pad, palms where it is warm and boulders on the slopes. Houses stand on a grid turned
+        /// with the village, clear of its square and its roads, and no taller than a ruin, so what
+        /// could be flown before can still be flown.
+        /// </summary>
+        void PlaceTowns(System.Random random)
+        {
+            float Next(float min, float max) => min + (float)random.NextDouble() * (max - min);
+            bool warm = Biome.Id == "desert" || Biome.Id == "tropic" || Biome.Id == "mesa" || Biome.Id == "urban";
+            bool city = Biome.Towers > 0;
+
+            foreach (Vector3 centre in Villages)
+            {
+                float turn = Next(0f, 90f);
+                float rad = turn * Mathf.Deg2Rad, cos = Mathf.Cos(rad), sin = Mathf.Sin(rad);
+                const float step = 19f;
+                int houses = 0, wanted = city ? 20 : random.Next(9, 15);
+                for (int attempt = 0; attempt < 140 && houses < wanted; attempt++)
+                {
+                    int gx = random.Next(-5, 6), gz = random.Next(-5, 6);
+                    float lx = gx * step, lz = gz * step, away = Mathf.Sqrt(lx * lx + lz * lz);
+                    if (away < VillageSquare + 9f || away > 104f) continue;
+                    float x = centre.x + lx * cos - lz * sin, z = centre.z + lx * sin + lz * cos;
+                    float ground = Map.Height(x, z);
+                    if (ground < 3.5f || Map.Steepness(x, z) > 0.2f) continue;
+                    if (TooCloseForRuin(x, z, 6f) || NearRoad(x, z, 9f) || NearProp(x, z, 15f) || TreeAt(x, z, 6f)) continue;
+                    // Every house is kept under the height of a ruin: missions are flown at rooftop height.
+                    int model = random.Next(PropLowCount + (city ? PropTallCount : 1));
+                    float scale = Next(0.95f, 1.08f) * Mathf.Min(1f, (RuinMaxHeight - 0.4f) / PropHeights[model]);
+                    AddProp(model, x, z, turn + random.Next(4) * 90f, scale, model >= PropTall ? 4.2f : 4.8f);
+                    houses++;
+
+                    // What stands in the yard: a container or two, a wall, rubbish, a palm.
+                    int yard = random.Next(1, 4);
+                    for (int y = 0; y < yard; y++)
+                    {
+                        float angle = Next(0f, 2f * Mathf.PI), reach = Next(7.5f, 10.5f);
+                        float px = x + Mathf.Cos(angle) * reach, pz = z + Mathf.Sin(angle) * reach;
+                        if (Map.Height(px, pz) < 3f || Map.Steepness(px, pz) > 0.22f || NearRoad(px, pz, 4f)) continue;
+                        if (NearAnchor(px, pz, VillageSquare - 6f) || NearProp(px, pz, 4f) || NearRuin(px, pz, 2f)) continue;
+                        int pick = random.Next(8);
+                        if (pick < 2) AddProp(PropContainer + random.Next(2), px, pz, turn + random.Next(2) * 90f, 1f, 0f);
+                        else if (pick == 2) AddProp(PropWall, px, pz, turn + random.Next(2) * 90f, 1f, 0f);
+                        else if (pick == 3) AddProp(PropTrash, px, pz, Next(0f, 360f), 1f, 0f);
+                        else if (pick == 4) AddProp(PropCrate, px, pz, Next(0f, 360f), 1f, 0f);
+                        else if (pick == 5) AddProp(PropBarrel, px, pz, 0f, 1f, 0f);
+                        else if (warm) AddProp(PropPalm + random.Next(3), px, pz, Next(0f, 360f), Next(0.8f, 1.1f), 0.5f);
+                        else AddProp(PropSandbags, px, pz, Next(0f, 360f), 1f, 0f);
+                    }
+                }
+
+                // Road blocks on the way in, and one thing that marks the place from afar.
+                for (int b = 0; b < 10; b++)
+                {
+                    float angle = Next(0f, 2f * Mathf.PI), reach = Next(VillageSquare + 2f, 70f);
+                    float x = centre.x + Mathf.Cos(angle) * reach, z = centre.z + Mathf.Sin(angle) * reach;
+                    float road = RoadDistance(x, z, 9f);
+                    if (road < 4.5f || road >= 9f || Map.Height(x, z) < 3f || NearProp(x, z, 3.5f) || NearRuin(x, z, 2f) || NearPoint(x, z, 26f)) continue;
+                    AddProp(PropBarrier + random.Next(2), x, z, Next(0f, 180f), 1f, 0f);
+                }
+                for (int attempt = 0; attempt < 12; attempt++)
+                {
+                    float angle = Next(0f, 2f * Mathf.PI), reach = Next(VillageSquare + 12f, 80f);
+                    float x = centre.x + Mathf.Cos(angle) * reach, z = centre.z + Mathf.Sin(angle) * reach;
+                    if (Map.Height(x, z) < 3.5f || Map.Steepness(x, z) > 0.18f) continue;
+                    if (TooCloseForRuin(x, z, 4f) || NearRoad(x, z, 8f) || NearProp(x, z, 9f) || TreeAt(x, z, 4f)) continue;
+                    AddProp(new[] { PropWater, PropRadio, PropGuard }[random.Next(3)], x, z, turn, 1f, 1.8f);
+                    break;
+                }
+            }
+
+            // The camp by the pad: tents, stores and a fence of concrete, all low and well off the pad itself.
+            for (int i = 0; i < 26; i++)
+            {
+                float angle = Next(0f, 2f * Mathf.PI), reach = Next(24f, 58f);
+                float x = Spawn.x + Mathf.Cos(angle) * reach, z = Spawn.z + Mathf.Sin(angle) * reach;
+                if (Map.Height(x, z) < 2.5f || Map.Steepness(x, z) > 0.2f || NearRoad(x, z, 5f)) continue;
+                if (NearProp(x, z, 7f) || TreeAt(x, z, 3f) || NearBeacon(x, z, 10f) || NearPoint(x, z, 26f)) continue;
+                int pick = i % 6;
+                if (pick == 0) AddProp(PropTent, x, z, Next(0f, 360f), 1f, 0f);
+                else if (pick == 1) AddProp(PropContainer + random.Next(2), x, z, Next(0f, 180f), 1f, 0f);
+                else if (pick == 2) AddProp(PropBarrier + random.Next(2), x, z, angle * Mathf.Rad2Deg, 1f, 0f);
+                else if (pick == 3) AddProp(PropCrate, x, z, Next(0f, 360f), 1f, 0f);
+                else if (pick == 4) AddProp(PropSandbags, x, z, -angle * Mathf.Rad2Deg + 90f, 1f, 0f);
+                else AddProp(PropBarrel, x, z, 0f, 1f, 0f);
+            }
+
+            // Round the pad itself: stores stacked within a few steps of it, nothing an aircraft could clip.
+            for (int i = 0; i < 16; i++)
+            {
+                float angle = i * Mathf.PI / 8f + Next(-0.12f, 0.12f), reach = Next(9.5f, 19f);
+                float x = Spawn.x + Mathf.Cos(angle) * reach, z = Spawn.z + Mathf.Sin(angle) * reach;
+                if (Map.Height(x, z) < 2.5f || Map.Steepness(x, z) > 0.2f || NearRoad(x, z, 3.5f) || NearProp(x, z, 2.6f)) continue;
+                int pick = i % 4;
+                AddProp(pick == 0 ? PropCrate : pick == 1 ? PropBarrel : pick == 2 ? PropSandbags : PropBarrier + random.Next(2),
+                    x, z, pick == 2 ? -angle * Mathf.Rad2Deg + 90f : Next(0f, 360f), pick == 0 ? Next(0.9f, 1.5f) : 1f, 0f);
+            }
+            // And a shed for the aircraft behind it, where the approach does not pass.
+            {
+                foreach (float side in new[] { -24f, 24f })
+                {
+                    float away = (SpawnYawDeg + 180f + side) * Mathf.Deg2Rad;
+                    float x = Spawn.x + Mathf.Sin(away) * 36f, z = Spawn.z + Mathf.Cos(away) * 36f;
+                    if (Map.Height(x, z) < 3f || Map.Steepness(x, z) > 0.2f || NearRoad(x, z, 8f) || NearProp(x, z, 10f) || NearPoint(x, z, 26f)) continue;
+                    AddProp(side < 0f ? 6 : PropGuard, x, z, SpawnYawDeg, 1f, side < 0f ? 5f : 1.8f);
+                }
+            }
+
+            // Boulders on the slopes and along the shore.
+            int rocks = Biome.Id == "urban" ? 50 : 150;
+            for (int attempt = 0; attempt < 2400 && rocks > 0; attempt++)
+            {
+                float x = Next(-1f, 1f) * Map.HalfSize * 0.86f, z = Next(-1f, 1f) * Map.HalfSize * 0.86f;
+                float ground = Map.Height(x, z), steep = Map.Steepness(x, z);
+                if (ground < 1.2f || steep < 0.1f || steep > 0.75f) continue;
+                if (Flat(x, z, Spawn) < 70f || NearAnchor(x, z, 34f) || NearBeacon(x, z, 26f) || NearRoad(x, z, 8f)) continue;
+                if (NearRuin(x, z, 6f) || NearProp(x, z, 9f) || TreeAt(x, z, 3f)) continue;
+                int model = PropRock + random.Next(4);
+                float scale = Next(0.7f, 1.7f);
+                AddProp(model, x, z, Next(0f, 360f), scale, PropHeights[model] * scale * 0.34f);
+                rocks--;
+            }
+        }
+
         static float Flat(float x, float z, Vector3 to) => Mathf.Sqrt((x - to.x) * (x - to.x) + (z - to.z) * (z - to.z));
 
         bool TooCloseForRuin(float x, float z, float size)
@@ -485,6 +672,14 @@ namespace Skyforge.Core
                 float dx = x - anchor.x, dz = z - anchor.z;
                 if (dx * dx + dz * dz < distance * distance) return true;
             }
+            return false;
+        }
+
+        /// <summary>Near one of the inland points where missions put their targets.</summary>
+        bool NearPoint(float x, float z, float distance)
+        {
+            for (int i = 0; i < 12; i++)
+                if (Flat(x, z, Anchors["poi" + i]) < distance) return true;
             return false;
         }
 

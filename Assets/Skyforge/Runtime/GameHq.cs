@@ -177,6 +177,27 @@ namespace Skyforge
                 Title = Loc.T("op.survival.title"), Note = Loc.T("hq.survival.note", _save.Career.SurvivalBest, BaseRules.Turrets(_save)),
                 Button = Loc.T("hq.fly"), Press = () => { Click(); StartOperation(Operations.Survival(_island, _region.Id, BaseRules.Turrets(_save))); },
             });
+            int groundSeed = _save.Career.ContractsDone + RegionCatalog.IndexOf(_region.Id) * 100;
+            MissionDefinition armour = Operations.ArmourRaid(_island, _region.Id, groundSeed + 1, level);
+            if (armour != null)
+            {
+                rows.Add(new ListRow
+                {
+                    Title = Loc.T("op.armour.title") + "   <color=" + UiKit.CyanHex + ">" + Loc.T("hq.level", armour.Level) + "</color>",
+                    Note = Loc.T("hq.armour.note", Loc.T(Garage.Vehicle(_save).NameKey)) + "  ·  " + OperationLine(armour),
+                    Button = Loc.T("hq.drive"), Press = () => { Click(); StartOperation(armour); }, Lit = true,
+                });
+            }
+            MissionDefinition sniper = Operations.SniperTask(_island, _region.Id, groundSeed + 3, level);
+            if (sniper != null)
+            {
+                rows.Add(new ListRow
+                {
+                    Title = Loc.T("op.sniper.title") + "   <color=" + UiKit.CyanHex + ">" + Loc.T("hq.level", sniper.Level) + "</color>",
+                    Note = Loc.T("hq.sniper.note", sniper.Targets.Count, sniper.Rounds) + "  ·  " + OperationLine(sniper),
+                    Button = Loc.T("hq.shoot"), Press = () => { Click(); StartOperation(sniper); }, Lit = true,
+                });
+            }
             int raidSeed = _save.Career.ContractsDone + 7;
             rows.Add(new ListRow
             {

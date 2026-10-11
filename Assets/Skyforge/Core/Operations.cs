@@ -567,5 +567,161 @@ namespace Skyforge.Core
             mission.BriefKey = "op.range.brief";
             return mission;
         }
+
+        // ---------------------------------------------------------------- on the ground
+
+        /// <summary>
+        /// An armoured raid: an enemy position that a tank can drive to from the pad. Null when this
+        /// island has no such position for the seed.
+        /// </summary>
+        public static MissionDefinition ArmourRaid(Island island, string region, int seed, int level)
+        {
+            level = Mathf.Clamp(level, 1, MaxLevel);
+            var nav = new GroundNav(island);
+            for (int attempt = 0; attempt < 12; attempt++)
+            {
+                var d = new Draft { Random = new System.Random(seed * 211 + attempt * 7 + 3), Level = level, Weather = Weathers[(seed + attempt) % Weathers.Length] };
+                int place = (seed * 5 + attempt) % 12;
+                if (place < 0) place += 12;
+                string poi = "poi" + place;
+                List<Vector3> path = nav.Path(island.Spawn, island.Anchors[poi]);
+                if (path == null || path.Count < 6) continue;
+                float length = GroundNav.Length(path);
+                if (length > 2200f) continue;
+
+                var marks = new List<TargetData>();
+                marks.Add(d.Add("mark0", d.Pick(Soft, 3), poi, 0f, -9f));
+                marks.Add(d.Add("mark1", d.Pick(Scouts, level / 4), poi, -12f, 5f));
+                marks.Add(d.Add("mark2", level >= 5 ? "depot" : "tent", poi, 13f, 9f));
+                if (level >= 3) marks.Add(d.Add("mark3", d.Pick(Armour, level / 7), poi, -5f, 21f));
+                if (level >= 7) marks.Add(d.Add("mark4", d.Pick(Armour, level / 6), poi, 20f, -14f));
+                if (level >= 12) marks.Add(d.Add("mark5", "bunker", poi, -22f, -12f));
+                int guards = Mathf.Clamp(1 + level / 5, 1, 4);
+                for (int i = 0; i < guards; i++)
+                    marks.Add(d.Add("guard" + i, i % 2 == 0 ? "squad" : "gatling", poi, Mathf.Cos(i * 2.1f) * 24f, Mathf.Sin(i * 2.1f) * 24f));
+                d.Objectives.Add(TakeOff);
+                d.Objectives.Add(Destroy(marks, "objective.op.armour"));
+                d.Objectives.Add(new ObjectiveData { type = "land", at = Place("pad"), radius = 18f });
+                var data = new MissionData
+                {
+                    id = "armour:" + region + ":" + seed + ":" + level, region = region, order = 1, template = "assault", weather = d.Weather,
+                    timeGoal = Mathf.Round((150f + length / 4f) / 10f) * 10f, baseReward = Reward(level) + 60,
+                    starReward = Mathf.RoundToInt(Reward(level) * 0.3f / 10f) * 10,
+                    targets = d.Targets.ToArray(), objectives = d.Objectives.ToArray(),
+                };
+                MissionDefinition mission = MissionBuilder.Build(data, island, new List<string>());
+                if (mission == null) continue;
+                mission.Mode = "armour";
+                mission.Reactive = true;
+                mission.HealthScale = HealthScale(level);
+                mission.GunScale = GunScale(level);
+                mission.Title = Loc.T("op.armour.title") + " «" + Codename(seed + attempt * 13) + "»";
+                mission.BriefKey = "op.armour.brief";
+                mission.Level = level;
+                return mission;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// A sniper's task: the aircraft hangs over a ridge a few hundred metres out and the player
+        /// works through the men on the square with a rifle and a handful of rounds.
+        /// </summary>
+        public static MissionDefinition SniperTask(Island island, string region, int seed, int level)
+        {
+            level = Mathf.Clamp(level, 1, MaxLevel);
+            for (int attempt = 0; attempt < 12; attempt++)
+            {
+                var d = new Draft { Random = new System.Random(seed * 173 + attempt * 11 + 9), Level = level, Weather = attempt % 2 == 0 ? "clear" : "overcast" };
+                int place = ((seed * 7 + attempt) % 12 + 12) % 12;
+                string poi = "poi" + place;
+                Vector3 centre = island.Anchors[poi];
+                // The perch: far enough to need the scope, with the square in plain sight.
+                Vector3 perch = Vector3.zero;
+                bool found = false;
+                float wantedRange = Mathf.Min(170f + level * 6f, 330f);
+                int bestSeen = 0;
+                for (int k = 0; k < 48; k++)
+                {
+                    float angle = (d.Roll(16) + k) * Mathf.PI / 8f;
+                    float reach = wantedRange * (k < 16 ? 1f : k < 32 ? 0.8f : 1.25f);
+                    float x = centre.x + Mathf.Cos(angle) * reach, z = centre.z + Mathf.Sin(angle) * reach;
+                    if (Mathf.Abs(x) > island.Map.HalfSize * 0.95f || Mathf.Abs(z) > island.Map.HalfSize * 0.95f) continue;
+                    var candidate = new Vector3(x, Mathf.Max(island.Map.Height(x, z), Island.WaterLevel) + 42f, z);
+                    if (candidate.y < centre.y + 22f) continue;
+                    // The whole square has to lie open below it, not only its middle.
+                    int seen = 0;
+                    for (int p = 0; p < 9; p++)
+                    {
+                        float px = centre.x + (p == 8 ? 0f : Mathf.Cos(p * Mathf.PI / 4f) * 26f), pz = centre.z + (p == 8 ? 0f : Mathf.Sin(p * Mathf.PI / 4f) * 26f);
+                        if (GroundNav.Sees(island.Map, candidate, new Vector3(px, island.Map.Height(px, pz) + 1f, pz))) seen++;
+                    }
+                    if (seen <= bestSeen) continue;
+                    bestSeen = seen;
+                    perch = candidate;
+                    found = seen >= 8;
+                    if (seen == 9) break;
+                }
+                if (!found) continue;
+
+                var marks = new List<TargetData>();
+                int men = Mathf.Clamp(3 + level / 3, 3, 9);
+                for (int i = 0; i < men; i++)
+                {
+                    float a = i * 2.4f + d.Spread(0.4f), r = 6f + (i % 4) * 6f;
+                    float dx = Mathf.Cos(a) * r, dz = Mathf.Sin(a) * r;
+                    if (i % 3 == 1)
+                    {
+                        // A sentry on his beat.
+                        TargetData walker = d.Mover("man" + i, "sentry", new[] { Place(poi, dx, dz), Place(poi, -dz, dx), Place(poi, dx, dz) }, 1.5f, 0f, 0);
+                        walker.loop = true;
+                        marks.Add(walker);
+                    }
+                    else marks.Add(d.Add("man" + i, i == 0 ? "officer" : "sentry", poi, dx, dz));
+                }
+                if (level >= 6)
+                {
+                    TargetData car = d.Mover("car", "staff_car", new[] { Place(poi, -26f, -20f), Place(poi, 26f, -20f), Place(poi, -26f, -20f) }, 4.5f, 0f, 0);
+                    car.loop = true;
+                    marks.Add(car);
+                }
+                d.Objectives.Add(Destroy(marks, "objective.op.sniper"));
+                var data = new MissionData
+                {
+                    id = "sniper:" + region + ":" + seed + ":" + level, region = region, order = 1, template = "assault", weather = d.Weather,
+                    timeGoal = 60f + marks.Count * 14f, baseReward = Reward(level), starReward = Mathf.RoundToInt(Reward(level) * 0.3f / 10f) * 10,
+                    targets = d.Targets.ToArray(), objectives = d.Objectives.ToArray(),
+                };
+                MissionDefinition mission = MissionBuilder.Build(data, island, new List<string>());
+                if (mission == null) continue;
+                bool hidden = false;
+                foreach (TargetDefinition target in mission.Targets)
+                {
+                    Vector3 stands = target.Position;
+                    stands.y = island.Map.Height(stands.x, stands.z) + 1f;
+                    if (!GroundNav.Sees(island.Map, perch, stands)) hidden = true;
+                    // A beat is walked in sight all the way: every few metres of it is checked.
+                    for (int i = 1; i < target.Path.Count; i++)
+                    for (float t = 0f; t <= 1f; t += 0.2f)
+                    {
+                        Vector3 on = Vector3.Lerp(target.Path[i - 1], target.Path[i], t);
+                        on.y = island.Map.Height(on.x, on.z) + 1f;
+                        if (!GroundNav.Sees(island.Map, perch, on)) hidden = true;
+                    }
+                }
+                if (hidden) continue;
+                mission.Mode = "sniper";
+                mission.GunScale = 0f;
+                mission.Rounds = level >= 12 ? marks.Count + 3 : marks.Count * 2 + 1;
+                mission.Perch = perch;
+                Vector3 look = centre - perch;
+                mission.PerchYawDeg = Mathf.Atan2(look.x, look.z) * Mathf.Rad2Deg;
+                mission.Title = Loc.T("op.sniper.title") + " «" + Codename(seed + attempt * 17) + "»";
+                mission.BriefKey = "op.sniper.brief";
+                mission.Level = level;
+                return mission;
+            }
+            return null;
+        }
     }
 }

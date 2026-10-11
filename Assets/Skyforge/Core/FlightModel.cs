@@ -101,7 +101,7 @@ namespace Skyforge.Core
         public float RocketDamage = 50f;
         public float BombDamage = 220f;
         /// <summary>How far away a target can be locked for a rocket.</summary>
-        public float LockRange = 150f;
+        public float LockRange = 260f;
         /// <summary>Seconds between rockets.</summary>
         public float FireInterval = 0.7f;
 
@@ -125,6 +125,8 @@ namespace Skyforge.Core
         /// weapon, and this many of them stand ready for one sortie.
         /// </summary>
         public int OneWay;
+        /// <summary>A vehicle that drives: it follows the ground, cannot cross water and is never airborne.</summary>
+        public bool Ground;
 
         public DroneSpec Clone() => (DroneSpec)MemberwiseClone();
 

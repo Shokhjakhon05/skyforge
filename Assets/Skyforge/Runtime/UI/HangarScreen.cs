@@ -175,11 +175,11 @@ namespace Skyforge.UI
             Viewed?.Invoke(Current);
         }
 
-        DroneDefinition Current => DroneCatalog.All[_index];
+        DroneDefinition Current => DroneCatalog.Fleet[_index];
 
         void Browse(int step)
         {
-            int count = DroneCatalog.All.Count;
+            int count = DroneCatalog.Fleet.Count;
             _index = (_index + step + count) % count;
             _pending = null;
             Pressed?.Invoke(false);
@@ -321,6 +321,8 @@ namespace Skyforge.UI
             DroneSpec arms = drone.Spec;
             _weapons.text = arms.OneWay > 0
                 ? Loc.T("hangar.oneway", arms.OneWay)
+                : arms.Ground ? Loc.T("hangar.ground") + "\n" + Loc.T("hangar.vehicle", arms.Rockets, Mathf.RoundToInt(arms.RocketDamage),
+                    Mathf.RoundToInt(arms.CannonSeconds), Mathf.RoundToInt(arms.LockRange), (1f / Mathf.Max(0.05f, arms.DamageScale)).ToString("0.0"))
                 : Loc.T("hangar.weapons", arms.Rockets, Mathf.RoundToInt(arms.RocketDamage), arms.Bombs,
                     Mathf.RoundToInt(arms.BombDamage), Mathf.RoundToInt(arms.LockRange));
             _status.text = "";
@@ -336,7 +338,7 @@ namespace Skyforge.UI
             };
             for (int i = 0; i < 6; i++) _statFills[i].anchorMax = new Vector2(Mathf.Clamp(stats[i], 0.03f, 1f), 1f);
 
-            bool selected = _save.SelectedDrone == drone.Id;
+            bool selected = (_save.SelectedDrone == drone.Id || _save.SelectedVehicle == drone.Id);
             if (owned)
             {
                 _mainLabel.text = Loc.T(selected ? "hangar.selected" : "hangar.select");

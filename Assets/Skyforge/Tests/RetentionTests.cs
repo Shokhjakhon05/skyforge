@@ -360,7 +360,7 @@ namespace Skyforge.Tests
             Assert.IsTrue(Garage.Owns(save, "kestrel"));
             Assert.IsFalse(Shop.Deliver(save, Shop.StarterId), "a restored purchase must not pay again");
             Assert.AreEqual(1500, save.Credits);
-            Assert.AreEqual(2, save.Drones.Count);
+            Assert.AreEqual(3, save.Drones.Count);
             Assert.IsTrue(save.IsValid());
         }
 

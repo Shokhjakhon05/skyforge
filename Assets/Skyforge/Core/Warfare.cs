@@ -28,7 +28,7 @@ namespace Skyforge.Core
         const float CoverSeconds = 9f;
 
         readonly List<PendingStrike> _strikes = new List<PendingStrike>();
-        readonly int[] _killsBy = new int[8];
+        readonly int[] _killsBy = new int[10];
         Weapon _weapon;
         float _ordnance = 1f;
         float _jamLeft, _flareLeft, _cannonTick;
@@ -330,7 +330,7 @@ namespace Skyforge.Core
         void FireCannon(FlightState state, float dt)
         {
             CannonFiring = false;
-            if (_spec.Cannon <= 0f || CannonSeconds <= 0f || LockedTarget < 0 || state.Grounded || NeedsRespawn) return;
+            if (_spec.Cannon <= 0f || CannonSeconds <= 0f || LockedTarget < 0 || Parked(state) || NeedsRespawn) return;
             if (!_targets[LockedTarget].Alive) return;
             if (Vector3.Distance(state.Position, _targets[LockedTarget].Position) > _spec.CannonRange) return;
             CannonFiring = true;
@@ -349,7 +349,7 @@ namespace Skyforge.Core
 
         void TriggerAbility(FlightState state)
         {
-            if (AbilityCharges <= 0 || state.Grounded || NeedsRespawn || !IsCombat) return;
+            if (AbilityCharges <= 0 || Parked(state) || NeedsRespawn || !IsCombat) return;
             switch (_spec.Ability)
             {
                 case Ability.Jammer:
@@ -500,6 +500,7 @@ namespace Skyforge.Core
             if (_weapon != Weapon.Ally) Streak++;
             if (kind.Pursues || Definition.Targets[index].Altitude > 0f) AirKills++;
             if (kind.Id.StartsWith("tank") || kind.Id == "apc") ArmourKills++;
+            AfterKill(index);
         }
     }
 }

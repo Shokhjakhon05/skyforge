@@ -19,7 +19,27 @@ namespace Skyforge.World
         public Color32[] Palette;
         public Bounds Bounds;
 
-        Material _plain, _burnt;
+        Material _plain, _burnt, _scenery, _scorched;
+
+        /// <summary>The model as part of a town: matt paint and plaster rather than a vehicle's metal.</summary>
+        public Material Scenery => _scenery != null ? _scenery : _scenery = Paint(Palette, GameMaterials.Matter.Painted);
+
+        /// <summary>The same, after the fighting has been through: soot over the paint.</summary>
+        public Material Scorched
+        {
+            get
+            {
+                if (_scorched != null) return _scorched;
+                var colors = new Color32[Palette.Length];
+                for (int i = 0; i < colors.Length; i++)
+                {
+                    Color original = Palette[i];
+                    colors[i] = Color.Lerp(original, new Color(0.13f, 0.12f, 0.11f), i % 2 == 0 ? 0.55f : 0.3f);
+                    colors[i].a = 255;
+                }
+                return _scorched = Paint(colors, GameMaterials.Matter.Painted);
+            }
+        }
 
         /// <summary>The model in its own colours.</summary>
         public Material Plain => _plain != null ? _plain : _plain = Paint(Palette);

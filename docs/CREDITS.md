@@ -37,6 +37,36 @@
 | drone_gunship | Helicopter | Zsky | CC-BY 3.0 | https://poly.pizza/m/hG2Qr0A3zR |
 | drone_lifter | Helicopter | Poly by Google | CC-BY 3.0 | https://poly.pizza/m/cTzINMr0WdS |
 | drone_hover | Hover Battler: Sparrow | Aaron Clifford | CC-BY 3.0 | https://poly.pizza/m/eGrzfhSGpOg |
+| b_large1 | Large Building | Kenney | CC0 1.0 | https://poly.pizza/m/ppwtREejXg |
+| b_large2 | Large Building | Kenney | CC0 1.0 | https://poly.pizza/m/h7Jaq7bqMq |
+| b_large3 | Large Building | Kenney | CC0 1.0 | https://poly.pizza/m/sxXonOmtct |
+| b_large4 | Large Building | Kenney | CC0 1.0 | https://poly.pizza/m/yKo7F36Qk2 |
+| b_large5 | Large Building | Kenney | CC0 1.0 | https://poly.pizza/m/JgGLJH2iXj |
+| b_small1 | Small Building | Kenney | CC0 1.0 | https://poly.pizza/m/QjL4Fo9dU9 |
+| b_small2 | Small Building | Kenney | CC0 1.0 | https://poly.pizza/m/gyjF60t7CG |
+| b_small3 | Small Building | Kenney | CC0 1.0 | https://poly.pizza/m/Rq572hdKEz |
+| b_small4 | Small Building | Kenney | CC0 1.0 | https://poly.pizza/m/yLvnMqC9ZG |
+| apartment | Apartment building | Poly by Google | CC-BY 3.0 | https://poly.pizza/m/01lqee-dZAr |
+| warehouse | Warehouse | Lavender Harmony | CC-BY 3.0 | https://poly.pizza/m/fsxbktzB1zo |
+| fortress | Fortress | Poly by Google | CC-BY 3.0 | https://poly.pizza/m/4XMaa7Ovrwx |
+| palm1 | Palm Tree | Quaternius | CC0 1.0 | https://poly.pizza/m/A6cKJYFsIb |
+| palm2 | Palm Tree | Quaternius | CC0 1.0 | https://poly.pizza/m/DsrrAYmucG |
+| palm3 | Palm tree | jeremy | CC-BY 3.0 | https://poly.pizza/m/bjGeBbKhAVN |
+| rock1 | Rock | Danni Bittman | CC-BY 3.0 | https://poly.pizza/m/4TpBWdzKDf2 |
+| rock2 | Rock Large | Quaternius | CC0 1.0 | https://poly.pizza/m/54jZKTAt5p |
+| rock3 | Rock Formation | Kenney | CC0 1.0 | https://poly.pizza/m/pRY9BCFbmQ |
+| rock4 | Rock Medium | Quaternius | CC0 1.0 | https://poly.pizza/m/s1OJ3bBzqc |
+| container1 | Container | KolosStudios | CC-BY 3.0 | https://poly.pizza/m/CQMziXZfYh |
+| container2 | Shipping Container | Davidlamic000 | CC0 1.0 | https://poly.pizza/m/83Cai5aKxa |
+| barrier1 | Concrete Barrier | J-Toastie | CC-BY 3.0 | https://poly.pizza/m/5Cg2oW7EFn |
+| barrier2 | Barrier Single | Quaternius | CC0 1.0 | https://poly.pizza/m/wCUxgt2jSP |
+| wall | Stone Wall | Quaternius | CC0 1.0 | https://poly.pizza/m/tdeAOh3LQV |
+| trash | Barrier Trash | Quaternius | CC0 1.0 | https://poly.pizza/m/53AXNH8J9N |
+| guardtower | Guard Tower | Quaternius | CC0 1.0 | https://poly.pizza/m/sbaM8I229r |
+| radiotower | Radio tower | Poly by Google | CC-BY 3.0 | https://poly.pizza/m/eWEYV9ppUjv |
+| watertower | Water Tower | Quaternius | CC0 1.0 | https://poly.pizza/m/tMK8bhapAK |
+| tent | Military Tent | KolosStudios | CC-BY 3.0 | https://poly.pizza/m/vQANVbSE0v |
+| crate | Chest | Quaternius | CC0 1.0 | https://poly.pizza/m/vXaxy7ortM |
 
 ## Небо, текстуры, шрифты, музыка
 

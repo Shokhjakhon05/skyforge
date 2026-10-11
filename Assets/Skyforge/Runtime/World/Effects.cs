@@ -301,12 +301,69 @@ namespace Skyforge.World
                 });
             }
 
+            // A big one stands up as a column of fire before the smoke takes over, and its embers hang in the air.
+            if (r > 9f)
+            {
+                for (int i = 0; i < 7; i++)
+                {
+                    Emit(new Puff
+                    {
+                        Glow = true, Position = at + Scatter(r * 0.15f, 0f) + Vector3.up * (i * r * 0.16f),
+                        Velocity = Vector3.up * Range(r * 0.7f, r * 1.2f), Life = Range(0.9f, 1.6f), SizeFrom = r * 0.4f,
+                        SizeTo = r * 0.75f, Drag = 1.4f, From = new Color(1f, 0.66f, 0.2f), To = new Color(0.45f, 0.07f, 0.02f),
+                    });
+                }
+            }
+            for (int i = 0; i < 10; i++)
+            {
+                Emit(new Puff
+                {
+                    Glow = true, Cell = CellSpark, Position = at + Scatter(r * 0.6f, r * 0.5f),
+                    Velocity = new Vector3(Range(-1f, 1f), Range(1.2f, 3.5f), Range(-1f, 1f)), Life = Range(2f, 4f),
+                    SizeFrom = 0.22f, SizeTo = 0.08f, Drag = 0.3f, FadeFrom = 0.5f, FadeIn = 0.3f,
+                    From = new Color(1f, 0.7f, 0.3f), To = new Color(1f, 0.3f, 0.05f),
+                });
+            }
+
             if (!scorch) return;
             Transform mark = _scorches[_nextScorch];
             _nextScorch = (_nextScorch + 1) % ScorchCount;
             mark.position = at + Vector3.up * 0.07f;
             mark.localScale = new Vector3(r * 0.55f, 1f, r * 0.55f);
             mark.gameObject.SetActive(true);
+        }
+
+        /// <summary>A munition into the sea: a white column thrown up and falling back as spray.</summary>
+        public void Splash(Vector3 at, float radius)
+        {
+            float r = Mathf.Clamp(radius, 3f, 20f);
+            at.y = Skyforge.Core.Island.WaterLevel;
+            Emit(new Puff
+            {
+                Glow = true, Flat = true, Cell = CellRing, Position = at + Vector3.up * 0.15f, Life = 1.1f, SizeFrom = r * 0.5f,
+                SizeTo = r * 3.6f, Alpha = 0.45f, From = Color.white, To = new Color(0.8f, 0.9f, 1f),
+            });
+            for (int i = 0; i < 12; i++)
+            {
+                Vector3 offset = Scatter(r * 0.22f, 0f);
+                Emit(new Puff
+                {
+                    Position = at + offset + Vector3.up * (i * 0.3f), Velocity = offset * 0.6f + Vector3.up * Range(r * 1.1f, r * 2.4f),
+                    Life = Range(1.1f, 1.9f), SizeFrom = r * 0.25f, SizeTo = r * 0.7f, Gravity = -9f, Drag = 0.5f, Alpha = 0.8f,
+                    From = new Color(0.94f, 0.97f, 1f), To = new Color(0.75f, 0.84f, 0.9f),
+                });
+            }
+            for (int i = 0; i < 10; i++)
+            {
+                float angle = i * Mathf.PI / 5f;
+                var outward = new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle));
+                Emit(new Puff
+                {
+                    Position = at + outward * r * 0.3f + Vector3.up * 0.4f, Velocity = outward * r * 0.9f + Vector3.up * r * 0.35f,
+                    Life = Range(0.9f, 1.5f), SizeFrom = r * 0.2f, SizeTo = r * 0.6f, Gravity = -6f, Drag = 1.2f, Alpha = 0.6f,
+                    From = Color.white, To = new Color(0.8f, 0.88f, 0.94f),
+                });
+            }
         }
 
         /// <summary>A building or a big machine coming apart: a wide rolling cloud of dust and a rain of pieces.</summary>

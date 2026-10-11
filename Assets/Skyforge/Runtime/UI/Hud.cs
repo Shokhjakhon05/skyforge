@@ -371,6 +371,7 @@ namespace Skyforge.UI
 
         public bool Visible
         {
+            get => _canvas.gameObject.activeSelf;
             set => _canvas.gameObject.SetActive(value);
         }
 

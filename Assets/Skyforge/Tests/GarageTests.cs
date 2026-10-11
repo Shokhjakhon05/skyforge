@@ -237,13 +237,13 @@ namespace Skyforge.Tests
         [Test]
         public void BuyingADroneTakesCreditsOnceAndSelectsIt()
         {
-            SaveData save = Rich(1000);
+            SaveData save = Rich(2000);
             DroneDefinition kestrel = DroneCatalog.Get("kestrel");
             Assert.AreEqual(PurchaseResult.Ok, Garage.BuyDrone(save, kestrel));
-            Assert.AreEqual(1000 - kestrel.Price, save.Credits);
+            Assert.AreEqual(2000 - kestrel.Price, save.Credits);
             Assert.AreEqual("kestrel", save.SelectedDrone);
             Assert.AreEqual(PurchaseResult.AlreadyOwned, Garage.BuyDrone(save, kestrel));
-            Assert.AreEqual(1000 - kestrel.Price, save.Credits);
+            Assert.AreEqual(2000 - kestrel.Price, save.Credits);
             Assert.IsTrue(save.IsValid());
         }
 

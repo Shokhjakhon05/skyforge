@@ -735,6 +735,18 @@ namespace Skyforge.World
                     b.Cylinder(at + new Vector3(2.2f, 0f, 1.2f), 2.0f, 0.4f, 0.5f, 8, Palette.White);
                     b.Cylinder(at + new Vector3(2.2f, 0.5f, 1.2f), 0.4f, 0f, 0.3f, 8, Palette.Orange);
                     break;
+                case "officer":
+                case "sentry":
+                {
+                    // One man: an officer in a peaked cap, a sentry with his rifle.
+                    bool officer = kind == "officer";
+                    b.Box(at + new Vector3(0f, 0.45f, 0f), new Vector3(0.42f, 0.9f, 0.3f), officer ? Palette.Graphite : Palette.Olive);
+                    b.Box(at + new Vector3(0f, 1.25f, 0f), new Vector3(0.54f, 0.7f, 0.34f), officer ? Palette.DarkGrey : Palette.Khaki);
+                    b.Box(at + new Vector3(0f, 1.78f, 0f), new Vector3(0.3f, 0.3f, 0.3f), Palette.Sandbag);
+                    b.Box(at + new Vector3(0f, 1.97f, 0.03f), new Vector3(0.4f, 0.12f, 0.46f), officer ? Palette.Red : Palette.Olive);
+                    if (!officer) b.Box(at + new Vector3(0.22f, 1.3f, 0.3f), new Vector3(0.08f, 0.1f, 0.95f), Palette.Graphite);
+                    break;
+                }
                 case "dummy":
                     // A plywood board with rings painted on it.
                     b.Box(at + new Vector3(0f, 1.8f, 0f), new Vector3(3.4f, 3.4f, 0.2f), Palette.White);

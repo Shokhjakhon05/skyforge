@@ -251,7 +251,7 @@ namespace Skyforge.Core
                     foreach (MissionRecord record in save.Missions)
                         if (record.Stars >= 3) perfect++;
                     return perfect;
-                case "drones": return save.Drones.Count;
+                case "drones": return save.Drones.Count - (save.FindDrone(DroneCatalog.StarterVehicle) != null ? 1 : 0);
                 case "upgrades": return save.Stats.UpgradesBought;
                 case "modules": return save.OwnedModules.Count;
                 case "regions":

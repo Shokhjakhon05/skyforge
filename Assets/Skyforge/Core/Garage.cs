@@ -29,6 +29,13 @@ namespace Skyforge.Core
 
         public static bool Owns(SaveData save, string droneId) => save.FindDrone(droneId) != null;
 
+        /// <summary>The vehicle an armoured raid is driven in: the chosen one, or the one everybody has.</summary>
+        public static DroneDefinition Vehicle(SaveData save)
+        {
+            DroneDefinition chosen = DroneCatalog.Get(save.SelectedVehicle);
+            return chosen.Spec.Ground && Owns(save, chosen.Id) ? chosen : DroneCatalog.Get(DroneCatalog.StarterVehicle);
+        }
+
         public static DroneDefinition Selected(SaveData save) => DroneCatalog.Get(save.SelectedDrone);
 
         /// <summary>The spec the selected drone flies with, upgrades and modules included.</summary>
@@ -56,14 +63,16 @@ namespace Skyforge.Core
             if (result != PurchaseResult.Ok) return result;
             save.Credits -= drone.Price;
             save.Drones.Add(DroneRecord.New(drone.Id));
-            save.SelectedDrone = drone.Id;
+            if (drone.Spec.Ground) save.SelectedVehicle = drone.Id;
+            else save.SelectedDrone = drone.Id;
             return PurchaseResult.Ok;
         }
 
         public static PurchaseResult Select(SaveData save, string droneId)
         {
             if (!Owns(save, droneId)) return PurchaseResult.NotOwned;
-            save.SelectedDrone = droneId;
+            if (DroneCatalog.Get(droneId).Spec.Ground) save.SelectedVehicle = droneId;
+            else save.SelectedDrone = droneId;
             return PurchaseResult.Ok;
         }
 

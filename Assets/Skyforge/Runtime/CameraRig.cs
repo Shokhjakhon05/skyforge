@@ -32,6 +32,8 @@ namespace Skyforge
         public Vector3? GunTarget;
         /// <summary>How much farther back than behind the starter quadcopter the chase camera sits; set from the aircraft's size.</summary>
         public float Reach = 1f;
+        /// <summary>A vehicle on the ground: the cameras sit higher and the chase view looks far ahead, along the gun.</summary>
+        public bool Vehicle;
 
         public CameraRig(Transform parent, HeightMap map)
         {
@@ -89,6 +91,24 @@ namespace Skyforge
             _snap = true;
         }
 
+        /// <summary>The picture through a rifle scope: from a point, along a direction, as narrow as the magnification makes it.</summary>
+        public void Scope(Vector3 position, Vector3 direction, float fieldOfView)
+        {
+            Transform t = Camera.transform;
+            if (direction.sqrMagnitude < 0.001f) direction = Vector3.forward;
+            t.position = position;
+            Quaternion look = Quaternion.LookRotation(direction, Vector3.up);
+            if (_shake > 0.001f)
+            {
+                look *= Quaternion.Euler(Random.Range(-1f, 1f) * _shake * 1.2f, Random.Range(-1f, 1f) * _shake * 1.2f, 0f);
+                _shake = Mathf.Max(0f, _shake - Time.unscaledDeltaTime * 2.5f);
+            }
+            t.rotation = look;
+            _fieldOfView = fieldOfView;
+            Camera.fieldOfView = _fieldOfView;
+            _snap = true;
+        }
+
         /// <summary>A free look around a point for the photo mode: yaw and pitch in degrees, distance in metres.</summary>
         public void Free(Vector3 center, float yawDeg, float pitchDeg, float distance)
         {
@@ -125,7 +145,7 @@ namespace Skyforge
             if (View == CameraView.Fpv)
             {
                 Quaternion heading = Quaternion.Euler(0f, yawDeg, 0f);
-                t.position = position + heading * new Vector3(0f, -0.02f, 0.45f);
+                t.position = position + heading * new Vector3(0f, Vehicle ? 3.2f : -0.02f, Vehicle ? 1.5f : 0.45f);
                 // A stabilised gimbal: only a hint of the airframe's lean reaches the picture.
                 t.rotation = Quaternion.Euler(6f + tiltDeg.y * 0.2f, yawDeg, -tiltDeg.x * 0.3f);
                 targetFov = 62f + speedShare * 10f;
@@ -133,9 +153,9 @@ namespace Skyforge
             else if (View == CameraView.Gun)
             {
                 Quaternion heading = Quaternion.Euler(0f, yawDeg, 0f);
-                t.position = position + heading * new Vector3(0f, -0.35f, 0.3f);
+                t.position = position + heading * new Vector3(0f, Vehicle ? 3.4f : -0.35f, 0.3f);
                 // Steadied like a gimbal; it eases onto whatever the weapons are locked on.
-                Vector3 aim = heading * Quaternion.Euler(24f, 0f, 0f) * Vector3.forward;
+                Vector3 aim = heading * Quaternion.Euler(Vehicle ? 3f : 24f, 0f, 0f) * Vector3.forward;
                 if (GunTarget.HasValue && (GunTarget.Value - t.position).sqrMagnitude > 16f)
                     aim = (GunTarget.Value - t.position).normalized;
                 _gunAim = _snapGun ? aim : Vector3.Slerp(_gunAim, aim, 1f - Mathf.Exp(-6f * deltaTime));
@@ -157,7 +177,7 @@ namespace Skyforge
                 float floor = Mathf.Max(_map.Height(eye.x, eye.z), Island.WaterLevel) + 0.7f;
                 if (eye.y < floor) eye.y = floor;
 
-                Vector3 target = position + heading * new Vector3(0f, 0.5f, 3f);
+                Vector3 target = position + heading * (Vehicle ? new Vector3(0f, 3.2f, 36f) : new Vector3(0f, 0.5f, 3f));
                 t.position = eye;
                 t.rotation = Quaternion.LookRotation(target - eye, Vector3.up);
                 targetFov = 50f + speedShare * 9f;
