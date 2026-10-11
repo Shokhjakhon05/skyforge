@@ -28,7 +28,7 @@ on:
     tags: ["v*"]
 
 concurrency:
-  group: build-android
+  group: build-android-${{ github.ref_name }}
   cancel-in-progress: true
 
 permissions:
