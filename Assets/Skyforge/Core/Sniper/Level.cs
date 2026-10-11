@@ -39,8 +39,24 @@ namespace Sniper
         public bool Thin;
     }
 
+    /// <summary>Something that drives or sails through the place for no reason but that places are like that.</summary>
+    public struct Traffic
+    {
+        public string Model;
+        public Vector3 From, To;
+        public float Speed, Height;
+        /// <summary>How far along its way it starts, 0..1.</summary>
+        public float Offset;
+    }
+
     public sealed class LocationDef
     {
+        public List<Traffic> Traffic = new List<Traffic>();
+        /// <summary>People who are in the place whatever the contract: they are civilians in every mission there.</summary>
+        public List<ActorDef> Crowd = new List<ActorDef>();
+        /// <summary>The sound of the place, and how loud.</summary>
+        public string Ambience = "amb_town";
+        public float AmbienceVolume = 0.3f;
         public string Id, NameKey;
         /// <summary>"asphalt", "concrete", "sand", "grass": what the ground is laid with.</summary>
         public string Ground = "asphalt";

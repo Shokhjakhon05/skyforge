@@ -1207,4 +1207,12 @@ T = {
 'sn.lesson.aim': "Barmoqni ekran bo'ylab suring: nishonni qizil ism ostidagi boshga keltiring",
 'sn.lesson.breath': 'Nishon titramasligi uchun «NAFASNI USHLASH» ni bosing',
 'sn.lesson.fire': "«O'T OCH» ni bosing",
+'sn.daily': 'KUN SHARTNOMASI',
+'sn.daily.done': 'KUN SHARTNOMASI BAJARILDI',
+'sn.daily.paid': "Kun shartnomasi: to'lov ikki baravar",
+'sn.day': '{0}-KUN',
+'sn.day.note': "Ertaga qayting — ko'proq bo'ladi",
+'sn.day.take': 'OLISH',
+'sn.brief.pay': "To'lov: ${0}",
+'sn.brief.subject': 'NISHON',
 }

@@ -111,6 +111,13 @@ namespace Sniper
             Put(docks, "dumpster", -38f, -18f, 0f, 1.6f);
             Put(docks, "dumpster", 50f, -2f, 90f, 1.6f);
             Put(docks, "dumpster", -70f, 16f, 90f, 1.6f);
+            docks.Traffic.Add(new Traffic { Model = "truck", From = new Vector3(-170f, 0f, -40f), To = new Vector3(170f, 0f, -40f), Speed = 8f });
+            docks.Traffic.Add(new Traffic { Model = "pickup", From = new Vector3(170f, 0f, -45f), To = new Vector3(-170f, 0f, -45f), Speed = 11f, Offset = 0.4f });
+            docks.Traffic.Add(new Traffic { Model = "tug", From = new Vector3(-260f, -1f, 130f), To = new Vector3(260f, -1f, 130f), Speed = 3.5f, Height = 9f, Offset = 0.3f });
+            docks.Crowd.Add(Walker("worker", V(-70f, -12f), V(-66f, 14f)));
+            docks.Crowd.Add(Walker("farmer", V(68f, 14f), V(70f, -14f)));
+            docks.Ambience = "amb_town";
+            docks.AmbienceVolume = 0.18f;
             list.Add(docks);
 
             // Downtown: one long street under a wall of house fronts, with the towers of the centre behind them.
@@ -153,6 +160,22 @@ namespace Sniper
             foreach (Vector3 p in new[] { V(-50f, 24f), V(-49f, 24.8f), V(70f, 24f), V(16f, 23.6f) }) Put(town, "crate", p.x, p.z, p.x * 13f, 1.1f);
             Row(town, "fence_wood", -108f, -34f, 5.9f, 0f, 16, 0f, 1.4f, false, true);
             Row(town, "fence_wood", 20f, -34f, 5.9f, 0f, 16, 0f, 1.4f, false, true);
+            string[] driving = { "car", "suv", "sports", "pickup", "police", "car" };
+            for (int i = 0; i < driving.Length; i++)
+            {
+                bool east = i % 2 == 0;
+                town.Traffic.Add(new Traffic
+                {
+                    Model = driving[i], From = new Vector3(east ? -160f : 160f, 0f, east ? -9f : -13.5f), To = new Vector3(east ? 160f : -160f, 0f, east ? -9f : -13.5f),
+                    Speed = 9f + (i * 7) % 5, Offset = i * 0.17f,
+                });
+            }
+            float[] strollers = { -96f, -52f, -8f, 38f, 82f };
+            string[] people = { "casual", "worker", "farmer", "adventurer", "casual" };
+            for (int i = 0; i < strollers.Length; i++)
+                town.Crowd.Add(Walker(people[i], V(strollers[i], 26.5f), V(strollers[i] + (i % 2 == 0 ? 34f : -30f), 27.5f)));
+            town.Ambience = "amb_town";
+            town.AmbienceVolume = 0.5f;
             list.Add(town);
 
             // The compound: a walled yard in the sand, a tower on every corner.
@@ -192,8 +215,16 @@ namespace Sniper
             Row(fort, "barrier", -4f, -16f, 2.6f, 0f, 4, 0f, 0.9f);
             Row(fort, "fence_metal", -70f, -44f, 3.56f, 0f, 12, 0f, 0f, false, true);
             Row(fort, "fence_metal", 30f, -44f, 3.56f, 0f, 12, 0f, 0f, false, true);
+            fort.Traffic.Add(new Traffic { Model = "pickup", From = new Vector3(-190f, 0f, -52f), To = new Vector3(190f, 0f, -52f), Speed = 10f, Offset = 0.2f });
+            fort.Ambience = "amb_wind";
+            fort.AmbienceVolume = 0.5f;
             list.Add(fort);
             return list;
+        }
+
+        static ActorDef Walker(string model, Vector3 from, Vector3 to)
+        {
+            return new ActorDef { Model = model, Role = Role.Civilian, NameKey = "name.passer", Path = new[] { from, to }, Wait = 4f };
         }
 
         static ActorDef Man(string id, string model, Role role, string name, params Vector3[] path) =>
@@ -337,6 +368,13 @@ namespace Sniper
 
             AddTown(list);
             AddFort(list);
+            // The people of each place are in every contract there.
+            foreach (MissionDef mission in list)
+            {
+                int n = 0;
+                foreach (ActorDef walker in Location(mission.LocationId).Crowd)
+                    mission.Actors.Add(new ActorDef { Id = "crowd" + n++, Model = walker.Model, Role = Role.Civilian, NameKey = walker.NameKey, Path = walker.Path, Wait = walker.Wait });
+            }
             return list;
         }
 
@@ -446,12 +484,12 @@ namespace Sniper
             m.Wind = new Vector3(2f, 0f, 0f);
             ActorDef king = Target(m, "suit", "name.kingpin", 1500, V(20f, 19f), V(-6f, 19f));
             king.Wait = 6f;
-            king.Escape = V(62f, -12f);
+            king.Escape = V(62f, -22f);
             king.LeavesAt = 40f;
             king.Health = 220f;
             Guard(m, V(24f, 17f), V(-2f, 17f)).Wait = 6f;
             Guard(m, V(16f, 21f), V(-10f, 21f)).Wait = 6f;
-            Guard(m, V(60f, -14f)).YawDeg = 180f;
+            Guard(m, V(66f, -23f)).YawDeg = 180f;
             Guard(m, V(-40f, 12f)).YawDeg = 180f;
             Passer(m, "casual", V(-70f, 19f), V(-40f, 19f));
             Passer(m, "farmer", V(80f, 19f), V(50f, 19f));

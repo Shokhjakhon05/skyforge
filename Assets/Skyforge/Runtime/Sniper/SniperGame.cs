@@ -27,6 +27,7 @@ namespace Sniper
         Sfx _sfx;
         Music _music;
         SniperHud _hud;
+        SniperAudio _audio;
         SniperWorld _world;
         SniperSim _sim;
         MissionDef _mission;
@@ -45,6 +46,10 @@ namespace Sniper
         Vector3 _followPoint, _followFrom;
         Transform _bullet;
         MissionResult _result;
+        /// <summary>Real seconds of slowed time left after a head shot.</summary>
+        float _slow;
+        float _punch;
+        bool _wasReloading, _dailyRun;
 
         public bool SkipIntro;
         public Camera AutomationCamera => _cam;
@@ -65,6 +70,8 @@ namespace Sniper
             _effects = new Effects(transform);
             UiKit.Tap = () => _sfx.Play(Sound.Tap, 0.7f);
             AudioListener.volume = _save.Muted ? 0f : 1f;
+            _audio = new SniperAudio(transform);
+            _music.Level = 0.3f;
             _hud = new SniperHud(transform);
             _hud.FirePressed += () => _firePressed = true;
             _hud.ReloadPressed += () => _reloadPressed = true;
@@ -105,6 +112,7 @@ namespace Sniper
             _world.Populate(_sim);
             string weather = location.Light == "dusk" ? "sunset" : location.Light == "night" ? "night" : location.Light == "overcast" ? "overcast" : WeatherCatalog.Clear;
             _look.Apply(WeatherCatalog.Get(weather));
+            _audio.Ambience(location.Ambience, location.AmbienceVolume);
             Vector3 to = mission.LookAt - mission.Perch;
             _yaw = Mathf.Atan2(to.x, to.z) * Mathf.Rad2Deg;
             _pitch = -Mathf.Atan2(to.y, new Vector2(to.x, to.z).magnitude) * Mathf.Rad2Deg;
@@ -117,6 +125,8 @@ namespace Sniper
             _following = false;
             _afterShot = 0f;
             _result = null;
+            _slow = 0f;
+            _punch = 0f;
             Time.timeScale = 1f;
             PlaceCamera(0f);
         }
@@ -142,7 +152,7 @@ namespace Sniper
             Transform t = _cam.transform;
             t.position = _mission.Perch;
             t.rotation = Quaternion.Euler(_pitch + swayY - _recoil, _yaw + swayX, 0f);
-            _cam.fieldOfView = WideFov / Zoom;
+            _cam.fieldOfView = WideFov / Zoom * (1f + _punch * 0.07f);
         }
 
         // ---------------------------------------------------------------- the shot
@@ -153,7 +163,20 @@ namespace Sniper
             _hud.Update(real);
             _effects.Update(Mathf.Min(Time.deltaTime, 0.1f), _cam.transform);
             _look.Update();
+            _audio.Update(real);
+            if (_world != null && _phase != Phase.Paused) _world.Move(Mathf.Min(Time.deltaTime, 0.1f));
             if (_phase != Phase.Play || _sim == null) return;
+
+            // A head shot is given a breath of slowed time to be seen in.
+            if (_slow > 0f && !_following)
+            {
+                _slow -= real;
+                Time.timeScale = _slow > 0f ? 0.22f : 1f;
+            }
+            _punch = Mathf.MoveTowards(_punch, 0f, real * 6f);
+            bool reloading = _sim.ReloadLeft > 0f;
+            if (reloading && !_wasReloading) _audio.Play("reload", 0.8f);
+            _wasReloading = reloading;
 
             ReadAim();
             if (_holding)
@@ -240,8 +263,10 @@ namespace Sniper
                 _sfx.Play(Sound.Warning, 0.4f);
                 return;
             }
-            _sfx.Play(Sound.Gun, 1f);
+            _audio.Play(_rifle.Suppressed ? "shot_quiet" : "shot", 1f, Random.Range(0.96f, 1.04f));
+            if (_sim.InMagazine > 0) _audio.PlayLater("bolt", 0.45f, 0.7f);
             _recoil = 1.5f;
+            _punch = 1f;
             Buzz();
             // The last round of the job is followed to its mark.
             if (_sim.TargetsLeft != 1 || SkipIntro && !AutomationFollow) return;
@@ -308,7 +333,9 @@ namespace Sniper
                 {
                     ActorDef def = _sim.Def(e.Actor);
                     _followPoint = e.Position;
-                    _effects.Impact(e.Position);
+                    _effects.Blood(e.Position, e.Position - _mission.Perch);
+                    _audio.Play(e.Zone == Zone.Head ? "hit_head" : "hit_body", 0.9f);
+                    _audio.PlayLater("body_fall", 0.55f, 0.6f);
                     if (def.Role == Role.Civilian)
                     {
                         _hud.Message(Loc.T("sn.civilian"), Loc.T("sn.civilian.sub"), UiKit.Bad);
@@ -318,17 +345,20 @@ namespace Sniper
                     bool head = e.Zone == Zone.Head;
                     string name = string.IsNullOrEmpty(def.NameKey) ? "" : Loc.T(def.NameKey);
                     _hud.Message(Loc.T(head ? "sn.headshot" : "sn.down"), def.Bounty > 0 ? name + "   +$" + (def.Bounty + (head ? 60 : 0)) : name, head ? UiKit.Accent : Color.white);
-                    _sfx.Play(Sound.Success, head ? 0.9f : 0.5f);
+                    _sfx.Play(Sound.Success, head ? 0.6f : 0.35f);
+                    if (head && !_following) _slow = 0.5f;
                     Buzz();
                     break;
                 }
                 case SimEventType.Hit:
-                    _effects.Impact(e.Position);
+                    _effects.Blood(e.Position, e.Position - _mission.Perch);
+                    _audio.Play("hit_body", 0.8f);
                     _hud.Message(Loc.T("sn.hit"), null, Color.white);
                     break;
                 case SimEventType.Miss:
                     _followPoint = e.Position;
                     _effects.Dust(e.Position + Vector3.up * 0.1f, 0.7f, Vector3.up * 1.2f);
+                    _audio.Play(e.Position.y > 0.25f ? "miss_metal" : "miss_ground", 0.7f, Random.Range(0.9f, 1.15f));
                     break;
                 case SimEventType.Alarm:
                     _hud.Message(Loc.T("sn.alarm"), Loc.T("sn.alarm.sub"), UiKit.Bad);
@@ -336,10 +366,12 @@ namespace Sniper
                     break;
                 case SimEventType.EnemyShot:
                     _effects.MuzzleFlash(e.Position, 1.6f);
-                    _sfx.Play(Sound.Gun, 0.25f);
+                    _effects.Tracer(e.Position, Vector3.Lerp(e.Position, _mission.Perch, 0.85f) + Random.insideUnitSphere * 2f);
+                    _audio.Play("shot_far", 0.5f, Random.Range(0.92f, 1.08f));
                     break;
                 case SimEventType.PlayerHit:
                     _hud.Hurt();
+                    _audio.Play("hit_body", 1f, 0.8f);
                     _recoil = Mathf.Max(_recoil, 0.8f);
                     Buzz();
                     break;
@@ -350,7 +382,7 @@ namespace Sniper
                     _hud.Message(Loc.T("sn.allydown"), null, UiKit.Bad);
                     break;
                 case SimEventType.Reloaded:
-                    _sfx.Play(Sound.Lock, 0.6f);
+                    _audio.Play("bolt", 0.7f);
                     break;
             }
         }
@@ -484,8 +516,10 @@ namespace Sniper
         void ShowMenu()
         {
             _phase = Phase.Menu;
+            _dailyRun = false;
             Time.timeScale = 1f;
             _hud.Visible = false;
+            _music.Level = 0.3f;
             _music.Menu(0);
             // The chosen place stands behind the menu; the first time, the place of the next open contract.
             if (_menuPlace == null)
@@ -547,6 +581,17 @@ namespace Sniper
                 shown++;
             }
             Press(s, Loc.T("sn.armory"), UiKit.Lit, 34, new Vector2(1f, 0f), new Vector2(-70f, 60f), new Vector2(360f, 96f), ShowArmory);
+            MissionDef daily = DailyContract();
+            if (daily != null)
+            {
+                bool done = _save.DailyDone == Today;
+                Press(s, done ? Loc.T("sn.daily.done") : Loc.T("sn.daily") + "  x2   " + Loc.T(daily.TitleKey), done ? UiKit.Faint : UiKit.Accent, 26, new Vector2(1f, 1f), new Vector2(-70f, -170f), new Vector2(600f, 76f), () =>
+                {
+                    if (done) _sfx.Play(Sound.Warning, 0.5f);
+                    else ShowBriefing(daily, true);
+                });
+            }
+            if (_save.DayStamp != Today) ShowDayPay();
             Press(s, Loc.Language.ToUpperInvariant(), UiKit.SolidPanelColor, 28, new Vector2(1f, 0f), new Vector2(-450f, 60f), new Vector2(120f, 96f), NextLanguage);
             Press(s, _save.Muted ? Loc.T("sn.sound.off") : Loc.T("sn.sound.on"), UiKit.SolidPanelColor, 26, new Vector2(1f, 0f), new Vector2(-590f, 60f), new Vector2(220f, 96f), () =>
             {
@@ -555,6 +600,41 @@ namespace Sniper
                 _save.Store();
                 ShowMenu();
             });
+        }
+
+        /// <summary>One contract a day pays double: today's is picked by the date among those already won.</summary>
+        MissionDef DailyContract()
+        {
+            var won = new List<MissionDef>();
+            foreach (MissionDef mission in Campaign.Missions)
+                if ((_save.Record(mission.Id)?.Stars ?? 0) > 0) won.Add(mission);
+            if (won.Count < 2) return null;
+            int seed = 17;
+            foreach (char c in Today) seed = seed * 31 + c;
+            return won[Mathf.Abs(seed) % won.Count];
+        }
+
+        /// <summary>Pay for turning up: more for each day in a row, up to a week.</summary>
+        void ShowDayPay()
+        {
+            string yesterday = System.DateTime.Now.AddDays(-1).ToString("yyyy-MM-dd");
+            _save.Streak = _save.DayStamp == yesterday ? Mathf.Min(7, _save.Streak + 1) : 1;
+            _save.DayStamp = Today;
+            int pay = 150 * _save.Streak;
+            _save.Cash += pay;
+            _save.Store();
+            if (SkipIntro) return;
+            Canvas canvas = UiKit.CreateCanvas(_screen.transform, "DayPay", 30);
+            Image back = UiKit.Box(canvas.transform, "Dim", new Color(0.01f, 0.02f, 0.04f, 0.8f));
+            UiKit.Stretch(back.rectTransform);
+            Image panel = UiKit.Box(canvas.transform, "Panel", UiKit.ModalColor, UiKit.Chamfer);
+            panel.type = Image.Type.Sliced;
+            UiKit.Place(panel.rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(760f, 460f));
+            Words(panel.transform, Loc.T("sn.day", _save.Streak), 56, new Vector2(0.5f, 1f), new Vector2(0f, -50f), new Vector2(700f, 70f), TextAnchor.MiddleCenter, Color.white);
+            Words(panel.transform, "+ $" + pay.ToString("N0"), 76, new Vector2(0.5f, 0.5f), new Vector2(0f, 20f), new Vector2(700f, 90f), TextAnchor.MiddleCenter, UiKit.Accent);
+            Words(panel.transform, Loc.T("sn.day.note"), 26, new Vector2(0.5f, 0.5f), new Vector2(0f, -56f), new Vector2(700f, 36f), TextAnchor.MiddleCenter, new Color(1f, 1f, 1f, 0.7f));
+            Press(panel.transform, Loc.T("sn.day.take"), UiKit.Accent, 36, new Vector2(0.5f, 0f), new Vector2(0f, 40f), new Vector2(340f, 96f), ShowMenu);
+            _sfx.Play(Sound.Success, 0.7f);
         }
 
         void NextLanguage()
@@ -566,33 +646,68 @@ namespace Sniper
             ShowMenu();
         }
 
-        void ShowBriefing(MissionDef mission)
+        void ShowBriefing(MissionDef mission) => ShowBriefing(mission, false);
+
+        void ShowBriefing(MissionDef mission, bool daily)
         {
             _phase = Phase.Briefing;
+            _dailyRun = daily;
             LoadMission(mission);
-            _cam.fieldOfView = 30f;
-            RectTransform s = Screen_("Briefing", true);
+            // The surveillance picture: the first target as the rifle will see him.
+            int subject = -1;
+            for (int i = 0; i < _sim.ActorCount && subject < 0; i++)
+                if (_sim.Def(i).Role == Role.Target) subject = i;
+            if (subject >= 0)
+            {
+                Vector3 chest = _sim.Actor(subject).Position + new Vector3(0f, 1.25f, 0f);
+                Vector3 line = chest - mission.Perch;
+                Vector3 side = Vector3.Cross(Vector3.up, line).normalized;
+                // Looked at a little to one side, so he stands in the right half of the screen, clear of the orders.
+                _cam.transform.position = mission.Perch;
+                _cam.transform.rotation = Quaternion.LookRotation(line - side * line.magnitude * 0.019f, Vector3.up);
+                _cam.fieldOfView = 4.4f;
+            }
+            RectTransform s = Screen_("Briefing", false);
+            Image shade = UiKit.Box(s, "Shade", new Color(0.01f, 0.02f, 0.04f, 0.35f));
+            shade.raycastTarget = false;
+            UiKit.Stretch(shade.rectTransform);
             Image panel = UiKit.Box(s, "Panel", UiKit.ModalColor, UiKit.Chamfer);
             panel.type = Image.Type.Sliced;
-            UiKit.Place(panel.rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1180f, 700f));
+            UiKit.Place(panel.rectTransform, new Vector2(0f, 0.5f), new Vector2(60f, 0f), new Vector2(980f, 760f));
             Transform p = panel.transform;
-            Words(p, Loc.T("sn.contract", mission.Order) + "  ·  " + Loc.T(Campaign.Location(mission.LocationId).NameKey), 26, new Vector2(0f, 1f), new Vector2(50f, -40f), new Vector2(1000f, 34f), TextAnchor.UpperLeft, UiKit.Cyan);
-            Words(p, Loc.T(mission.TitleKey), 64, new Vector2(0f, 1f), new Vector2(50f, -78f), new Vector2(1080f, 80f), TextAnchor.UpperLeft, Color.white);
-            Words(p, Loc.T(mission.BriefKey), 30, new Vector2(0f, 1f), new Vector2(50f, -180f), new Vector2(1080f, 200f), TextAnchor.UpperLeft, new Color(1f, 1f, 1f, 0.85f), true);
-            int targets = 0;
+            Words(p, (daily ? Loc.T("sn.daily") + "  ·  " : "") + Loc.T("sn.contract", mission.Order) + "  ·  " + Loc.T(Campaign.Location(mission.LocationId).NameKey), 26, new Vector2(0f, 1f), new Vector2(46f, -40f), new Vector2(880f, 34f), TextAnchor.UpperLeft, daily ? UiKit.Accent : UiKit.Cyan);
+            Words(p, Loc.T(mission.TitleKey), 60, new Vector2(0f, 1f), new Vector2(46f, -78f), new Vector2(880f, 76f), TextAnchor.UpperLeft, Color.white);
+            Words(p, Loc.T(mission.BriefKey), 29, new Vector2(0f, 1f), new Vector2(46f, -176f), new Vector2(880f, 240f), TextAnchor.UpperLeft, new Color(1f, 1f, 1f, 0.85f), true);
+            int targets = 0, bounty = 0;
             foreach (ActorDef actor in mission.Actors)
-                if (actor.Role == Role.Target) targets++;
+            {
+                if (actor.Role != Role.Target) continue;
+                targets++;
+                bounty += actor.Bounty;
+            }
             RifleDef rifle = _save.Fitted();
-            string lines = Loc.T("sn.brief.targets", targets) + "\n" + Loc.T("sn.brief.rounds", mission.Rounds) + "   ·   " + Loc.T(rifle.NameKey) + (rifle.Suppressed ? "  (" + Loc.T("sn.suppressed") + ")" : "") + "\n" +
+            string lines = Loc.T("sn.brief.targets", targets) + "   ·   " + Loc.T("sn.brief.pay", mission.Reward + bounty) + "\n" +
+                Loc.T("sn.brief.rounds", mission.Rounds) + "   ·   " + Loc.T(rifle.NameKey) + (rifle.Suppressed ? "  (" + Loc.T("sn.suppressed") + ")" : "") + "\n" +
                 Loc.T("sn.brief.star2." + mission.Second) + "\n" + Loc.T("sn.brief.star3", Mathf.RoundToInt(mission.Par));
-            Words(p, lines, 28, new Vector2(0f, 0f), new Vector2(50f, 150f), new Vector2(1080f, 170f), TextAnchor.LowerLeft, UiKit.Accent);
-            Press(p, Loc.T("sn.start"), UiKit.Accent, 40, new Vector2(1f, 0f), new Vector2(-50f, 40f), new Vector2(380f, 96f), StartMission);
-            Press(p, Loc.T("sn.back"), UiKit.SolidPanelColor, 32, new Vector2(0f, 0f), new Vector2(50f, 40f), new Vector2(260f, 96f), ShowMenu);
+            Words(p, lines, 27, new Vector2(0f, 0f), new Vector2(46f, 156f), new Vector2(880f, 170f), TextAnchor.LowerLeft, UiKit.Accent);
+            Press(p, Loc.T("sn.start"), UiKit.Accent, 40, new Vector2(1f, 0f), new Vector2(-46f, 40f), new Vector2(380f, 96f), StartMission);
+            Press(p, Loc.T("sn.back"), UiKit.SolidPanelColor, 32, new Vector2(0f, 0f), new Vector2(46f, 40f), new Vector2(260f, 96f), ShowMenu);
+
+            if (subject < 0) return;
+            ActorDef who = _sim.Def(subject);
+            Image frame = UiKit.Box(s, "Frame", new Color(1f, 0.35f, 0.25f, 0.9f), UiKit.Brackets);
+            frame.type = Image.Type.Sliced;
+            frame.raycastTarget = false;
+            UiKit.Place(frame.rectTransform, new Vector2(1f, 0.5f), new Vector2(-150f, 20f), new Vector2(520f, 640f));
+            Words(s, Loc.T("sn.brief.subject"), 26, new Vector2(1f, 0.5f), new Vector2(-150f, 366f), new Vector2(520f, 34f), TextAnchor.MiddleLeft, new Color(1f, 0.35f, 0.25f));
+            Words(s, Loc.T(who.NameKey).ToUpperInvariant(), 44, new Vector2(1f, 0.5f), new Vector2(-150f, -336f), new Vector2(520f, 54f), TextAnchor.MiddleLeft, Color.white);
+            if (who.Bounty > 0) Words(s, "$" + who.Bounty.ToString("N0"), 34, new Vector2(1f, 0.5f), new Vector2(-150f, -386f), new Vector2(520f, 44f), TextAnchor.MiddleLeft, UiKit.Accent);
         }
 
         void StartMission()
         {
             Clear();
+            _music.Level = 0.14f;
             LoadMission(_mission);
             _phase = Phase.Play;
             _hud.Visible = true;
@@ -618,9 +733,13 @@ namespace Sniper
             Press(s, Loc.T("sn.menu"), UiKit.SolidPanelColor, 34, new Vector2(0.5f, 0.5f), new Vector2(0f, -170f), new Vector2(460f, 100f), ShowMenu);
         }
 
+        bool _dailyPaid;
+        static string Today => System.DateTime.Now.ToString("yyyy-MM-dd");
+
         void Finish()
         {
             _phase = Phase.Result;
+            _dailyPaid = false;
             _menuPlace = _mission.LocationId;
             Time.timeScale = 1f;
             _hud.Visible = false;
@@ -635,6 +754,12 @@ namespace Sniper
                 }
                 record.Stars = Mathf.Max(record.Stars, _result.Stars);
                 if (record.Best <= 0f || _result.Seconds < record.Best) record.Best = _result.Seconds;
+                if (_dailyRun && _save.DailyDone != Today)
+                {
+                    _result.Cash *= 2;
+                    _save.DailyDone = Today;
+                    _dailyPaid = true;
+                }
                 _save.Cash += _result.Cash;
             }
             _save.Kills += _result.Kills;
@@ -659,12 +784,13 @@ namespace Sniper
             if (r.Won)
                 lines += "\n" + (r.SecondMet ? "+  " : "–  ") + Loc.T("sn.brief.star2." + _mission.Second) + "\n" + (r.ThirdMet ? "+  " : "–  ") + Loc.T("sn.brief.star3", Mathf.RoundToInt(_mission.Par));
             Words(p, lines, 28, new Vector2(0.5f, 0.5f), new Vector2(0f, -40f), new Vector2(860f, 200f), TextAnchor.MiddleCenter, Color.white);
+            if (r.Won && _dailyPaid) Words(p, Loc.T("sn.daily.paid"), 26, new Vector2(0.5f, 0f), new Vector2(0f, 236f), new Vector2(860f, 34f), TextAnchor.MiddleCenter, UiKit.Cyan);
             if (r.Won) Words(p, "+ $" + r.Cash.ToString("N0"), 56, new Vector2(0.5f, 0f), new Vector2(0f, 170f), new Vector2(860f, 70f), TextAnchor.MiddleCenter, UiKit.Accent);
             MissionDef next = null;
             foreach (MissionDef mission in Campaign.Missions)
                 if (mission.Order == _mission.Order + 1) next = mission;
             if (r.Won && next != null) Press(p, Loc.T("sn.next"), UiKit.Accent, 36, new Vector2(1f, 0f), new Vector2(-40f, 40f), new Vector2(300f, 96f), () => ShowBriefing(next));
-            Press(p, Loc.T("sn.retry"), r.Won && next != null ? UiKit.SolidPanelColor : UiKit.Accent, 32, new Vector2(0.5f, 0f), new Vector2(0f, 40f), new Vector2(280f, 96f), StartMission);
+            Press(p, Loc.T("sn.retry"), r.Won && next != null ? UiKit.SolidPanelColor : UiKit.Accent, 32, new Vector2(0.5f, 0f), new Vector2(0f, 40f), new Vector2(280f, 96f), () => { _dailyRun = false; StartMission(); });
             Press(p, Loc.T("sn.menu"), UiKit.SolidPanelColor, 32, new Vector2(0f, 0f), new Vector2(40f, 40f), new Vector2(280f, 96f), ShowMenu);
         }
 

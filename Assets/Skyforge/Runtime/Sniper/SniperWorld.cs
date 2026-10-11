@@ -27,6 +27,7 @@ namespace Sniper
             _root.SetParent(parent, false);
             BuildGround(location);
             foreach (Piece piece in location.Pieces) Place(piece);
+            StartTraffic(location);
         }
 
         public void Destroy()
@@ -88,8 +89,24 @@ namespace Sniper
 
         void Place(Piece piece)
         {
+            Transform holder = Stand(piece.Model, piece.Height, out Vector3 size, out float scale);
+            if (holder == null) return;
+            holder.localPosition = piece.At;
+            holder.localRotation = Quaternion.Euler(0f, piece.YawDeg, 0f);
+            if (piece.Open) return;
+            Vector3 solid = piece.Solid.x > 0f ? piece.Solid : size * scale;
+            if (solid.y < 0.35f) return;
+            Covers.Add(new Cover { Centre = piece.At + new Vector3(0f, solid.y * 0.5f, 0f), Size = solid, YawDeg = piece.YawDeg, Thin = piece.Thin });
+        }
+
+        /// <summary>A model stood on its base at its middle, scaled to a height, under a holder that can be put anywhere.</summary>
+        Transform Stand(string model, float height, out Vector3 size, out float scale)
+        {
+            size = Vector3.one;
+            scale = 1f;
+            Piece piece = new Piece { Model = model, Height = height };
             GameObject prefab = Load("Props", piece.Model);
-            if (prefab == null) return;
+            if (prefab == null) return null;
             Transform holder = new GameObject(piece.Model).transform;
             holder.SetParent(_root, false);
             GameObject made = Object.Instantiate(prefab, holder);
@@ -105,17 +122,45 @@ namespace Sniper
                 Measured[piece.Model] = bounds;
                 Debug.Log("[Sniper] prop " + piece.Model + " measures " + bounds.size + " about " + bounds.center);
             }
-            Vector3 size = bounds.size;
+            size = bounds.size;
             // Stood on its own base, at its own middle.
             made.transform.localPosition = -new Vector3(bounds.center.x, bounds.min.y, bounds.center.z);
-            float scale = piece.Height > 0f && size.y > 0.001f ? piece.Height / size.y : 1f;
-            holder.localPosition = piece.At;
-            holder.localRotation = Quaternion.Euler(0f, piece.YawDeg, 0f);
+            scale = piece.Height > 0f && size.y > 0.001f ? piece.Height / size.y : 1f;
             holder.localScale = Vector3.one * scale;
-            if (piece.Open) return;
-            Vector3 solid = piece.Solid.x > 0f ? piece.Solid : size * scale;
-            if (solid.y < 0.35f) return;
-            Covers.Add(new Cover { Centre = piece.At + new Vector3(0f, solid.y * 0.5f, 0f), Size = solid, YawDeg = piece.YawDeg, Thin = piece.Thin });
+            return holder;
+        }
+
+        sealed class Mover
+        {
+            public Transform Body;
+            public Traffic Way;
+            public float Along;
+        }
+
+        readonly List<Mover> _movers = new List<Mover>();
+
+        void StartTraffic(LocationDef location)
+        {
+            foreach (Traffic way in location.Traffic)
+            {
+                Transform body = Stand(way.Model, way.Height, out Vector3 _, out float _);
+                if (body == null) continue;
+                Vector3 path = way.To - way.From;
+                body.localRotation = Quaternion.Euler(0f, Mathf.Atan2(path.x, path.z) * Mathf.Rad2Deg, 0f);
+                _movers.Add(new Mover { Body = body, Way = way, Along = Mathf.Repeat(way.Offset, 1f) });
+            }
+            Move(0f);
+        }
+
+        /// <summary>Cars along their street, a boat across the bay: round and round.</summary>
+        public void Move(float deltaTime)
+        {
+            foreach (Mover mover in _movers)
+            {
+                float length = Mathf.Max(1f, (mover.Way.To - mover.Way.From).magnitude);
+                mover.Along = Mathf.Repeat(mover.Along + mover.Way.Speed * deltaTime / length, 1f);
+                mover.Body.localPosition = Vector3.Lerp(mover.Way.From, mover.Way.To, mover.Along);
+            }
         }
 
         public void Populate(SniperSim sim)

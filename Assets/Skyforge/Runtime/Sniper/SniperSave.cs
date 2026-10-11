@@ -29,6 +29,9 @@ namespace Sniper
         public string Language = "";
         public bool Muted;
         public int Kills, Headshots;
+        /// <summary>The last day the game was opened, the days in a row so far, and the day the daily contract was last paid.</summary>
+        public string DayStamp = "", DailyDone = "";
+        public int Streak;
         public List<RifleRecord> Rifles = new List<RifleRecord>();
         public List<MissionRecord> Missions = new List<MissionRecord>();
 

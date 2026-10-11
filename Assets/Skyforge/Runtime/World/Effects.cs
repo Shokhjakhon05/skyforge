@@ -333,6 +333,20 @@ namespace Skyforge.World
             mark.gameObject.SetActive(true);
         }
 
+        /// <summary>A round into a man: a short dark puff where it went in, nothing more.</summary>
+        public void Blood(Vector3 at, Vector3 along)
+        {
+            for (int i = 0; i < 7; i++)
+            {
+                Emit(new Puff
+                {
+                    Position = at, Velocity = along.normalized * Range(0.6f, 2.6f) + new Vector3(Range(-0.7f, 0.7f), Range(0f, 1.1f), Range(-0.7f, 0.7f)),
+                    Life = Range(0.35f, 0.7f), SizeFrom = Range(0.08f, 0.16f), SizeTo = Range(0.3f, 0.55f), Gravity = -3f, Drag = 2.2f, Alpha = 0.8f,
+                    From = new Color(0.42f, 0.02f, 0.02f), To = new Color(0.2f, 0.01f, 0.01f),
+                });
+            }
+        }
+
         /// <summary>Pieces of what was hit, thrown up and out and falling back: plating, wheels, masonry.</summary>
         public void Debris(Vector3 at, float radius)
         {

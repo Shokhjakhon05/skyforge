@@ -34,7 +34,7 @@ namespace Sniper
         public float Health;
         public bool Headshot;
         internal int Leg;
-        internal float Wait, React, Aim, FireIn;
+        internal float Wait, React, Aim, FireIn, Stun;
         internal bool Leaving, Reacting;
     }
 
@@ -218,6 +218,13 @@ namespace Sniper
             {
                 a.React -= dt;
                 if (a.React <= 0f) Startle(index);
+            }
+
+            // A man who has just been hit does nothing for a moment but feel it.
+            if (a.Stun > 0f)
+            {
+                a.Stun -= dt;
+                return;
             }
 
             if (a.Mood == Mood.Calm)
@@ -448,6 +455,8 @@ namespace Sniper
                 return;
             }
             Events.Add(new SimEvent { Type = SimEventType.Hit, Actor = index, Zone = zone, Position = at });
+            SetClip(ref a, "HitRecieve", false);
+            a.Stun = 0.55f;
             a.Reacting = true;
             a.React = 0.25f;
             Raise(a.Position, 16f, 0.8f);
