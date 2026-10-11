@@ -729,24 +729,18 @@ namespace Skyforge.World
                     break;
                 case "pilot":
                     // One man beside what is left of his parachute.
-                    b.Box(at + new Vector3(0f, 0.45f, 0f), new Vector3(0.42f, 0.9f, 0.3f), Palette.Orange);
-                    b.Box(at + new Vector3(0f, 1.25f, 0f), new Vector3(0.52f, 0.7f, 0.34f), Palette.Orange);
-                    b.Box(at + new Vector3(0f, 1.78f, 0f), new Vector3(0.3f, 0.3f, 0.3f), Palette.White);
+                    Man(b, at, Palette.Orange, Palette.Orange, Palette.White, false, false);
                     b.Cylinder(at + new Vector3(2.2f, 0f, 1.2f), 2.0f, 0.4f, 0.5f, 8, Palette.White);
                     b.Cylinder(at + new Vector3(2.2f, 0.5f, 1.2f), 0.4f, 0f, 0.3f, 8, Palette.Orange);
                     break;
                 case "officer":
-                case "sentry":
-                {
-                    // One man: an officer in a peaked cap, a sentry with his rifle.
-                    bool officer = kind == "officer";
-                    b.Box(at + new Vector3(0f, 0.45f, 0f), new Vector3(0.42f, 0.9f, 0.3f), officer ? Palette.Graphite : Palette.Olive);
-                    b.Box(at + new Vector3(0f, 1.25f, 0f), new Vector3(0.54f, 0.7f, 0.34f), officer ? Palette.DarkGrey : Palette.Khaki);
-                    b.Box(at + new Vector3(0f, 1.78f, 0f), new Vector3(0.3f, 0.3f, 0.3f), Palette.Sandbag);
-                    b.Box(at + new Vector3(0f, 1.97f, 0.03f), new Vector3(0.4f, 0.12f, 0.46f), officer ? Palette.Red : Palette.Olive);
-                    if (!officer) b.Box(at + new Vector3(0.22f, 1.3f, 0.3f), new Vector3(0.08f, 0.1f, 0.95f), Palette.Graphite);
+                    // An officer in a peaked cap, hands free.
+                    Man(b, at, Palette.DarkGrey, Palette.Graphite, Palette.Red, true, false);
                     break;
-                }
+                case "sentry":
+                    // A sentry in a helmet, with his rifle and his pack.
+                    Man(b, at, Palette.Khaki, Palette.Olive, Palette.Olive, false, true);
+                    break;
                 case "dummy":
                     // A plywood board with rings painted on it.
                     b.Box(at + new Vector3(0f, 1.8f, 0f), new Vector3(3.4f, 3.4f, 0.2f), Palette.White);
@@ -918,6 +912,46 @@ namespace Skyforge.World
                     b.Cylinder(at + Vector3.up * 7f, 0.4f, 2.4f, 1.3f, 10, Palette.Red);
                     break;
             }
+        }
+
+        /// <summary>
+        /// A man standing, facing +Z, 1.85 m to the top of his head: boots, legs, belt, jacket, arms,
+        /// a head and something on it. Seen through a rifle scope he has to read as a man, not as a post.
+        /// </summary>
+        static void Man(MeshBuilder b, Vector3 at, int jacket, int trousers, int headgear, bool cap, bool armed)
+        {
+            const int skin = Palette.Sandbag;
+            foreach (float x in new[] { -0.11f, 0.11f })
+            {
+                b.Box(at + new Vector3(x, 0.06f, 0.04f), new Vector3(0.15f, 0.12f, 0.3f), Palette.Graphite);
+                b.Box(at + new Vector3(x, 0.5f, 0f), new Vector3(0.16f, 0.78f, 0.18f), trousers);
+            }
+            b.Box(at + new Vector3(0f, 0.93f, 0f), new Vector3(0.4f, 0.12f, 0.24f), Palette.Graphite);
+            b.Box(at + new Vector3(0f, 1.25f, 0f), new Vector3(0.46f, 0.56f, 0.26f), jacket);
+            // Shoulders a little wider than the hips.
+            b.Box(at + new Vector3(0f, 1.47f, 0f), new Vector3(0.6f, 0.13f, 0.24f), jacket);
+            // The left arm hangs; the right is bent across the body.
+            b.Box(at + new Vector3(-0.31f, 1.17f, 0f), new Vector3(0.12f, 0.6f, 0.14f), jacket);
+            b.Box(at + new Vector3(-0.31f, 0.83f, 0f), new Vector3(0.1f, 0.1f, 0.1f), skin);
+            b.Box(at + new Vector3(0.31f, 1.3f, 0.02f), new Vector3(0.12f, 0.34f, 0.14f), jacket);
+            b.Box(at + new Vector3(0.24f, 1.13f, 0.2f), new Vector3(0.11f, 0.11f, 0.4f), Quaternion.Euler(0f, -18f, 0f), jacket);
+            b.Box(at + new Vector3(0.16f, 1.13f, 0.4f), new Vector3(0.1f, 0.1f, 0.1f), skin);
+            b.Box(at + new Vector3(0f, 1.57f, 0f), new Vector3(0.13f, 0.08f, 0.13f), skin);
+            b.Cylinder(at + new Vector3(0f, 1.6f, 0f), 0.115f, 0.125f, 0.22f, 8, skin);
+            if (cap)
+            {
+                b.Cylinder(at + new Vector3(0f, 1.8f, 0f), 0.15f, 0.16f, 0.07f, 8, Palette.Graphite);
+                b.Box(at + new Vector3(0f, 1.81f, 0.15f), new Vector3(0.22f, 0.025f, 0.12f), Palette.Graphite);
+                b.Box(at + new Vector3(0f, 1.845f, 0.13f), new Vector3(0.1f, 0.04f, 0.03f), headgear);
+            }
+            else
+            {
+                b.Cylinder(at + new Vector3(0f, 1.74f, 0f), 0.15f, 0.1f, 0.14f, 8, headgear);
+            }
+            if (!armed) return;
+            b.Box(at + new Vector3(0f, 1.27f, -0.2f), new Vector3(0.32f, 0.38f, 0.15f), Palette.Olive);
+            // The rifle across the chest, muzzle up and to the left.
+            b.Box(at + new Vector3(0.02f, 1.2f, 0.3f), new Vector3(0.06f, 0.09f, 0.9f), Quaternion.Euler(-32f, -62f, 0f), Palette.Graphite);
         }
     }
 }

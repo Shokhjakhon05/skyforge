@@ -24,6 +24,7 @@ namespace Skyforge.UI
         readonly Canvas _canvas;
         readonly RectTransform _screen;
         readonly GameObject _reticle, _scope, _coach, _lootBox;
+        readonly Canvas _scopeCanvas;
         readonly Image _reticleRing, _vignette, _coachArrow;
         readonly Pop[] _pops = new Pop[Pops];
         readonly Text _banner, _bannerSub, _scopeText, _scopeRounds, _coachText, _coachStep, _loot;
@@ -99,7 +100,7 @@ namespace Skyforge.UI
 
             // The one target a mission turns on: its name and what is left of it, across the top.
             Image bossBack = Quiet(UiKit.Box(_screen, "Boss", new Color(0f, 0f, 0f, 0.5f)));
-            UiKit.Place(bossBack.rectTransform, new Vector2(0.5f, 1f), new Vector2(0f, -168f), new Vector2(560f, 16f));
+            UiKit.Place(bossBack.rectTransform, new Vector2(0.5f, 1f), new Vector2(0f, -238f), new Vector2(560f, 14f));
             bossBack.rectTransform.pivot = new Vector2(0.5f, 0.5f);
             _bossBox = bossBack.gameObject;
             Image bossFill = Quiet(UiKit.Box(bossBack.transform, "Fill", UiKit.Bad));
@@ -116,7 +117,10 @@ namespace Skyforge.UI
             _bossBox.SetActive(false);
 
             // The scope of a sniper's rifle: black all round, a fine cross, range ticks below the centre.
-            RectTransform scope = UiKit.Rect("Scope", _screen);
+            // On a canvas of its own under the flight HUD: the black round the glass must not cover the fire and zoom buttons.
+            _scopeCanvas = UiKit.CreateCanvas(parent, "Hud", -1);
+            Object.Destroy(_scopeCanvas.GetComponent<GraphicRaycaster>());
+            RectTransform scope = UiKit.Rect("Scope", _scopeCanvas.transform);
             UiKit.Stretch(scope);
             _scope = scope.gameObject;
             Image mask = Quiet(UiKit.Box(scope, "Mask", Color.black, Sprite.Create(ScopeTexture(), new Rect(0, 0, 256, 256), middle)));
@@ -234,6 +238,7 @@ namespace Skyforge.UI
             set
             {
                 if (_canvas.gameObject.activeSelf != value) _canvas.gameObject.SetActive(value);
+                if (_scopeCanvas.gameObject.activeSelf != value) _scopeCanvas.gameObject.SetActive(value);
             }
         }
 
