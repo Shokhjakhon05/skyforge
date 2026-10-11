@@ -237,6 +237,9 @@ namespace Skyforge.EditorTools
                     Debug.LogWarning("[Skyforge] ADS: no SDK in the project, the build will have no advertising.");
                     return;
                 }
+                // The SDK copies Unity's Gradle templates here when the build starts and gives up if the folder is not there.
+                Directory.CreateDirectory("Assets/Plugins/Android");
+                AssetDatabase.Refresh();
                 const string dir = "Assets/GoogleMobileAds/Resources";
                 Directory.CreateDirectory(dir);
                 string path = dir + "/GoogleMobileAdsSettings.asset";
