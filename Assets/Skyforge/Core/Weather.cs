@@ -179,6 +179,18 @@ namespace Skyforge.Core
                 SkyTint = new Color(0.10f, 0.12f, 0.22f), SkyExposure = 0.12f, Atmosphere = 0.6f,
                 Sea = new Color(0.02f, 0.05f, 0.09f),
             },
+            // A night to aim through rather than fly over: the same sky under a moon bright enough to tell a man from his shadow.
+            new Weather
+            {
+                Id = "moonlit", NameKey = "weather.night",
+                Sky = "night", SkySunYawDeg = 36f, SkyBrightness = 0.26f, SkyTone = new Color(0.62f, 0.74f, 1f), Visibility = 0.7f,
+                SunPitchDeg = 38f, SunYawDeg = 30f, SunColor = new Color(0.62f, 0.72f, 1f), SunIntensity = 0.95f,
+                AmbientSky = new Color(0.26f, 0.32f, 0.5f), AmbientEquator = new Color(0.2f, 0.25f, 0.38f),
+                AmbientGround = new Color(0.1f, 0.12f, 0.18f),
+                Fog = new Color(0.04f, 0.055f, 0.1f), FogStart = 140f, FogEnd = 1600f,
+                SkyTint = new Color(0.10f, 0.12f, 0.22f), SkyExposure = 0.14f, Atmosphere = 0.6f,
+                Sea = new Color(0.02f, 0.05f, 0.09f),
+            },
         };
 
         public static IReadOnlyList<Weather> All => List;

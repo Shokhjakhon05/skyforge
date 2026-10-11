@@ -35,11 +35,13 @@ namespace Sniper
             splash._back.raycastTarget = true;
             UiKit.Stretch(splash._back.rectTransform);
 
-            splash._ring = UiKit.Box(canvas.transform, "Ring", new Color(1f, 1f, 1f, 0.9f), UiKit.Ring);
+            Sprite thin = Sprite.Create(RingTexture(0.05f), new Rect(0, 0, 256, 256), middle);
+            Sprite thinner = Sprite.Create(RingTexture(0.03f), new Rect(0, 0, 256, 256), middle);
+            splash._ring = UiKit.Box(canvas.transform, "Ring", new Color(1f, 1f, 1f, 0.95f), thin);
             splash._ring.type = Image.Type.Filled;
             splash._ring.fillMethod = Image.FillMethod.Radial360;
-            UiKit.Place(splash._ring.rectTransform, middle, centre, new Vector2(420f, 420f));
-            splash._inner = UiKit.Box(canvas.transform, "Inner", new Color(1f, 1f, 1f, 0.35f), UiKit.Ring);
+            UiKit.Place(splash._ring.rectTransform, middle, centre, new Vector2(460f, 460f));
+            splash._inner = UiKit.Box(canvas.transform, "Inner", new Color(1f, 1f, 1f, 0.45f), thinner);
             splash._inner.type = Image.Type.Filled;
             splash._inner.fillMethod = Image.FillMethod.Radial360;
             UiKit.Place(splash._inner.rectTransform, middle, centre, new Vector2(210f, 210f));
@@ -78,6 +80,23 @@ namespace Sniper
             UiKit.Place(splash._sub.rectTransform, middle, new Vector2(0f, -384f), new Vector2(1500f, 32f));
             splash.Apply();
             return splash;
+        }
+
+        /// <summary>A ring and nothing inside it: the rim of the glass.</summary>
+        static Texture2D RingTexture(float width)
+        {
+            var texture = new Texture2D(256, 256, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+            var pixels = new Color32[256 * 256];
+            for (int y = 0; y < 256; y++)
+            for (int x = 0; x < 256; x++)
+            {
+                float d = new Vector2(x - 127.5f, y - 127.5f).magnitude / 127.5f;
+                float inside = Mathf.InverseLerp(0.97f - width - 0.012f, 0.97f - width, d), outside = Mathf.InverseLerp(0.985f, 0.97f, d);
+                pixels[y * 256 + x] = new Color(1f, 1f, 1f, Mathf.Clamp01(inside) * Mathf.Clamp01(outside));
+            }
+            texture.SetPixels32(pixels);
+            texture.Apply();
+            return texture;
         }
 
         /// <summary>Held at one moment, for a picture of it.</summary>

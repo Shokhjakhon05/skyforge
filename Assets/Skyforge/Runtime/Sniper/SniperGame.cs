@@ -123,7 +123,7 @@ namespace Sniper
             _sim = new SniperSim(mission, null, _rifle, 1 + _save.Completed);
             foreach (Cover cover in _world.Covers) _sim.AddCover(cover);
             _world.Populate(_sim);
-            string weather = location.Light == "dusk" ? "sunset" : location.Light == "night" ? "night" : location.Light == "overcast" ? "overcast" : WeatherCatalog.Clear;
+            string weather = location.Light == "dusk" ? "sunset" : location.Light == "night" ? "moonlit" : location.Light == "overcast" ? "overcast" : WeatherCatalog.Clear;
             _look.Apply(WeatherCatalog.Get(weather));
             _audio.Ambience(location.Ambience, location.AmbienceVolume);
             Vector3 to = mission.LookAt - mission.Perch;

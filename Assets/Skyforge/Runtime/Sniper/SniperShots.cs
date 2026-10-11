@@ -146,8 +146,12 @@ namespace Sniper
             yield return Frames(40);
             yield return Shot("52_drum_later", 1);
 
+            _game.AutomationMenu("docks");
+            yield return Frames(6);
             _game.AutomationHunt();
             yield return Shot("53_hunt_briefing");
+            _game.AutomationMenu("docks");
+            yield return Frames(6);
             _game.AutomationCareer();
             yield return Shot("54_career");
             _game.AutomationSettings();
