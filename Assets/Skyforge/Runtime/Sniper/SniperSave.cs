@@ -33,7 +33,7 @@ namespace Sniper
         public string DayStamp = "", DailyDone = "";
         public int Streak;
         /// <summary>The career in numbers.</summary>
-        public int Shots, Blasts, Hunts, HuntLevel = 1;
+        public int Shots, Blasts, Hunts, HuntLevel = 1, Finished;
         public float LongestShot;
         public List<string> Feats = new List<string>();
         /// <summary>"Pro": no names over heads and no range in the glass, for half as much pay again.</summary>

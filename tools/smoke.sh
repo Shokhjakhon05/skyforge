@@ -9,12 +9,17 @@ shot() { adb exec-out screencap -p > "$OUT/$1.png" 2>/dev/null; echo "shot $1: $
 alive() { adb shell pidof $PKG | tr -d '\r'; }
 
 adb logcat -c
+# Android's own "viewing full screen" card would cover the game on a first start.
+adb shell settings put secure immersive_mode_confirmations confirmed
+adb shell settings put global policy_control immersive.full=*
 APK=$(ls *.apk | head -1)
 echo "installing $APK"
 adb install -r "$APK" || { echo "INSTALL FAILED" | tee $OUT/result.txt; exit 0; }
 adb shell monkey -p $PKG -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1
 sleep 12
 shot 01_starting
+# In case the card came up anyway: its "Got it".
+adb shell input tap 1930 553
 sleep 30
 shot 02_after_splash
 echo "pid after start: $(alive)"

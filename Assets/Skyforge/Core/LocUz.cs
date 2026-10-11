@@ -1319,6 +1319,7 @@ namespace Skyforge
             { "sn.tip.4", "Shamol o'qni suradi — unga qarshi nishon oling" },
             { "sn.tip.5", "Birinchi o'q — yagona sokin o'q" },
             { "sn.tip.6", "Yurayotganga — u boradigan joyga nishon oling" },
+            { "sn.ad.double", "REKLAMA:  +${0}" },
         };
     }
 }

@@ -296,6 +296,7 @@ namespace Skyforge
             { "sn.tip.4", new[] { "Wind pushes the round: aim into it", "Ветер сносит пулю — целься навстречу" } },
             { "sn.tip.5", new[] { "The first shot is the quiet one", "Первый выстрел — единственный тихий" } },
             { "sn.tip.6", new[] { "A walking man: aim where he will be", "По идущему — целься туда, где он будет" } },
+            { "sn.ad.double", new[] { "WATCH AN AD:  +${0}", "РЕКЛАМА:  +${0}" } },
             { "objective.takeoff", new[] { "Take off", "Взлети" } },
             { "objective.takeoff_again", new[] { "Cargo delivered. Take off", "Груз доставлен. Взлетай" } },
             { "objective.scan", new[] { "Hover inside the ring and scan", "Зависни в кольце и просканируй" } },

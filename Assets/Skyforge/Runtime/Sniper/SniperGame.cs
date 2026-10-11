@@ -28,6 +28,8 @@ namespace Sniper
         Music _music;
         SniperHud _hud;
         SniperAudio _audio;
+        SniperAds _ads;
+        bool _doubled, _breakDue;
         SniperWorld _world;
         SniperSim _sim;
         MissionDef _mission;
@@ -73,6 +75,7 @@ namespace Sniper
             UiKit.Tap = () => _sfx.Play(Sound.Tap, 0.7f);
             AudioListener.volume = _save.Muted ? 0f : 1f;
             _audio = new SniperAudio(transform);
+            _ads = new SniperAds();
             _music.Level = 0.3f;
             _hud = new SniperHud(transform);
             _hud.FirePressed += () => _firePressed = true;
@@ -910,6 +913,10 @@ namespace Sniper
                 }
                 _save.Cash += _result.Cash;
             }
+            _doubled = false;
+            _save.Finished++;
+            // A break every third contract, never in the first three.
+            _breakDue = _save.Completed >= 3 && _save.Finished % 3 == 0;
             _save.Kills += _result.Kills;
             _save.Headshots += _result.Headshots;
             _save.Shots += _result.Shots;
@@ -946,7 +953,7 @@ namespace Sniper
             RectTransform s = Screen_("Result", true);
             Image panel = UiKit.Box(s, "Panel", UiKit.ModalColor, UiKit.Chamfer);
             panel.type = Image.Type.Sliced;
-            UiKit.Place(panel.rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(980f, 720f));
+            UiKit.Place(panel.rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(980f, 800f));
             Transform p = panel.transform;
             Words(p, Loc.T(r.Won ? "sn.won" : "sn.lost"), 76, new Vector2(0.5f, 1f), new Vector2(0f, -40f), new Vector2(900f, 90f), TextAnchor.UpperCenter, r.Won ? UiKit.Accent : UiKit.Bad);
             Words(p, r.Won ? MissionTitle(_mission) : Loc.T("sn.why." + r.Why.ToString().ToLowerInvariant()), 30, new Vector2(0.5f, 1f), new Vector2(0f, -140f), new Vector2(900f, 40f), TextAnchor.UpperCenter, new Color(1f, 1f, 1f, 0.8f));
@@ -956,17 +963,39 @@ namespace Sniper
                 lines += "\n" + (r.SecondMet ? "+  " : "–  ") + Loc.T("sn.brief.star2." + _mission.Second) + "\n" + (r.ThirdMet ? "+  " : "–  ") + Loc.T("sn.brief.star3", Mathf.RoundToInt(_mission.Par));
             if (r.Won && _save.Pro) lines += "\n" + Loc.T("sn.pro.paid");
             foreach (string line in _news) lines += "\n" + line;
-            Words(p, lines, _news.Count > 1 ? 24 : 27, new Vector2(0.5f, 0.5f), new Vector2(0f, -40f), new Vector2(880f, 230f), TextAnchor.MiddleCenter, Color.white);
-            if (r.Won && _dailyPaid) Words(p, Loc.T("sn.daily.paid"), 26, new Vector2(0.5f, 0f), new Vector2(0f, 236f), new Vector2(860f, 34f), TextAnchor.MiddleCenter, UiKit.Cyan);
-            if (r.Won) Words(p, "+ $" + r.Cash.ToString("N0"), 56, new Vector2(0.5f, 0f), new Vector2(0f, 170f), new Vector2(860f, 70f), TextAnchor.MiddleCenter, UiKit.Accent);
+            Words(p, lines, _news.Count > 1 ? 24 : 27, new Vector2(0.5f, 0.5f), new Vector2(0f, 10f), new Vector2(880f, 230f), TextAnchor.MiddleCenter, Color.white);
+            if (r.Won && _dailyPaid) Words(p, Loc.T("sn.daily.paid"), 26, new Vector2(0.5f, 0f), new Vector2(0f, 312f), new Vector2(860f, 34f), TextAnchor.MiddleCenter, UiKit.Cyan);
+            if (r.Won) Words(p, "+ $" + r.Cash.ToString("N0"), 56, new Vector2(0.5f, 0f), new Vector2(0f, 240f), new Vector2(860f, 70f), TextAnchor.MiddleCenter, UiKit.Accent);
             MissionDef next = null;
             foreach (MissionDef mission in Campaign.Missions)
                 if (mission.Order == _mission.Order + 1) next = mission;
             if (_mission.Id == Hunt.Id) next = null;
-            if (r.Won && _mission.Id == Hunt.Id) Press(p, Loc.T("sn.next"), UiKit.Accent, 36, new Vector2(1f, 0f), new Vector2(-40f, 40f), new Vector2(300f, 96f), StartHunt);
-            if (r.Won && next != null) Press(p, Loc.T("sn.next"), UiKit.Accent, 36, new Vector2(1f, 0f), new Vector2(-40f, 40f), new Vector2(300f, 96f), () => ShowBriefing(next));
-            Press(p, Loc.T("sn.retry"), r.Won && next != null ? UiKit.SolidPanelColor : UiKit.Accent, 32, new Vector2(0.5f, 0f), new Vector2(0f, 40f), new Vector2(280f, 96f), () => { _dailyRun = false; StartMission(); });
-            Press(p, Loc.T("sn.menu"), UiKit.SolidPanelColor, 32, new Vector2(0f, 0f), new Vector2(40f, 40f), new Vector2(280f, 96f), ShowMenu);
+            if (r.Won && _mission.Id == Hunt.Id) Press(p, Loc.T("sn.next"), UiKit.Accent, 36, new Vector2(1f, 0f), new Vector2(-40f, 40f), new Vector2(300f, 96f), () => Leave(StartHunt));
+            if (r.Won && !_doubled && _ads.RewardedReady)
+                Press(p, Loc.T("sn.ad.double", r.Cash.ToString("N0")), UiKit.Good, 26, new Vector2(0.5f, 0f), new Vector2(0f, 150f), new Vector2(520f, 76f), () => _ads.ShowRewarded(watched =>
+                {
+                    if (!watched || _doubled) return;
+                    _doubled = true;
+                    _save.Cash += r.Cash;
+                    r.Cash *= 2;
+                    _save.Store();
+                    ShowResult();
+                }));
+            if (r.Won && next != null) Press(p, Loc.T("sn.next"), UiKit.Accent, 36, new Vector2(1f, 0f), new Vector2(-40f, 40f), new Vector2(300f, 96f), () => Leave(() => ShowBriefing(next)));
+            Press(p, Loc.T("sn.retry"), r.Won && next != null ? UiKit.SolidPanelColor : UiKit.Accent, 32, new Vector2(0.5f, 0f), new Vector2(0f, 40f), new Vector2(280f, 96f), () => Leave(() => { _dailyRun = false; StartMission(); }));
+            Press(p, Loc.T("sn.menu"), UiKit.SolidPanelColor, 32, new Vector2(0f, 0f), new Vector2(40f, 40f), new Vector2(280f, 96f), () => Leave(ShowMenu));
+        }
+
+        /// <summary>Out of the result screen, by way of an advertising break when one is due.</summary>
+        void Leave(System.Action then)
+        {
+            if (!_breakDue)
+            {
+                then();
+                return;
+            }
+            _breakDue = false;
+            _ads.ShowInterstitial(then);
         }
 
         void ShowArmory()
