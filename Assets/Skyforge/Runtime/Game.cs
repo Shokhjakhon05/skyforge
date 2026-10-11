@@ -265,7 +265,7 @@ namespace Skyforge
             RefreshLabels();
             // The mark and the name, once per launch; the story's next transmission waits behind them.
             _splash = SplashScreen.Create(transform);
-            _splash.Finished = () => { _splash = null; _sfx.Play(Sound.Open, 0.6f); TellStory(); };
+            _splash.Finished = () => { _splash = null; _sfx.Play(Sound.Open, 0.6f); if (!StartPrologue()) TellStory(); };
             ShowMenu();
         }
 

@@ -27,6 +27,8 @@ namespace Skyforge.Core
     {
         public string Id;
         public int Price;
+        /// <summary>Blueprint parts the better machines cost on top of credits: they come out of loot and cases, not out of a wallet.</summary>
+        public int Blueprint => Price >= 14000 ? Price / 2000 : 0;
         /// <summary>Campaign stars needed before the drone can be bought.</summary>
         public int StarsRequired;
         public DroneSpec Spec;

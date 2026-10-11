@@ -59,20 +59,20 @@ namespace Skyforge.World
 
         static readonly Color[] Colours =
         {
-            new Color(0.25f, 1f, 0.4f, 0.55f), new Color(1f, 0.55f, 0.12f, 0.55f), new Color(1f, 0.85f, 0.25f, 0.55f),
+            new Color(0.25f, 1f, 0.4f, 0.55f), new Color(1f, 0.55f, 0.12f, 0.55f), new Color(1f, 0.85f, 0.25f, 0.55f), new Color(0.3f, 0.85f, 1f, 0.6f),
         };
 
         readonly Transform _root;
         readonly System.Collections.Generic.List<Item> _items = new System.Collections.Generic.List<Item>();
         readonly Material _beam;
-        readonly Mesh[] _beamMeshes = new Mesh[3];
+        readonly Mesh[] _beamMeshes = new Mesh[4];
 
         public PickupsView(Transform parent)
         {
             _root = new GameObject("Pickups").transform;
             _root.SetParent(parent, false);
             _beam = GameMaterials.Particle(BeamTexture(), true) ?? GameMaterials.Unlit(Color.white);
-            for (int i = 0; i < 3; i++) _beamMeshes[i] = BeamMesh(Colours[i]);
+            for (int i = 0; i < 4; i++) _beamMeshes[i] = BeamMesh(Colours[i]);
         }
 
         static Texture2D BeamTexture()

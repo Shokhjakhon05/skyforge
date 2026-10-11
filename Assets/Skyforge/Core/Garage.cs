@@ -54,6 +54,7 @@ namespace Skyforge.Core
             if (Owns(save, drone.Id)) return PurchaseResult.AlreadyOwned;
             if (TotalStars(save) < drone.StarsRequired) return PurchaseResult.NotEnoughStars;
             if (save.Credits < drone.Price) return PurchaseResult.NotEnoughCredits;
+            if (save.Parts < drone.Blueprint) return PurchaseResult.NotEnoughParts;
             return PurchaseResult.Ok;
         }
 
@@ -62,6 +63,7 @@ namespace Skyforge.Core
             PurchaseResult result = CanBuyDrone(save, drone);
             if (result != PurchaseResult.Ok) return result;
             save.Credits -= drone.Price;
+            save.Parts -= drone.Blueprint;
             save.Drones.Add(DroneRecord.New(drone.Id));
             if (drone.Spec.Ground) save.SelectedVehicle = drone.Id;
             else save.SelectedDrone = drone.Id;

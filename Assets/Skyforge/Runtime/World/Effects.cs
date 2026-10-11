@@ -333,6 +333,34 @@ namespace Skyforge.World
             mark.gameObject.SetActive(true);
         }
 
+        /// <summary>Pieces of what was hit, thrown up and out and falling back: plating, wheels, masonry.</summary>
+        public void Debris(Vector3 at, float radius)
+        {
+            float r = Mathf.Clamp(radius, 3f, 16f);
+            for (int i = 0; i < 16; i++)
+            {
+                float angle = Range(0f, Mathf.PI * 2f), out_ = Range(0.5f, 1.3f) * r;
+                float tone = Range(0.06f, 0.2f);
+                Emit(new Puff
+                {
+                    Position = at + Vector3.up * 0.6f, Velocity = new Vector3(Mathf.Cos(angle) * out_, Range(r * 0.9f, r * 2.1f), Mathf.Sin(angle) * out_),
+                    Life = Range(1.4f, 2.4f), SizeFrom = Range(0.25f, 0.6f), SizeTo = Range(0.2f, 0.45f), Gravity = -16f, Drag = 0.15f, Alpha = 1f,
+                    From = new Color(tone, tone * 0.95f, tone * 0.9f), To = new Color(tone * 0.7f, tone * 0.7f, tone * 0.7f),
+                });
+            }
+            // A few of them still burning as they fly.
+            for (int i = 0; i < 5; i++)
+            {
+                float angle = Range(0f, Mathf.PI * 2f), out_ = Range(0.6f, 1.2f) * r;
+                Emit(new Puff
+                {
+                    Glow = true, Position = at + Vector3.up * 0.8f, Velocity = new Vector3(Mathf.Cos(angle) * out_, Range(r * 1.2f, r * 2.2f), Mathf.Sin(angle) * out_),
+                    Life = Range(1.2f, 2f), SizeFrom = 0.5f, SizeTo = 0.15f, Gravity = -14f, Drag = 0.2f,
+                    From = new Color(1f, 0.75f, 0.3f), To = new Color(0.9f, 0.2f, 0.03f),
+                });
+            }
+        }
+
         /// <summary>A munition into the sea: a white column thrown up and falling back as spray.</summary>
         public void Splash(Vector3 at, float radius)
         {

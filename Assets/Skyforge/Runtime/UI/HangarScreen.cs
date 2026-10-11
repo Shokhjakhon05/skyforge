@@ -348,7 +348,7 @@ namespace Skyforge.UI
             else
             {
                 bool can = Garage.CanBuyDrone(_save, drone) == PurchaseResult.Ok;
-                _mainLabel.text = Loc.T(_pending == "main" ? "hangar.confirm" : "hangar.buy", drone.Price);
+                _mainLabel.text = _pending == "main" ? Loc.T("hangar.confirm", drone.Price) : drone.Blueprint > 0 ? Loc.T("hangar.buy.parts", drone.Price, drone.Blueprint) : Loc.T("hangar.buy", drone.Price);
                 _mainButton.color = can ? UiKit.Accent : UiKit.Faint;
                 _mainLabel.color = can ? new Color(0.08f, 0.06f, 0.02f) : Color.white;
                 if (Garage.TotalStars(_save) < drone.StarsRequired)

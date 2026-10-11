@@ -130,6 +130,15 @@ namespace Skyforge
                 case CombatEventType.TargetDestroyed:
                 {
                     TargetDefinition definition = _mission.Targets[e.Target];
+                    // The wreck throws its pieces, shakes the camera by how near it was, and cooks off a moment later.
+                    _effects.Debris(e.Position, e.Size);
+                    _camera.Shake(Mathf.Clamp(70f / Mathf.Max(20f, distance), 0.15f, 1f));
+                    if (definition.Kind.Health >= 40f && _cookOffs.Count < 12)
+                    {
+                        int blasts = definition.Kind.Health >= 120f ? 3 : 1;
+                        for (int i = 0; i < blasts; i++)
+                            _cookOffs.Add(new Vector4(e.Position.x + Random.Range(-2.5f, 2.5f), e.Position.y + 0.5f, e.Position.z + Random.Range(-2.5f, 2.5f), 0.45f + i * 0.4f + Random.Range(0f, 0.3f)));
+                    }
                     if (definition.Friendly) break;
                     _field.Rise(e.Position, "+" + Mathf.RoundToInt(definition.Kind.Health * 0.5f) + " XP", UiKit.Cyan);
                     if (!_firstBlood)
@@ -156,7 +165,7 @@ namespace Skyforge
                 case CombatEventType.PickupTaken:
                 {
                     var type = (PickupType)(int)e.Size;
-                    Color color = type == PickupType.Repair ? UiKit.Good : type == PickupType.Ammo ? UiKit.Accent : new Color(1f, 0.85f, 0.3f);
+                    Color color = type == PickupType.Repair ? UiKit.Good : type == PickupType.Ammo ? UiKit.Accent : type == PickupType.Part ? UiKit.Cyan : new Color(1f, 0.85f, 0.3f);
                     _field.Rise(_sim.State.Position, Loc.T("pickup." + type.ToString().ToLowerInvariant()), color);
                     _sfx.Play(Sound.Scan, 0.9f);
                     _shownAmmoStamp = -1;
@@ -185,6 +194,11 @@ namespace Skyforge
         void FieldResult(MissionOutcome outcome, List<string> lines)
         {
             if (_run == null || !outcome.Succeeded || _mission.Mode == "range") return;
+            if (_run.PartsLooted > 0)
+            {
+                _save.Parts += _run.PartsLooted;
+                lines.Add(Loc.T("result.parts", _run.PartsLooted));
+            }
             int bonus = _run.Loot + (_run.BestChain >= 2 ? ChainBonus(_run.BestChain) * 2 : 0);
             if (_run.Sniper && _run.ShotsFired > 0 && _run.ShotsHit == _run.ShotsFired) bonus += 120;
             if (bonus <= 0) return;
@@ -197,6 +211,26 @@ namespace Skyforge
 
         /// <summary>Every frame: the sight, the loot, the scope, the instructor.</summary>
         bool _fieldUsed;
+        /// <summary>Explosions still to come from wrecks already made: where (xyz) and in how many seconds (w).</summary>
+        readonly System.Collections.Generic.List<Vector4> _cookOffs = new System.Collections.Generic.List<Vector4>();
+
+        void RunCookOffs(float deltaTime)
+        {
+            for (int i = _cookOffs.Count - 1; i >= 0; i--)
+            {
+                Vector4 c = _cookOffs[i];
+                c.w -= deltaTime;
+                if (c.w > 0f)
+                {
+                    _cookOffs[i] = c;
+                    continue;
+                }
+                _cookOffs.RemoveAt(i);
+                var at = new Vector3(c.x, c.y, c.z);
+                _effects.Explosion(at, 5.5f, false);
+                _sfx.Play(Sound.Explosion, Mathf.Clamp01(90f / Mathf.Max(30f, Vector3.Distance(at, _sim.State.Position))));
+            }
+        }
 
         void PresentField(float deltaTime)
         {
@@ -209,11 +243,13 @@ namespace Skyforge
                 if (_phase != Phase.Mission && _phase != Phase.FreeFlight && _fieldUsed)
                 {
                     _field.Reset();
+                    _cookOffs.Clear();
                     _fieldUsed = false;
                 }
                 return;
             }
             _fieldUsed = true;
+            if (_cookOffs.Count > 0) RunCookOffs(deltaTime);
             bool mission = _phase == Phase.Mission && _run != null;
             bool busy = _introTimer > 0f || _freezeTimer > 0f || _photo || _killCam > 0f;
             _field.Update(_camera.Camera, mission ? _run.Hull : 1f, Time.unscaledDeltaTime);
@@ -228,6 +264,7 @@ namespace Skyforge
             if (_pickups == null) _pickups = new PickupsView(_regionRoot);
             _pickups.Update(_run);
             _field.SetLoot(_run.Loot);
+            PresentBoss();
 
             if (_run.Sniper)
             {
@@ -289,13 +326,72 @@ namespace Skyforge
             { "fly", 4 }, { "fight", 4 }, { "drive", 3 }, { "snipe", 3 },
         };
 
+        /// <summary>The heaviest thing still standing among the enemy, if it is heavy enough to be the point of the mission.</summary>
+        void PresentBoss()
+        {
+            int boss = -1;
+            float most = 259f;
+            for (int i = 0; i < _mission.Targets.Count; i++)
+            {
+                TargetDefinition definition = _mission.Targets[i];
+                if (definition.Friendly || definition.Kind.Health <= most) continue;
+                most = definition.Kind.Health;
+                boss = i;
+            }
+            if (boss < 0 || _run.Sniper)
+            {
+                _field.SetBoss(null, 0f);
+                return;
+            }
+            TargetState state = _run.Target(boss);
+            if (!state.Alive) _field.SetBoss(null, 0f);
+            else _field.SetBoss(Loc.T(_mission.Targets[boss].Kind.NameKey).ToUpperInvariant(), state.Health / most);
+        }
+
+        bool _prologue;
+
+        /// <summary>
+        /// The very first launch does not open on a menu: the player is put in the air over an enemy
+        /// position in the best aircraft there is, to see what the game becomes, and only then starts small.
+        /// </summary>
+        bool StartPrologue()
+        {
+            if (SkipIntro || _save.Lessons.Contains("prologue")) return false;
+            _save.Lessons.Add("prologue");
+            foreach (MissionRecord record in _save.Missions)
+                if (record.Completions > 0) return false;
+            if (_save.Stats.Flights > 0) return false;
+            MissionDefinition op = Operations.Contract(_island, _region.Id, 40, 2, OperationKind.Strike);
+            if (op == null) return false;
+            _store.Save(_save);
+            _prologue = true;
+            StartOperation(op, -1, 0, "aegis");
+            Vector3 at = _island.Spawn;
+            foreach (TargetDefinition target in op.Targets)
+            {
+                if (target.Friendly) continue;
+                at = target.Path.Count > 0 ? target.Path[0] : target.Position;
+                break;
+            }
+            Vector3 from = at + new Vector3(0f, 0f, -190f);
+            from.y = Mathf.Max(at.y, _island.Map.Height(from.x, from.z)) + 46f;
+            _sim.State = new FlightState { Position = from, YawDeg = 0f, Velocity = new Vector3(0f, 0f, 14f) };
+            _previous = _sim.State;
+            _hasFlown = true;
+            _camera.Snap();
+            _field.Banner(Loc.T("prologue.title"), Loc.T("prologue.sub"), UiKit.Accent);
+            return true;
+        }
+
         void StartLesson()
         {
             _lesson = null;
             _field.SetCoach(null, null, null);
             if (_phase != Phase.Mission || _run == null || SkipIntro) return;
+            bool prologue = _prologue;
+            _prologue = false;
             string wanted = _run.Sniper ? "snipe" : Driving ? "drive" : _run.IsCombat && !_run.Kamikaze ? "fight" : "fly";
-            if (wanted == "fight" && !_save.Lessons.Contains("fly")) wanted = "fly";
+            if (wanted == "fight" && !_save.Lessons.Contains("fly") && !prologue) wanted = "fly";
             if (_save.Lessons.Contains(wanted)) return;
             // Somebody who has already flown a dozen missions does not need to be told how.
             if (!_lessonsAsked && (wanted == "fly" || wanted == "fight") && _save.Stats.Flights > 12 && _save.Stats.Kills > 5)

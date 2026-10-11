@@ -97,6 +97,24 @@ namespace Skyforge.UI
             UiKit.Stretch(_loot.rectTransform);
             _lootBox.SetActive(false);
 
+            // The one target a mission turns on: its name and what is left of it, across the top.
+            Image bossBack = Quiet(UiKit.Box(_screen, "Boss", new Color(0f, 0f, 0f, 0.5f)));
+            UiKit.Place(bossBack.rectTransform, new Vector2(0.5f, 1f), new Vector2(0f, -168f), new Vector2(560f, 16f));
+            bossBack.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            _bossBox = bossBack.gameObject;
+            Image bossFill = Quiet(UiKit.Box(bossBack.transform, "Fill", UiKit.Bad));
+            _bossFill = bossFill.rectTransform;
+            _bossFill.anchorMin = Vector2.zero;
+            _bossFill.anchorMax = Vector2.one;
+            _bossFill.offsetMin = new Vector2(2f, 2f);
+            _bossFill.offsetMax = new Vector2(-2f, -2f);
+            _bossName = UiKit.Label(bossBack.transform, 24, TextAnchor.MiddleCenter);
+            _bossName.raycastTarget = false;
+            _bossName.color = new Color(1f, 0.9f, 0.85f);
+            UiKit.Place(_bossName.rectTransform, new Vector2(0.5f, 1f), new Vector2(0f, 20f), new Vector2(560f, 30f));
+            _bossName.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            _bossBox.SetActive(false);
+
             // The scope of a sniper's rifle: black all round, a fine cross, range ticks below the centre.
             RectTransform scope = UiKit.Rect("Scope", _screen);
             UiKit.Stretch(scope);
@@ -234,6 +252,7 @@ namespace Skyforge.UI
             SetScope(null, null);
             SetCoach(null, null, null);
             SetLoot(0);
+            SetBoss(null, 0f);
         }
 
         public void SetReticle(bool shown, bool locked)
@@ -272,6 +291,29 @@ namespace Skyforge.UI
 
         /// <summary>A round has hit the aircraft: the frame flashes.</summary>
         public void Hit(float amount) => _hit = Mathf.Max(_hit, Mathf.Clamp01(amount));
+
+        GameObject _bossBox;
+        RectTransform _bossFill;
+        Text _bossName;
+        string _shownBoss;
+        float _shownBossShare = -1f;
+
+        /// <summary>The bar of the mission's heaviest target; a null name takes it away.</summary>
+        public void SetBoss(string name, float share)
+        {
+            bool shown = name != null;
+            if (_bossBox.activeSelf != shown) _bossBox.SetActive(shown);
+            if (!shown) return;
+            if (name != _shownBoss)
+            {
+                _shownBoss = name;
+                _bossName.text = name;
+            }
+            share = Mathf.Clamp01(share);
+            if (Mathf.Abs(share - _shownBossShare) < 0.004f) return;
+            _shownBossShare = share;
+            _bossFill.anchorMax = new Vector2(share, 1f);
+        }
 
         public void SetLoot(int credits)
         {

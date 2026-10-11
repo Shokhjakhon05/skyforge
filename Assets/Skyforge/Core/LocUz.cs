@@ -154,7 +154,7 @@ namespace Skyforge
             { "upgrade.Radio.note", "Aloqa uzoqroq, sezish osonroq" },
             { "upgrade.Optics.note", "Uzoqroqni ko'radi, batareya kamayadi" },
             { "upgrade.Frame.note", "Mustahkamroq, biroz sekinroq" },
-            { "result.parts", "+{0} kredit   +{1} detal" },
+            { "result.parts", "Chizma qismlari topildi: +{0}" },
             { "mission.first_contact.title", "Birinchi aloqa" },
             { "mission.first_contact.brief", "Oroldagi uchta meteomayoq aloqaga chiqmay qo'ydi. Har biriga uchib boring, skanerlash tugaguncha ustida muallaq turing va dronni bazaga qaytaring." },
             { "mission.coast_watch.title", "Sohil qo'riqchisi" },
@@ -1066,6 +1066,10 @@ namespace Skyforge
             { "hint.drive.move", "YURISH · RUL" },
             { "hint.drive.turn", "BURILISH" },
             { "hint.aim", "NISHON" },
+            { "hangar.buy.parts", "SOTIB OLISH  {0} + {1} QISM" },
+            { "pickup.part", "CHIZMA QISMI" },
+            { "prologue.title", "O'T OCHISHGA RUXSAT" },
+            { "prologue.sub", "Mana nimada uchasiz. Pozitsiyani yo'q qiling." },
         };
     }
 }

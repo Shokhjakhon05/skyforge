@@ -8,6 +8,8 @@ namespace Skyforge.Core
         Repair,
         Ammo,
         Credits,
+        /// <summary>A blueprint part: what the better machines are bought with.</summary>
+        Part,
     }
 
     /// <summary>What a destroyed enemy left behind: fly or drive through it to take it.</summary>
@@ -135,6 +137,8 @@ namespace Skyforge.Core
             double roll = _lootDice.NextDouble();
             PickupType type = Hull < 0.55f && roll < 0.55 ? PickupType.Repair
                 : roll < 0.3 ? PickupType.Repair : roll < 0.65 ? PickupType.Ammo : PickupType.Credits;
+            // Armour now and then gives up something worth more than money.
+            if (definition.Kind.Health >= 100f && type == PickupType.Credits && roll > 0.86) type = PickupType.Part;
             var pickup = new Pickup { Type = type, Position = new Vector3(at.x, ground, at.z), Left = PickupSeconds, Id = _pickupSerial++ };
             _pickups.Add(pickup);
             _events.Add(new CombatEvent { Type = CombatEventType.PickupDropped, Position = pickup.Position, Target = pickup.Id, Size = (int)type });
@@ -164,6 +168,9 @@ namespace Skyforge.Core
             }
         }
 
+        /// <summary>Blueprint parts picked up in this fight.</summary>
+        public int PartsLooted { get; private set; }
+
         void Take(PickupType type)
         {
             switch (type)
@@ -175,6 +182,9 @@ namespace Skyforge.Core
                     Rockets = Mathf.Min(_spec.Rockets, Rockets + Mathf.Max(1, Mathf.CeilToInt(_spec.Rockets * 0.4f)));
                     Bombs = Mathf.Min(_spec.Bombs, Bombs + Mathf.Max(_spec.Bombs > 0 ? 1 : 0, Mathf.CeilToInt(_spec.Bombs * 0.34f)));
                     if (_spec.Cannon > 0f) CannonSeconds = Mathf.Min(_spec.CannonSeconds, CannonSeconds + _spec.CannonSeconds * 0.4f);
+                    break;
+                case PickupType.Part:
+                    PartsLooted++;
                     break;
                 default:
                     Loot += PickupCredits + 10 * Mathf.Max(0, Definition.Level);
