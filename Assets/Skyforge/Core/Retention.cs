@@ -175,6 +175,30 @@ namespace Skyforge.Core
 
     /// <summary>Counters kept for achievements.</summary>
     [Serializable]
+    /// <summary>A supply drop that comes round every few hours: a reason to look in again the same day.</summary>
+    public static class Supply
+    {
+        public const int Hours = 4, Credits = 150, Parts = 2;
+
+        /// <summary>Seconds until the next drop; zero when one is waiting. A clock set back does not lock it away.</summary>
+        public static double SecondsLeft(SaveData save, DateTime utcNow)
+        {
+            if (save.SupplyTicks <= 0) return 0;
+            double left = Hours * 3600.0 - (utcNow.Ticks - save.SupplyTicks) / (double)TimeSpan.TicksPerSecond;
+            return left <= 0 || left > Hours * 3600.0 ? 0 : left;
+        }
+
+        public static bool Claim(SaveData save, DateTime utcNow)
+        {
+            if (SecondsLeft(save, utcNow) > 0) return false;
+            save.SupplyTicks = utcNow.Ticks;
+            save.Credits += Credits;
+            save.Parts += Parts;
+            save.Stats.CreditsEarned += Credits;
+            return true;
+        }
+    }
+
     public sealed class PlayerStats
     {
         public int Flights;

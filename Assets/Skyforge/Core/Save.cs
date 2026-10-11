@@ -77,6 +77,8 @@ namespace Skyforge.Core
         public string DailyDate = "";
         public List<int> DailyDone = new List<int>();
         public string StreakDate = "";
+        /// <summary>When the last supply drop was taken, in UTC ticks.</summary>
+        public long SupplyTicks;
         public int StreakDay;
         public PlayerStats Stats = new PlayerStats();
         public List<string> Achievements = new List<string>();

@@ -414,6 +414,15 @@ namespace Skyforge
 
         void ClaimCrate()
         {
+            double wait = Supply.SecondsLeft(_save, DateTime.UtcNow);
+            if (wait <= 0 && Supply.Claim(_save, DateTime.UtcNow))
+            {
+                _store.Save(_save);
+                _sfx.Play(Sound.Success);
+                Toast(Loc.T("supply.taken", Supply.Credits, Supply.Parts));
+                ShowDaily();
+                return;
+            }
             if (AdRules.CratesLeft(_save, _today) <= 0)
             {
                 _sfx.Play(Sound.Warning);
@@ -889,7 +898,11 @@ namespace Skyforge
 
             int crates = AdRules.CratesLeft(_save, _today);
             bool canOffer = crates > 0 && (_save.NoAds || _ads.RewardedReady);
-            _daily.SetCrate(canOffer ? Loc.T("ads.crate", AdRules.PartsPerCrate, crates) : null);
+            // The supply drop comes first; the crate for an ad shows while it is on its way.
+            double wait = Supply.SecondsLeft(_save, DateTime.UtcNow);
+            if (wait <= 0) _daily.SetCrate(Loc.T("supply.ready", Supply.Credits, Supply.Parts), Loc.T("supply.take"));
+            else if (canOffer) _daily.SetCrate(Loc.T("ads.crate", AdRules.PartsPerCrate, crates));
+            else _daily.SetCrate(Loc.T("supply.wait", (int)(wait / 3600), ((int)(wait / 60) % 60).ToString("00")), Loc.T("supply.soon"));
         }
 
         void ClaimStreak()

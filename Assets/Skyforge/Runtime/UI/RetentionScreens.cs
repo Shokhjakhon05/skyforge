@@ -23,6 +23,7 @@ namespace Skyforge.UI
         readonly GameObject _root;
         readonly Text _streak, _streakReward, _claim, _empty, _crate;
         readonly GameObject _crateRow;
+        readonly Text _watch;
         readonly Image _claimButton;
         readonly Row[] _rows = new Row[Daily.OpsPerDay];
 
@@ -66,7 +67,7 @@ namespace Skyforge.UI
             _crate = UiKit.Label(crateRow, 26, TextAnchor.MiddleLeft);
             UiKit.Light(_crate);
             UiKit.Place(_crate.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0f), new Vector2(1000f, 40f));
-            Text watch = UiKit.Button(crateRow, "Watch", new Color(0.35f, 0.85f, 0.45f, 0.9f), 26, () => CratePressed?.Invoke());
+            Text watch = _watch = UiKit.Button(crateRow, "Watch", new Color(0.35f, 0.85f, 0.45f, 0.9f), 26, () => CratePressed?.Invoke());
             watch.text = Loc.T("ads.crate_button");
             watch.color = new Color(0.03f, 0.10f, 0.05f);
             UiKit.Place((RectTransform)watch.transform.parent, new Vector2(1f, 0.5f), new Vector2(0f, 0f), new Vector2(340f, 60f));
@@ -106,10 +107,11 @@ namespace Skyforge.UI
         }
 
         /// <summary>Shows the free crate offer with this text; null hides it.</summary>
-        public void SetCrate(string text)
+        public void SetCrate(string text, string button = null)
         {
             _crateRow.SetActive(!string.IsNullOrEmpty(text));
             if (!string.IsNullOrEmpty(text)) _crate.text = text;
+            _watch.text = button ?? Loc.T("ads.crate_button");
         }
 
         /// <param name="titles">What to call each operation: its region and mission.</param>

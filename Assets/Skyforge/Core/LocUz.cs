@@ -1071,6 +1071,11 @@ namespace Skyforge
             { "result.blueprints", "Chizma qismlari topildi: +{0}" },
             { "prologue.title", "O'T OCHISHGA RUXSAT" },
             { "prologue.sub", "Mana nimada uchasiz. Pozitsiyani yo'q qiling." },
+            { "supply.ready", "Ta'minot yuki yetib keldi: +{0} kredit, +{1} qism" },
+            { "supply.take", "OLISH" },
+            { "supply.wait", "Keyingi ta'minot yuki {0}:{1} dan keyin" },
+            { "supply.soon", "YO'LDA" },
+            { "supply.taken", "YUK OLINDI  +{0} kredit  +{1} qism" },
         };
     }
 }
