@@ -203,7 +203,6 @@ namespace Skyforge.EditorTools
                 Repaint(instance, name);
                 var root = new GameObject(name);
                 instance.transform.SetParent(root.transform, true);
-                root.AddComponent<Sniper.Prop>().Size = bounds.size;
                 Debug.Log("[Skyforge] prop " + name + ": size " + bounds.size + " centre " + bounds.center + ", renderers " + renderers.Length);
                 PrefabUtility.SaveAsPrefabAsset(root, dir + "/" + name + ".prefab");
                 UnityEngine.Object.DestroyImmediate(root);
@@ -343,7 +342,8 @@ namespace Skyforge.EditorTools
 
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, ApplicationId);
             PlayerSettings.SetScriptingBackend(NamedBuildTarget.Android, ScriptingImplementation.IL2CPP);
-            PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
+            // A build meant for the emulator on the build machine also carries code for its processor: translated ARM code crashes there in the audio thread.
+            PlayerSettings.Android.targetArchitectures = HasArgument("-sfX86") ? AndroidArchitecture.ARM64 | AndroidArchitecture.X86_64 : AndroidArchitecture.ARM64;
             PlayerSettings.Android.minSdkVersion = (AndroidSdkVersions)26;
             PlayerSettings.colorSpace = ColorSpace.Linear;
             // The game opens with its own mark; the engine's is not shown before it.

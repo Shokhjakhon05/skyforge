@@ -16,6 +16,10 @@ on:
         description: Take only the first few screenshots
         type: boolean
         default: false
+      emulator:
+        description: Also build for x86-64, so the APK runs natively on the smoke-test emulator
+        type: boolean
+        default: false
       bundle:
         description: Build an App Bundle (.aab) for Google Play instead of an APK
         type: boolean
@@ -124,6 +128,7 @@ jobs:
             ${{ github.event.inputs.screenshots != 'false' && '-sfScreenshots' || '' }}
             ${{ github.event.inputs.bundle == 'true' && '-sfBundle' || '' }}
             ${{ github.event.inputs.quick == 'true' && '-sfQuick' || '' }}
+            ${{ github.event.inputs.emulator == 'true' && '-sfX86' || '' }}
 
       - name: Check that the build exists
         run: |
