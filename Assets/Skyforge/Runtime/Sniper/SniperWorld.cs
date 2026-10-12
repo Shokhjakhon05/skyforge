@@ -252,6 +252,7 @@ namespace Sniper
                 ActorDef def = sim.Def(i);
                 GameObject prefab = Load("Chars", def.Model);
                 Actor actor = null;
+                HeldRifle rifle = null;
                 Transform root = new GameObject("Actor " + def.Id).transform;
                 root.SetParent(_root, false);
                 if (prefab != null)
@@ -260,7 +261,9 @@ namespace Sniper
                     actor = made.GetComponent<Actor>();
                     float height = actor != null ? actor.Height : 1.8f;
                     made.transform.localScale = Vector3.one * (1.8f / Mathf.Max(0.01f, height));
+                    if (actor != null && actor.RightHand != null && actor.LeftHand != null && def.Idle != null && def.Idle.StartsWith("Idle_Gun")) rifle = Arm(actor, root);
                 }
+                _rifles.Add(rifle);
                 _actors.Add(actor);
                 _actorRoots.Add(root);
                 _shownClips.Add(null);
@@ -282,14 +285,91 @@ namespace Sniper
                 Quaternion facing = Quaternion.Euler(0f, state.YawDeg, 0f);
                 root.localRotation = _shownClips[i] == null ? facing : Quaternion.RotateTowards(root.localRotation, facing, 420f * Time.deltaTime);
                 Actor actor = _actors[i];
+                if (state.Mood == Mood.Dead && _rifles[i] != null && !_rifles[i].Dropped) _rifles[i].Drop(0.45f);
                 if (actor == null || _shownClips[i] == state.Clip) continue;
                 _shownClips[i] = state.Clip;
-                if (!actor.Play(state.Clip, state.Loop) && !actor.Play(state.Mood == Mood.Dead ? "Death" : state.Clip == "Run" ? "Run" : "Idle", state.Loop))
-                    actor.Play("Idle", true);
-                actor.Speed = state.Clip == "Run" ? 1.25f : 1f;
+                // A model without the clip asked for plays the nearest it has.
+                string clip = state.Clip ?? "Idle";
+                bool played = actor.Play(clip, state.Loop);
+                if (!played && clip.StartsWith("Death")) played = actor.Play("Death", false);
+                if (!played && clip.EndsWith("_Gun")) played = actor.Play(clip.Substring(0, clip.Length - 4), state.Loop);
+                if (!played && clip == "HitReact") played = actor.Play("HitRecieve", false);
+                if (!played && state.Mood != Mood.Dead) actor.Play("Idle", true);
+                actor.Speed = clip.StartsWith("Run") && actor.Hips == null ? 1.25f : 1f;
             }
         }
 
+        readonly List<HeldRifle> _rifles = new List<HeldRifle>();
+
+        /// <summary>A rifle for an armed man: it lies along the line from his right hand to his left, as he holds it.</summary>
+        HeldRifle Arm(Actor actor, Transform root)
+        {
+            GameObject prefab = Load("Props", "rifle1");
+            if (prefab == null) return null;
+            Transform holder = new GameObject("Rifle").transform;
+            holder.SetParent(root, false);
+            GameObject made = Object.Instantiate(prefab, holder);
+            made.transform.localPosition = Vector3.zero;
+            made.transform.localRotation = Quaternion.identity;
+            made.transform.localScale = Vector3.one;
+            Renderer[] renderers = made.GetComponentsInChildren<Renderer>();
+            if (renderers.Length == 0) return null;
+            Bounds bounds = renderers[0].bounds;
+            foreach (Renderer renderer in renderers) bounds.Encapsulate(renderer.bounds);
+            // Whichever way the model was drawn, its length is laid along the holder's forward.
+            Vector3 size = bounds.size;
+            Vector3 along = size.x >= size.y && size.x >= size.z ? Vector3.right : size.z >= size.y ? Vector3.forward : Vector3.up;
+            float length = Mathf.Max(0.001f, Mathf.Max(size.x, Mathf.Max(size.y, size.z)));
+            Quaternion turn = Quaternion.Inverse(holder.rotation) * Quaternion.FromToRotation(along, Vector3.forward);
+            made.transform.localRotation = turn;
+            float scale = 0.95f / length;
+            made.transform.localScale = Vector3.one * scale;
+            Vector3 centre = holder.InverseTransformPoint(bounds.center);
+            made.transform.localPosition = -(turn * centre) * scale + new Vector3(0f, 0f, 0.16f);
+            foreach (Renderer renderer in renderers) renderer.sharedMaterial = RiflePaint;
+            var held = holder.gameObject.AddComponent<HeldRifle>();
+            held.Right = actor.RightHand;
+            held.Left = actor.LeftHand;
+            return held;
+        }
+
+        static Material _riflePaint;
+        static Material RiflePaint => _riflePaint != null ? _riflePaint : _riflePaint = GameMaterials.Lit(new Color(0.07f, 0.07f, 0.08f), 0.35f);
+
         public Vector3 Head(SniperSim sim, int index) => sim.Actor(index).Position + new Vector3(0f, SniperSim.HeadHeight, 0f);
+    }
+
+    /// <summary>Keeps a rifle in a man's hands whatever his arms are doing, and lets it fall when he does.</summary>
+    public sealed class HeldRifle : MonoBehaviour
+    {
+        public Transform Right, Left;
+        public bool Dropped { get; private set; }
+        float _fall = -1f;
+
+        public void Drop(float after)
+        {
+            Dropped = true;
+            _fall = after;
+        }
+
+        void LateUpdate()
+        {
+            if (Right == null || Left == null) return;
+            if (Dropped)
+            {
+                if (_fall < 0f) return;
+                _fall -= Time.deltaTime;
+                if (_fall >= 0f) return;
+                // On the ground beside him, flat.
+                Vector3 at = transform.position;
+                transform.position = new Vector3(at.x, transform.parent != null ? transform.parent.position.y + 0.06f : 0.06f, at.z);
+                transform.rotation = Quaternion.Euler(0f, transform.eulerAngles.y, 90f);
+                return;
+            }
+            Vector3 line = Left.position - Right.position;
+            if (line.sqrMagnitude < 0.0009f) return;
+            transform.position = Right.position;
+            transform.rotation = Quaternion.LookRotation(line.normalized, Vector3.up);
+        }
     }
 }

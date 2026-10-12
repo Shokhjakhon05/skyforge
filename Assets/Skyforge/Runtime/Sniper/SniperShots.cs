@@ -27,6 +27,9 @@ namespace Sniper
             yield return Frames(10);
             yield return Shot("01_menu");
 
+            // Everyone the game can put in a scene, side by side, each doing something different.
+            yield return Parade();
+
             // The place itself, from where nobody plays: is it a quay or a heap of boxes?
             _game.AutomationLook(new Vector3(-60f, 40f, -120f), new Vector3(0f, 2f, 20f), 55f);
             yield return Shot("02_docks_high");
@@ -77,6 +80,12 @@ namespace Sniper
             yield return Shot("13_alarm_guard", 1);
             yield return Frames(200);
             yield return Shot("14_under_fire", 1);
+
+            if (ShotDirector.Quick)
+            {
+                ShotDirector.Finished = true;
+                yield break;
+            }
 
             // The other two places: from above, from the street, from the rifle.
             _game.AutomationMenu("town");
@@ -169,6 +178,40 @@ namespace Sniper
             _game.AutomationLanguage("en");
 
             ShotDirector.Finished = true;
+        }
+
+        IEnumerator Parade()
+        {
+            string[] people = { "swat", "guard", "security", "suit", "casual", "worker", "hoodie", "punk", "farmer", "adventurer", "woman", "lady" };
+            string[] doing = { "Idle_Gun", "Idle_Gun_Pointing", "Walk_Gun", "Idle", "Walk", "Interact", "Phone", "Run", "Smoke", "Terrified", "Wave", "Idle" };
+            string[] falling = { "Death", "Death_Head", "Death_Back", "Death_Knees", "HitReact", "Run_Gun", "Idle_Gun_Shoot", "Death", "Death_Head", "Death_Back", "Death_Knees", "Walk" };
+            var row = new GameObject("Parade").transform;
+            var actors = new Actor[people.Length];
+            for (int i = 0; i < people.Length; i++)
+            {
+                var prefab = Resources.Load<GameObject>("Chars/" + people[i]);
+                if (prefab == null) continue;
+                GameObject made = Instantiate(prefab, row);
+                actors[i] = made.GetComponent<Actor>();
+                float height = actors[i] != null ? actors[i].Height : 1.8f;
+                made.transform.localScale = Vector3.one * (1.8f / Mathf.Max(0.01f, height));
+                made.transform.position = new Vector3(-8.25f + (i % 6) * 1.5f - 30f, 0f, -60f + (i / 6) * 2.5f);
+                made.transform.rotation = Quaternion.Euler(0f, 180f, 0f);
+                if (actors[i] != null && !actors[i].Play(doing[i], true)) actors[i].Play("Idle", true);
+            }
+            yield return Frames(25);
+            _game.AutomationLook(new Vector3(-34.5f, 1.7f, -67.5f), new Vector3(-34.5f, 1.0f, -59f), 50f);
+            yield return Shot("01b_people", 2);
+            _game.AutomationLook(new Vector3(-36.5f, 1.5f, -63.2f), new Vector3(-36.3f, 1.25f, -60f), 40f);
+            yield return Shot("01c_people_near", 2);
+            for (int i = 0; i < actors.Length; i++)
+                if (actors[i] != null) actors[i].Play(falling[i], falling[i].StartsWith("Run") || falling[i].StartsWith("Walk") || falling[i].EndsWith("Shoot"));
+            yield return Frames(22);
+            _game.AutomationLook(new Vector3(-34.5f, 1.7f, -67.5f), new Vector3(-34.5f, 1.0f, -59f), 50f);
+            yield return Shot("01d_people_falling", 1);
+            yield return Frames(70);
+            yield return Shot("01e_people_down", 1);
+            Destroy(row.gameObject);
         }
 
         static IEnumerator Frames(int count)

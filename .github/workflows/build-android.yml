@@ -78,6 +78,30 @@ jobs:
       - name: Check .meta files
         run: python3 tools/gen_meta.py --check
 
+      # Realistic people are kept apart from the public code: they may be built into the game
+      # but not handed out as files. Without the key the build falls back to the stylised ones.
+      - name: Fetch private characters
+        env:
+          ASSETS_KEY: ${{ secrets.ASSETS_KEY }}
+        run: |
+          if [ -z "$ASSETS_KEY" ]; then
+            echo "::warning::No key for the private characters, the stylised ones are used"
+            exit 0
+          fi
+          mkdir -p ~/.ssh && printf '%s\n' "$ASSETS_KEY" > ~/.ssh/assets && chmod 600 ~/.ssh/assets
+          GIT_SSH_COMMAND="ssh -i ~/.ssh/assets -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new" \
+            git clone --quiet --depth 1 git@github.com:Shokhjakhon05/sniper-assets.git /tmp/sniper-assets
+          rm -f ~/.ssh/assets
+          for first in /tmp/sniper-assets/Chars/*.part00; do
+            [ -e "$first" ] || continue
+            whole="${first%.part00}"
+            cat "$whole".part* > "$whole" && rm "$whole".part*
+          done
+          mkdir -p Assets/Sniper/Mixamo
+          cp -r /tmp/sniper-assets/Chars /tmp/sniper-assets/Anims Assets/Sniper/Mixamo/
+          python3 tools/gen_meta.py
+          ls -lh Assets/Sniper/Mixamo/Chars Assets/Sniper/Mixamo/Anims | head -50
+
       - uses: actions/cache@v4
         with:
           path: Library

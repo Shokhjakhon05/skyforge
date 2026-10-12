@@ -202,6 +202,8 @@ namespace Sniper
 
         // ---------------------------------------------------------------- people
 
+        static bool Armed(ActorDef def) => def.Idle != null && def.Idle.StartsWith("Idle_Gun");
+
         void SetClip(ref ActorState a, string clip, bool loop)
         {
             if (a.Clip == clip) return;
@@ -243,7 +245,7 @@ namespace Sniper
                 if (a.Leaving)
                 {
                     if (Walk(ref a, def.Escape.Value, WalkSpeed, dt)) Leave(index);
-                    else SetClip(ref a, "Walk", true);
+                    else SetClip(ref a, Armed(def) ? "Walk_Gun" : "Walk", true);
                     return;
                 }
                 if (def.Path == null || def.Path.Length < 2)
@@ -258,7 +260,7 @@ namespace Sniper
                     return;
                 }
                 int next = (a.Leg + 1) % def.Path.Length;
-                SetClip(ref a, "Walk", true);
+                SetClip(ref a, Armed(def) ? "Walk_Gun" : "Walk", true);
                 if (!Walk(ref a, def.Path[next], WalkSpeed, dt)) return;
                 a.Leg = next;
                 a.Wait = def.Wait;
@@ -271,13 +273,13 @@ namespace Sniper
             if (def.Role == Role.Civilian || (def.Escape.HasValue && def.Role != Role.Guard))
             {
                 Vector3 to = def.Escape ?? Away(a.Position);
-                SetClip(ref a, "Run", true);
+                SetClip(ref a, Armed(def) ? "Run_Gun" : "Run", true);
                 if (Walk(ref a, to, RunSpeed, dt)) Leave(index);
                 return;
             }
             if (def.Assassin)
             {
-                SetClip(ref a, "Run", true);
+                SetClip(ref a, Armed(def) ? "Run_Gun" : "Run", true);
                 if (Walk(ref a, def.Path[def.Path.Length - 1], RunSpeed, dt)) Strike(index);
                 return;
             }
@@ -492,7 +494,7 @@ namespace Sniper
                 return;
             }
             Events.Add(new SimEvent { Type = SimEventType.Hit, Actor = index, Zone = zone, Position = at });
-            SetClip(ref a, "HitRecieve", false);
+            SetClip(ref a, "HitReact", false);
             a.Stun = 0.55f;
             a.Reacting = true;
             a.React = 0.25f;
@@ -505,7 +507,8 @@ namespace Sniper
             a.Mood = Mood.Dead;
             a.Headshot = zone == Zone.Head;
             a.Reacting = false;
-            SetClip(ref a, "Death", false);
+            // He goes down the way he was hit: dropped by the head, folded by the legs, thrown back or forward by the chest.
+            SetClip(ref a, zone == Zone.Head ? "Death_Head" : zone == Zone.Legs ? "Death_Knees" : (index + Kills) % 2 == 0 ? "Death_Back" : "Death", false);
             ActorDef def = Mission.Actors[index];
             Events.Add(new SimEvent { Type = def.Role == Role.Ally ? SimEventType.AllyDown : SimEventType.Kill, Actor = index, Zone = zone, Position = at });
             if (def.Role == Role.Civilian) Lose(LostWhy.Civilian);
