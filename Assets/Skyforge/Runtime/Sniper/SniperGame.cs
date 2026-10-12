@@ -661,9 +661,9 @@ namespace Sniper
                 if (hunting) StartHunt();
                 else _sfx.Play(Sound.Warning, 0.5f);
             });
-            Press(s, Loc.T("sn.range") + "  " + _save.RangeLevel, UiKit.SolidPanelColor, 26, new Vector2(0f, 0f), new Vector2(70f, 60f), new Vector2(250f, 96f), StartRange);
+            Press(s, Loc.T("sn.range") + "  " + _save.RangeLevel, UiKit.SolidPanelColor, 26, new Vector2(0f, 0f), new Vector2(70f, 60f), new Vector2(200f, 96f), StartRange);
             bool wild = _save.Completed >= 3;
-            Press(s, wild ? Loc.T("sn.safari") + "  " + _save.SafariLevel : Loc.T("sn.safari.locked"), wild ? UiKit.SolidPanelColor : UiKit.Faint, 26, new Vector2(0f, 0f), new Vector2(330f, 60f), new Vector2(250f, 96f), () =>
+            Press(s, wild ? Loc.T("sn.safari") + "  " + _save.SafariLevel : Loc.T("sn.safari.locked"), wild ? UiKit.SolidPanelColor : UiKit.Faint, wild ? 26 : 22, new Vector2(0f, 0f), new Vector2(280f, 60f), new Vector2(310f, 96f), () =>
             {
                 if (wild) StartSafari();
                 else _sfx.Play(Sound.Warning, 0.5f);
