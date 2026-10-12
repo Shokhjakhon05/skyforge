@@ -93,9 +93,9 @@ namespace Sniper
             for (int i = 0; i < 46; i++)
             {
                 float side = i % 2 == 0 ? -1f : 1f;
-                Put(range, "tree", side * (52f + (i * 37) % 60), -150f + i * 8.4f + (i * 13) % 7, i * 53f, 8f + (i * 7) % 6, true);
+                Put(range, i % 3 == 0 ? "tree_round" : "tree_light", side * (52f + (i * 37) % 60), -150f + i * 8.4f + (i * 13) % 7, i * 53f, 8f + (i * 7) % 6, true);
             }
-            for (int i = 0; i < 14; i++) Put(range, "tree", -120f + i * 18f + (i * 11) % 9, 232f + (i * 17) % 30, i * 71f, 10f + (i * 5) % 7, true);
+            for (int i = 0; i < 14; i++) Put(range, i % 3 == 0 ? "tree_round" : "tree_light", -120f + i * 18f + (i * 11) % 9, 232f + (i * 17) % 30, i * 71f, 10f + (i * 5) % 7, true);
             list.Add(range);
 
             // The reserve: a meadow among trees, a stream of logs and a keeper's hut, seen from a high seat at the wood's edge.
@@ -118,15 +118,15 @@ namespace Sniper
                 float x = Mathf.Sin(angle) * away, z = 30f + Mathf.Cos(angle) * away * 0.95f;
                 // Nothing between the high seat and the meadow: the whole of it is in view from there.
                 if (z < 70f && Mathf.Abs(x) < 95f) continue;
-                Put(wild, "tree", x, z, i * 67f, 8f + (i * 11) % 8, true);
+                Put(wild, i % 3 == 0 ? "tree_round" : "tree_light", x, z, i * 67f, 8f + (i * 11) % 8, true);
             }
             // The wood closes in behind the seat and down both flanks.
             for (int i = 0; i < 40; i++)
             {
                 float side = i % 2 == 0 ? -1f : 1f;
-                Put(wild, "tree", side * (100f + (i * 37) % 70), -150f + i * 6.5f + (i * 13) % 9, i * 59f, 9f + (i * 7) % 7, true);
+                Put(wild, i % 3 == 0 ? "tree_round" : "tree_light", side * (100f + (i * 37) % 70), -150f + i * 6.5f + (i * 13) % 9, i * 59f, 9f + (i * 7) % 7, true);
             }
-            for (int i = 0; i < 12; i++) Put(wild, "tree", -110f + i * 20f + (i * 11) % 8, -150f - (i * 17) % 30, i * 43f, 10f + i % 5, true);
+            for (int i = 0; i < 12; i++) Put(wild, i % 3 == 0 ? "tree_round" : "tree_light", -110f + i * 20f + (i * 11) % 8, -150f - (i * 17) % 30, i * 43f, 10f + i % 5, true);
             list.Add(wild);
             return list;
         }
