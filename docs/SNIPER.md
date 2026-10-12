@@ -63,3 +63,14 @@
 Персонажи, машины, контейнеры, мебель улиц — Quaternius (CC0). Дома — Kay Lousberg, Kenney, Quaternius (CC0). Кран — cg_world (CC0). По лицензии CC-BY 3.0, автора нужно указать в игре (экран «Карьера») и в описании: Container Ship — Alex Safayan; Tugboat, Airplane, Jet — Poly by Google; Warehouse — Lavender Harmony; Small Airplane — Vojtěch Balák; Japanese Train Station — Andrew-John Hickman. Helicopter — kazuma, Cottage/Church/Cabin — CreativeTrio (CC0). Текстуры земли — ambientCG (CC0). Всё взято с poly.pizza; исходники и скрипт загрузки — в `~/sniper-assets` на ноутбуке владельца.
 
 Звуки: выстрелы Mosin и SKS — Vincent Sevedge (CC-BY 3.0, opengameart.org/content/gunshot-sounds); перезарядка — opengameart.org/content/gun-reload-sounds (CC0); удары — Kenney Impact Sounds (CC0); шум улицы — opengameart.org/content/high-traffic-road-sounds (CC0); ветер — opengameart.org/content/wind-loop (CC-BY 3.0). Исходники в `~/sniper-assets/audio`.
+
+## Состояние на 2026-10-12 (версия 0.8.0)
+
+- Сборка №59 (`sniper-ads`, ARM64, с рекламой) передана владельцу: реалистичные люди, тир, охота, 9 винтовок.
+- Сборка №57 (тот же код до замены деревьев и правки меню, с x86-64) прошла прогон на эмуляторе: контракт
+  сыгран, падений нет, `[Sniper] ads ready`.
+- Кадры съёмки в CI: старое дерево `tree` (6 тыс. треугольников, прозрачные листья) давало минуты на кадр;
+  на стрельбище и в заповеднике стоят `tree_light` и `tree_round`. Быстрый набор кадров (`-f quick=true`)
+  снимает людей, охранника, тир и охоту.
+- Не проверено на телефоне: плавность с новыми моделями (по 40–55 тыс. треугольников, для дали импортёр
+  делает облегчённые версии), тир и охота в руках игрока.

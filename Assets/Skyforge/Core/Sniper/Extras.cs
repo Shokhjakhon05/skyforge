@@ -119,92 +119,6 @@ namespace Sniper
         }
     }
 
-    /// <summary>The reserve: a stag to be taken out of a herd without touching the hinds, or wolves to be stopped before they reach it.</summary>
-    public static class Safari
-    {
-        public const string Id = "safari", Place = "wild";
-
-        static ActorDef Stag(string id, Vector3 at) => new ActorDef
-        {
-            Id = id, Model = "stag", Kind = Kind.Beast, NameKey = "name.stag", Idle = "Eating", Path = new[] { at },
-            Tall = 2.05f, Shoulder = 1.3f, Length = 1.7f, Girth = 0.3f, HeadAt = 1.75f, Pace = 0.8f, Flight = 9f,
-        };
-
-        static ActorDef Hind(string id, Vector3 at) => new ActorDef
-        {
-            Id = id, Model = "deer", Kind = Kind.Beast, NameKey = "name.hind", Idle = "Eating", Path = new[] { at },
-            Tall = 1.5f, Shoulder = 1f, Length = 1.35f, Girth = 0.25f, HeadAt = 1.35f, Pace = 0.8f, Flight = 9f,
-        };
-
-        static ActorDef Wolf(string id, Vector3 at) => new ActorDef
-        {
-            Id = id, Model = "wolf", Kind = Kind.Beast, NameKey = "name.wolf", Idle = "Idle", Path = new[] { at },
-            Tall = 0.95f, Shoulder = 0.74f, Length = 1.2f, Girth = 0.2f, HeadAt = 0.8f, Pace = 1.5f, Flight = 6.5f,
-        };
-
-        public static bool Wolves(int level) => level % 2 == 0;
-
-        public static MissionDef Make(int level, int seed)
-        {
-            var random = new System.Random(seed * 15485863 + level * 53 + 3);
-            float Next() => (float)random.NextDouble();
-            bool wolves = Wolves(level);
-            var centre = new Vector3(Next() * 50f - 25f, 0f, 10f + Next() * 40f);
-            var safari = new MissionDef
-            {
-                Id = Id, LocationId = Place, TitleKey = "sn.safari", BriefKey = wolves ? "sn.safari.brief.wolves" : "sn.safari.brief.stag", Order = 0,
-                Perch = new Vector3(0f, 9.5f, -130f), LookAt = centre + Vector3.up, Reward = 300 + level * 90, Second = "clean",
-                Wind = new Vector3((Next() * 2f - 1f) * Mathf.Min(6f, 1f + level * 0.4f), 0f, 0f),
-            };
-            if (!wolves)
-            {
-                int stags = Mathf.Clamp(1 + level / 3, 1, 4), hinds = 4 + level % 3;
-                for (int i = 0; i < stags + hinds; i++)
-                {
-                    float angle = (i * 137.5f + Next() * 40f) * Mathf.Deg2Rad, away = 5f + i * 2.6f + Next() * 3f;
-                    Vector3 at = centre + new Vector3(Mathf.Sin(angle), 0f, Mathf.Cos(angle)) * away;
-                    ActorDef beast = i < stags ? Stag("s" + i, at) : Hind("d" + i, at);
-                    beast.Role = i < stags ? Role.Target : Role.Civilian;
-                    beast.YawDeg = Next() * 360f;
-                    beast.Bounty = i < stags ? 300 + level * 30 : 0;
-                    beast.Wait = 5f + Next() * 6f;
-                    // Every other one wanders a few steps as it feeds.
-                    if (i % 2 == 0) beast.Path = new[] { at, at + new Vector3(Next() * 12f - 6f, 0f, Next() * 12f - 6f) };
-                    safari.Actors.Add(beast);
-                }
-                safari.Rounds = stags * 2 + 1;
-                safari.Par = 14f + stags * 8f;
-                return safari;
-            }
-            int pack = Mathf.Clamp(2 + level / 3, 2, 6);
-            for (int i = 0; i < 3; i++)
-            {
-                ActorDef hind = Hind("d" + i, centre + new Vector3(i * 3.2f - 3.2f, 0f, (i % 2) * 2.4f));
-                hind.Role = Role.Ally;
-                hind.YawDeg = 40f + i * 110f;
-                safari.Actors.Add(hind);
-            }
-            for (int i = 0; i < pack; i++)
-            {
-                float angle = (i * (360f / pack) + Next() * 30f - 60f) * Mathf.Deg2Rad, away = 70f + Next() * 25f;
-                Vector3 from = centre + new Vector3(Mathf.Sin(angle) * away, 0f, Mathf.Abs(Mathf.Cos(angle)) * away * 0.9f + 10f);
-                from.x = Mathf.Clamp(from.x, -115f, 115f);
-                ActorDef wolf = Wolf("w" + i, from);
-                wolf.Role = Role.Target;
-                wolf.Assassin = true;
-                wolf.Bounty = 200 + level * 20;
-                wolf.Wait = 1f + i * 2.5f;
-                wolf.Path = new[] { from, centre + new Vector3(Next() * 4f - 2f, 0f, Next() * 4f - 2f) };
-                Vector3 line = wolf.Path[1] - from;
-                wolf.YawDeg = Mathf.Atan2(line.x, line.z) * Mathf.Rad2Deg;
-                safari.Actors.Add(wolf);
-            }
-            safari.Rounds = pack * 2 + 2;
-            safari.Par = 20f + pack * 7f;
-            return safari;
-        }
-    }
-
     public sealed class Feat
     {
         public string Id, Kind;
@@ -229,7 +143,6 @@ namespace Sniper
             new Feat { Id = "blast1", Kind = "blasts", Goal = 5, Cash = 2000 },
             new Feat { Id = "hunt1", Kind = "hunts", Goal = 10, Cash = 6000 },
             new Feat { Id = "range1", Kind = "ranges", Goal = 10, Cash = 3000 },
-            new Feat { Id = "safari1", Kind = "safaris", Goal = 10, Cash = 5000 },
         };
 
         /// <summary>The clothes a model wears, as a line of a briefing: the key of the description.</summary>
@@ -245,8 +158,6 @@ namespace Sniper
                 case "farmer": return "sn.look.farmer";
                 case "adventurer": return "sn.look.adventurer";
                 case "board": return "sn.look.board";
-                case "stag": return "sn.look.stag";
-                case "wolf": return "sn.look.wolf";
                 default: return "sn.look.casual";
             }
         }

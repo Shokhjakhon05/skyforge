@@ -13,7 +13,7 @@ namespace Sniper
         public static List<MissionDef> Missions => _missions ?? (_missions = BuildMissions());
 
         static List<LocationDef> _extra;
-        /// <summary>Places no contract is set in: the range and the reserve.</summary>
+        /// <summary>Places no contract is set in: the range.</summary>
         public static List<LocationDef> Extra => _extra ?? (_extra = BuildExtra());
 
         public static LocationDef Location(string id)
@@ -98,36 +98,6 @@ namespace Sniper
             for (int i = 0; i < 14; i++) Put(range, i % 3 == 0 ? "tree_round" : "tree_light", -120f + i * 18f + (i * 11) % 9, 232f + (i * 17) % 30, i * 71f, 10f + (i * 5) % 7, true);
             list.Add(range);
 
-            // The reserve: a meadow among trees, a stream of logs and a keeper's hut, seen from a high seat at the wood's edge.
-            var wild = new LocationDef { Id = "wild", NameKey = "loc.wild", Ground = "grass", Light = "day", HalfSize = 260f, Ambience = "amb_wind", AmbienceVolume = 0.25f };
-            Put(wild, "lookout", 0f, -135f, 0f, 8.4f, true);
-            Put(wild, "hut", 60f, -40f, 200f, 4.2f);
-            Put(wild, "cabin", -84f, 64f, 120f, 5.5f);
-            Put(wild, "well", 52f, -32f, 0f, 2.2f);
-            Row(wild, "fence_wood", 44f, -52f, 3f, 0f, 8, 0f, 1.3f, false, true);
-            for (int i = 0; i < 7; i++) Put(wild, "logs", -70f + i * 23f + (i * 13) % 11, -22f + (i * 29) % 110, i * 47f, 1.1f);
-            for (int i = 0; i < 9; i++)
-            {
-                float x = -66f + (i * 61) % 130, z = -10f + (i * 43) % 100;
-                Slab(wild, x, z, 2.2f + i % 3, 1f + (i % 2) * 0.6f, 1.8f + (i * 7) % 3, "77787a", i * 33f, 0f, false);
-            }
-            for (int i = 0; i < 260; i++)
-            {
-                // A ring of wood round the meadow, thinning inward; nothing where the animals graze.
-                float angle = i * 2.399963f, away = 78f + (i * 29) % 150;
-                float x = Mathf.Sin(angle) * away, z = 30f + Mathf.Cos(angle) * away * 0.95f;
-                // Nothing between the high seat and the meadow: the whole of it is in view from there.
-                if (z < 70f && Mathf.Abs(x) < 95f) continue;
-                Put(wild, i % 3 == 0 ? "tree_round" : "tree_light", x, z, i * 67f, 8f + (i * 11) % 8, true);
-            }
-            // The wood closes in behind the seat and down both flanks.
-            for (int i = 0; i < 40; i++)
-            {
-                float side = i % 2 == 0 ? -1f : 1f;
-                Put(wild, i % 3 == 0 ? "tree_round" : "tree_light", side * (100f + (i * 37) % 70), -150f + i * 6.5f + (i * 13) % 9, i * 59f, 9f + (i * 7) % 7, true);
-            }
-            for (int i = 0; i < 12; i++) Put(wild, i % 3 == 0 ? "tree_round" : "tree_light", -110f + i * 20f + (i * 11) % 8, -150f - (i * 17) % 30, i * 43f, 10f + i % 5, true);
-            list.Add(wild);
             return list;
         }
 
@@ -709,18 +679,18 @@ namespace Sniper
             Passer(m, "farmer", V(60f, 19f), V(10f, 19f));
 
             // 10. Four of them on the pavement, and the street full of people.
-            m = New(list, "town", new Vector3(10f, 34f, -150f), new Vector3(0f, 1.4f, 16f), 9, 2800, 30f, "clean");
+            m = New(list, "town", new Vector3(10f, 34f, -150f), new Vector3(0f, 1.4f, 16f), 14, 2800, 45f, "clean");
             float[] gang = { -38f, -12f, 16f, 44f };
             for (int i = 0; i < gang.Length; i++)
             {
                 ActorDef thug = Target(m, i % 2 == 0 ? "punk" : "hoodie", "name.thug", 300, V(gang[i], 19f), V(gang[i] + 6f, 17f));
                 thug.Wait = 4f + i;
-                thug.Escape = V(gang[i] < 0f ? -100f : 100f, 14f);
+                // A long way to run: there is time for all four, even with a slow bolt.
+                thug.Escape = V(gang[i] < 0f ? -170f : 170f, 14f);
+                thug.Flight = 3.2f;
             }
-            Passer(m, "casual", V(-60f, 20f), V(-20f, 20f));
-            Passer(m, "worker", V(0f, 20f), V(30f, 20f));
-            Passer(m, "farmer", V(60f, 18f), V(26f, 6f));
-            Passer(m, "adventurer", V(-28f, 4f), V(20f, 0f));
+            Passer(m, "casual", V(-70f, 24f), V(-52f, 24f));
+            Passer(m, "farmer", V(64f, 2f), V(50f, -4f));
 
             // 11. The informer crosses the square. Three men mean to stop him.
             m = New(list, "town", new Vector3(-10f, 30f, -150f), new Vector3(0f, 1.4f, 4f), 9, 3200, 26f, "headshots");

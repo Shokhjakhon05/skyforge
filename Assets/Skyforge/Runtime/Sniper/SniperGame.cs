@@ -661,26 +661,18 @@ namespace Sniper
                 if (hunting) StartHunt();
                 else _sfx.Play(Sound.Warning, 0.5f);
             });
-            Press(s, Loc.T("sn.range") + "  " + _save.RangeLevel, UiKit.SolidPanelColor, 26, new Vector2(0f, 0f), new Vector2(70f, 60f), new Vector2(200f, 96f), StartRange);
-            bool wild = _save.Completed >= 3;
-            Press(s, wild ? Loc.T("sn.safari") + "  " + _save.SafariLevel : Loc.T("sn.safari.locked"), wild ? UiKit.SolidPanelColor : UiKit.Faint, wild ? 26 : 22, new Vector2(0f, 0f), new Vector2(280f, 60f), new Vector2(310f, 96f), () =>
-            {
-                if (wild) StartSafari();
-                else _sfx.Play(Sound.Warning, 0.5f);
-            });
+            Press(s, Loc.T("sn.range") + "  " + _save.RangeLevel, UiKit.SolidPanelColor, 26, new Vector2(0f, 0f), new Vector2(70f, 60f), new Vector2(250f, 96f), StartRange);
         }
 
-        static bool Endless(MissionDef mission) => mission.Id == Hunt.Id || mission.Id == Range.Id || mission.Id == Safari.Id;
+        static bool Endless(MissionDef mission) => mission.Id == Hunt.Id || mission.Id == Range.Id;
 
-        int EndlessLevel(MissionDef mission) => mission.Id == Range.Id ? _save.RangeLevel : mission.Id == Safari.Id ? _save.SafariLevel : _save.HuntLevel;
+        int EndlessLevel(MissionDef mission) => mission.Id == Range.Id ? _save.RangeLevel : _save.HuntLevel;
 
         string MissionTitle(MissionDef mission) => Endless(mission) ? Loc.T(mission.Id == Hunt.Id ? "sn.hunt" : mission.TitleKey) + " " + EndlessLevel(mission) : Loc.T(mission.TitleKey);
 
         void StartRange() => ShowBriefing(Range.Make(_save.RangeLevel, _save.Ranges * 7 + _save.RangeLevel), false);
 
-        void StartSafari() => ShowBriefing(Safari.Make(_save.SafariLevel, _save.Safaris * 11 + _save.SafariLevel), false);
-
-        System.Action Again(MissionDef mission) => mission.Id == Range.Id ? StartRange : mission.Id == Safari.Id ? (System.Action)StartSafari : StartHunt;
+        System.Action Again(MissionDef mission) => mission.Id == Range.Id ? (System.Action)StartRange : StartHunt;
 
         /// <summary>A contract made up on the spot, in a place the player has already worked.</summary>
         void StartHunt()
@@ -821,6 +813,7 @@ namespace Sniper
             int index = System.Array.IndexOf(Loc.Languages, Loc.Language);
             _save.Language = Loc.Languages[(index + 1) % Loc.Languages.Length];
             Loc.SetLanguage(_save.Language);
+            _hud.Relabel();
             _save.Store();
             ShowMenu();
         }
@@ -933,7 +926,7 @@ namespace Sniper
         {
             _phase = Phase.Result;
             _dailyPaid = false;
-            if (_mission.Id != Range.Id && _mission.Id != Safari.Id) _menuPlace = _mission.LocationId;
+            if (_mission.Id != Range.Id) _menuPlace = _mission.LocationId;
             Time.timeScale = 1f;
             _hud.Visible = false;
             _result = _sim.Grade();
@@ -953,7 +946,6 @@ namespace Sniper
                 {
                     _save.Missions.Remove(record);
                     if (_mission.Id == Range.Id) { _save.Ranges++; _save.RangeLevel++; }
-                    else if (_mission.Id == Safari.Id) { _save.Safaris++; _save.SafariLevel++; }
                     else { _save.Hunts++; _save.HuntLevel++; }
                 }
                 if (_dailyRun && _save.DailyDone != Today)
@@ -967,7 +959,13 @@ namespace Sniper
             _doubled = false;
             _save.Finished++;
             // A break every third contract, never in the first three.
-            _breakDue = _save.Completed >= 3 && _save.Finished % 3 == 0;
+            // A break only after a contract won, every fourth one, never in the first three; a lost contract is punishment enough.
+            _breakDue = false;
+            if (_result.Won && _save.Completed >= 3 && ++_save.SinceBreak >= 4)
+            {
+                _breakDue = true;
+                _save.SinceBreak = 0;
+            }
             _save.Kills += _result.Kills;
             _save.Headshots += _result.Headshots;
             _save.Shots += _result.Shots;
@@ -995,7 +993,6 @@ namespace Sniper
                 case "stars": return _save.Stars;
                 case "blasts": return _save.Blasts;
                 case "ranges": return _save.Ranges;
-                case "safaris": return _save.Safaris;
                 default: return _save.Hunts;
             }
         }
@@ -1043,8 +1040,6 @@ namespace Sniper
         string WhyKey(LostWhy why)
         {
             if (_mission.Id == Range.Id && why == LostWhy.Civilian) return "sn.why.friend";
-            if (_mission.Id == Safari.Id && why == LostWhy.Civilian) return "sn.why.hind";
-            if (_mission.Id == Safari.Id && why == LostWhy.AllyDown) return "sn.why.herd";
             return "sn.why." + why.ToString().ToLowerInvariant();
         }
 
@@ -1203,7 +1198,6 @@ namespace Sniper
         public void AutomationSettings() => ShowSettings();
         public void AutomationHunt() { _save.HuntLevel = 6; StartHunt(); }
         public void AutomationRange(int level, bool play) { _save.RangeLevel = level; StartRange(); if (play) StartMission(); }
-        public void AutomationSafari(int level, bool play) { _save.SafariLevel = level; StartSafari(); if (play) StartMission(); }
         public SniperSplash AutomationSplash(float at)
         {
             SniperSplash splash = SniperSplash.Create(transform, _sfx);
