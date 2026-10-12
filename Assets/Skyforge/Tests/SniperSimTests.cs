@@ -315,40 +315,6 @@ namespace Skyforge.Tests
             Assert.AreEqual(LostWhy.Civilian, sim.Why);
         }
 
-        [Test]
-        public void EveryHuntInTheReserveCanBeWon()
-        {
-            foreach (string rifle in new[] { "m24", "vss" })
-            for (int level = 1; level <= 14; level++)
-            {
-                MissionDef hunt = Safari.Make(level, level * 5);
-                foreach (ActorDef actor in hunt.Actors) Assert.AreEqual(Kind.Beast, actor.Kind);
-                SniperSim sim = Marksman(hunt, rifle);
-                Assert.AreEqual(Outcome.Won, sim.Outcome, rifle + " hunt " + level + " lost: " + sim.Why + " after " + sim.Elapsed + " s, shots " + sim.Shots + ", kills " + sim.Kills);
-            }
-        }
-
-        [Test]
-        public void AnAnimalIsHitWhereItStandsAndTheHerdRunsFromTheShot()
-        {
-            MissionDef hunt = Safari.Make(1, 2);
-            var sim = new SniperSim(hunt, Campaign.Location(hunt.LocationId), Armory.Get("m24"));
-            int stag = hunt.Actors.FindIndex(actor => actor.Role == Role.Target), hind = hunt.Actors.FindIndex(actor => actor.Role == Role.Civilian);
-            Vector3 start = sim.Actor(hind).Position;
-            // Over its back: a miss, and a loud one.
-            sim.Fire(hunt.Perch, AimAt(sim, sim.Actor(stag).Position + new Vector3(0f, 4f, 0f)));
-            for (float t = 0f; t < 4f; t += 0.02f) sim.Step(0.02f);
-            Assert.AreEqual(0, sim.Kills);
-            Assert.AreEqual(Mood.Alarmed, sim.Actor(hind).Mood);
-            Assert.Greater((sim.Actor(hind).Position - start).magnitude, 5f, "the hind bolts");
-            Assert.AreEqual("Gallop", sim.Actor(hind).Clip);
-            // A round through the middle of the body of one that has not moved yet.
-            var still = new SniperSim(Safari.Make(1, 2), Campaign.Location(hunt.LocationId), Armory.Get("m24"));
-            still.Fire(hunt.Perch, AimAt(still, still.Actor(stag).Position + new Vector3(0f, hunt.Actors[stag].Shoulder - hunt.Actors[stag].Girth, 0f)));
-            for (float t = 0f; t < 2f && still.Kills == 0; t += 0.02f) still.Step(0.02f);
-            Assert.AreEqual(1, still.Kills);
-        }
-
         /// <summary>
         /// Not a test of anything: when SNIPER_DUMP names a file, the places and contracts are written
         /// there as JSON, for the tool that draws them on the laptop without Unity.

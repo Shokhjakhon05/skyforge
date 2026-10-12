@@ -34,7 +34,7 @@ namespace Sniper
         public int Streak;
         /// <summary>The career in numbers.</summary>
         public int Shots, Blasts, Hunts, HuntLevel = 1, Finished;
-        public int Ranges, RangeLevel = 1, Safaris, SafariLevel = 1;
+        public int Ranges, RangeLevel = 1, SinceBreak;
         public float LongestShot;
         public List<string> Feats = new List<string>();
         /// <summary>"Pro": no names over heads and no range in the glass, for half as much pay again.</summary>

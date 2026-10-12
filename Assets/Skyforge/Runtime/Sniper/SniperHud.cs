@@ -25,6 +25,15 @@ namespace Sniper
         readonly Text[] _tags = new Text[10];
         float _messageAge = 99f, _hurtShown;
 
+        Text _fire;
+
+        /// <summary>The buttons are made once; when the language changes their words are written again.</summary>
+        public void Relabel()
+        {
+            if (_fire != null) _fire.text = Loc.T("sn.fire");
+            if (_breathLabel != null) _breathLabel.text = Loc.T("sn.breath");
+        }
+
         public SniperHud(Transform parent)
         {
             var middle = new Vector2(0.5f, 0.5f);
@@ -88,6 +97,7 @@ namespace Sniper
             _hint.gameObject.AddComponent<Shadow>().effectColor = new Color(0f, 0f, 0f, 0.9f);
 
             Text fire = UiKit.Button(safe, "Fire", UiKit.Accent, 46, () => FirePressed?.Invoke());
+            _fire = fire;
             fire.text = Loc.T("sn.fire");
             fire.color = new Color(0.1f, 0.05f, 0f);
             UiKit.Place((RectTransform)fire.transform.parent, new Vector2(1f, 0f), new Vector2(-70f, 150f), new Vector2(300f, 190f));
