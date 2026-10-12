@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
@@ -189,6 +190,10 @@ namespace Skyforge.EditorTools
                 importer.importLights = false;
                 importer.materialImportMode = ModelImporterMaterialImportMode.ImportStandard;
                 importer.meshCompression = ModelImporterMeshCompression.Medium;
+                // Fifty thousand triangles a head is for a close-up; far off, the importer's own lighter versions are drawn.
+                System.Reflection.PropertyInfo lods = typeof(ModelImporter).GetProperty("generateMeshLods");
+                if (lods != null && lods.CanWrite) lods.SetValue(importer, true);
+                else Debug.LogWarning("[Skyforge] this editor cannot make lighter versions of a mesh on import");
                 importer.SaveAndReimport();
                 string pictures = "Assets/Sniper/Mixamo/Tex/" + name;
                 Directory.CreateDirectory(pictures);
@@ -196,6 +201,7 @@ namespace Skyforge.EditorTools
                 bool extracted = importer.ExtractTextures(pictures);
                 AssetDatabase.Refresh();
                 int count = 0;
+                Debug.Log("[Skyforge] realistic " + name + " pictures: " + string.Join(", ", Directory.GetFiles(pictures, "*.*").Where(f => !f.EndsWith(".meta")).Select(Path.GetFileName)));
                 foreach (string picture in Directory.GetFiles(pictures))
                 {
                     if (picture.EndsWith(".meta")) continue;
@@ -212,6 +218,19 @@ namespace Skyforge.EditorTools
                 AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
                 Debug.Log("[Skyforge] realistic " + name + ": pictures extracted " + extracted + " (" + count + ")");
             }
+
+            // Which picture each material wears, read out of the model files beforehand (tools: fbxmap.py).
+            var wears = new System.Collections.Generic.Dictionary<string, string[]>();
+            const string table = "Assets/Sniper/mixamo_materials.txt";
+            if (File.Exists(table))
+                foreach (string line in File.ReadAllLines(table))
+                {
+                    string[] cells = line.Split('|');
+                    if (cells.Length >= 5) wears[cells[0] + "|" + cells[1]] = cells;
+                }
+            var painted = new System.Collections.Generic.Dictionary<string, Material>();
+            string paintDir = GeneratedDir + "/Materials";
+            Directory.CreateDirectory(paintDir);
 
             float sourceHips = 0f;
             var suit = AssetDatabase.LoadAssetAtPath<GameObject>(chars + "/suit.fbx");
@@ -245,9 +264,60 @@ namespace Skyforge.EditorTools
                 }
                 var report = new System.Text.StringBuilder();
                 foreach (Renderer renderer in instance.GetComponentsInChildren<Renderer>(true))
-                    foreach (Material material in renderer.sharedMaterials)
-                        if (material != null) report.Append(" " + material.name + "<" + material.shader.name + (material.HasProperty("_BaseMap") && material.GetTexture("_BaseMap") != null ? " " + AssetDatabase.GetAssetPath(material.GetTexture("_BaseMap")) : " no picture") + ">");
-                Repaint(instance, name);
+                {
+                    Material[] materials = renderer.sharedMaterials;
+                    for (int i = 0; i < materials.Length; i++)
+                    {
+                        if (materials[i] == null) continue;
+                        string plain = materials[i].name.StartsWith(name + "-") ? materials[i].name.Substring(name.Length + 1) : materials[i].name;
+                        string key = name + "|" + plain;
+                        if (!painted.TryGetValue(key, out Material lit))
+                        {
+                            lit = new Material(FindShader("Universal Render Pipeline/Lit"));
+                            lit.SetColor("_BaseColor", Color.white);
+                            lit.SetFloat("_Smoothness", 0.18f);
+                            lit.SetFloat("_Metallic", 0f);
+                            Texture2D Picture(string file)
+                            {
+                                if (string.IsNullOrEmpty(file)) return null;
+                                string wanted = Path.GetFileNameWithoutExtension(file);
+                                foreach (string found in Directory.GetFiles("Assets/Sniper/Mixamo/Tex/" + name))
+                                    if (!found.EndsWith(".meta") && Path.GetFileNameWithoutExtension(found) == wanted) return AssetDatabase.LoadAssetAtPath<Texture2D>(found.Replace('\\', '/'));
+                                return null;
+                            }
+                            if (wears.TryGetValue(key, out string[] cells))
+                            {
+                                Texture2D colour = Picture(cells[2]), relief = Picture(cells[3]);
+                                if (colour != null) lit.SetTexture("_BaseMap", colour);
+                                if (relief != null)
+                                {
+                                    lit.SetTexture("_BumpMap", relief);
+                                    lit.EnableKeyword("_NORMALMAP");
+                                }
+                                if (cells[4] == "1" && colour != null)
+                                {
+                                    // Hair and lashes are drawn on cards: where the picture is clear, nothing is drawn.
+                                    lit.SetFloat("_AlphaClip", 1f);
+                                    lit.SetFloat("_Cutoff", 0.35f);
+                                    lit.EnableKeyword("_ALPHATEST_ON");
+                                    lit.SetFloat("_Cull", 0f);
+                                    lit.renderQueue = 2450;
+                                }
+                                report.Append(" " + plain + (colour != null ? "=" + colour.name + " " + colour.width : "=NO PICTURE " + cells[2]));
+                            }
+                            else report.Append(" " + plain + "=NOT IN TABLE");
+                            AssetDatabase.CreateAsset(lit, paintDir + "/Real_" + System.Text.RegularExpressions.Regex.Replace(key, "[^A-Za-z0-9_]", "_") + ".mat");
+                            painted[key] = lit;
+                        }
+                        materials[i] = lit;
+                    }
+                    renderer.sharedMaterials = materials;
+                }
+                foreach (SkinnedMeshRenderer skinned in instance.GetComponentsInChildren<SkinnedMeshRenderer>())
+                {
+                    System.Reflection.PropertyInfo levels = skinned.sharedMesh != null ? typeof(Mesh).GetProperty("lodCount") : null;
+                    if (levels != null) report.Append(" lods:" + levels.GetValue(skinned.sharedMesh));
+                }
                 Animation player = instance.GetComponent<Animation>();
                 if (player == null) player = instance.AddComponent<Animation>();
                 player.playAutomatically = false;

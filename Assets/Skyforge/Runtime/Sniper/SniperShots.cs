@@ -80,6 +80,12 @@ namespace Sniper
             yield return Shot("13_alarm_guard", 1);
             yield return Frames(200);
             yield return Shot("14_under_fire", 1);
+            // The same guard from across the yard: is the rifle in his hands, and the right way round?
+            Vector3 guard = _game.AutomationHead(1);
+            _game.AutomationLook(guard + new Vector3(1.6f, -0.1f, -3.2f), guard + new Vector3(0f, -0.45f, 0f), 40f);
+            yield return Shot("14b_guard_near", 1);
+            _game.AutomationLook(guard + new Vector3(-3f, 0.1f, 0.6f), guard + new Vector3(0f, -0.45f, 0f), 40f);
+            yield return Shot("14c_guard_side", 1);
 
             // The range and the reserve.
             _game.AutomationRange(6, false);
