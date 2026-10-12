@@ -99,8 +99,8 @@ namespace Sniper
             list.Add(range);
 
             // The reserve: a meadow among trees, a stream of logs and a keeper's hut, seen from a high seat at the wood's edge.
-            var wild = new LocationDef { Id = "wild", NameKey = "loc.wild", Ground = "grass", Light = "dusk", HalfSize = 260f, Ambience = "amb_wind", AmbienceVolume = 0.25f };
-            Put(wild, "lookout", 0f, -131.5f, 0f, 9.6f, true);
+            var wild = new LocationDef { Id = "wild", NameKey = "loc.wild", Ground = "grass", Light = "day", HalfSize = 260f, Ambience = "amb_wind", AmbienceVolume = 0.25f };
+            Put(wild, "lookout", 0f, -135f, 0f, 8.4f, true);
             Put(wild, "hut", 60f, -40f, 200f, 4.2f);
             Put(wild, "cabin", -84f, 64f, 120f, 5.5f);
             Put(wild, "well", 52f, -32f, 0f, 2.2f);
@@ -111,15 +111,22 @@ namespace Sniper
                 float x = -66f + (i * 61) % 130, z = -10f + (i * 43) % 100;
                 Slab(wild, x, z, 2.2f + i % 3, 1f + (i % 2) * 0.6f, 1.8f + (i * 7) % 3, "77787a", i * 33f, 0f, false);
             }
-            for (int i = 0; i < 120; i++)
+            for (int i = 0; i < 260; i++)
             {
                 // A ring of wood round the meadow, thinning inward; nothing where the animals graze.
                 float angle = i * 2.399963f, away = 78f + (i * 29) % 150;
                 float x = Mathf.Sin(angle) * away, z = 30f + Mathf.Cos(angle) * away * 0.95f;
-                if (z < -110f && Mathf.Abs(x) < 26f) continue;
+                // Nothing between the high seat and the meadow: the whole of it is in view from there.
+                if (z < 70f && Mathf.Abs(x) < 95f) continue;
                 Put(wild, "tree", x, z, i * 67f, 8f + (i * 11) % 8, true);
             }
-            for (int i = 0; i < 10; i++) Put(wild, "tree", -60f + (i * 53) % 120, -20f + (i * 31) % 95, i * 41f, 6f + i % 4, true);
+            // The wood closes in behind the seat and down both flanks.
+            for (int i = 0; i < 40; i++)
+            {
+                float side = i % 2 == 0 ? -1f : 1f;
+                Put(wild, "tree", side * (100f + (i * 37) % 70), -150f + i * 6.5f + (i * 13) % 9, i * 59f, 9f + (i * 7) % 7, true);
+            }
+            for (int i = 0; i < 12; i++) Put(wild, "tree", -110f + i * 20f + (i * 11) % 8, -150f - (i * 17) % 30, i * 43f, 10f + i % 5, true);
             list.Add(wild);
             return list;
         }

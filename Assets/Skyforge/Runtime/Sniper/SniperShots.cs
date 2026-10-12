@@ -29,6 +29,18 @@ namespace Sniper
 
             // Everyone the game can put in a scene, side by side, each doing something different.
             yield return Parade();
+            if (ShotDirector.Quick)
+            {
+                // A short run: the people, a guard with his rifle, the range, the reserve.
+                _game.AutomationPlay("docks3");
+                yield return Frames(30);
+                Vector3 sentry = _game.AutomationHead(1);
+                _game.AutomationLook(sentry + new Vector3(1.6f, -0.1f, -3.2f), sentry + new Vector3(0f, -0.45f, 0f), 40f);
+                yield return Shot("14b_guard_near", 1);
+                yield return Modes();
+                ShotDirector.Finished = true;
+                yield break;
+            }
 
             // The place itself, from where nobody plays: is it a quay or a heap of boxes?
             _game.AutomationLook(new Vector3(-60f, 40f, -120f), new Vector3(0f, 2f, 20f), 55f);
@@ -87,49 +99,7 @@ namespace Sniper
             _game.AutomationLook(guard + new Vector3(-3f, 0.1f, 0.6f), guard + new Vector3(0f, -0.45f, 0f), 40f);
             yield return Shot("14c_guard_side", 1);
 
-            // The range and the reserve.
-            _game.AutomationRange(6, false);
-            yield return Shot("60_range_briefing");
-            _game.AutomationRange(6, true);
-            yield return Frames(20);
-            yield return Shot("61_range_wide", 1);
-            _game.AutomationZoom(3);
-            _game.AutomationAim(_game.AutomationHead(0), false);
-            yield return Frames(3);
-            yield return Shot("62_range_scope", 1);
-            _game.AutomationAim(_game.AutomationHead(0), true);
-            yield return Frames(2);
-            _game.AutomationFire();
-            yield return Frames(20);
-            yield return Shot("63_range_hit", 1);
-            _game.AutomationLook(new Vector3(-14f, 2.2f, -70f), new Vector3(0f, 1.2f, -40f), 50f);
-            yield return Shot("63b_range_boards", 1);
-            _game.AutomationSafari(1, false);
-            yield return Shot("64_safari_briefing");
-            _game.AutomationSafari(1, true);
-            yield return Frames(30);
-            yield return Shot("65_safari_wide", 1);
-            _game.AutomationZoom(3);
-            _game.AutomationAim(_game.AutomationHead(0), false);
-            yield return Frames(3);
-            yield return Shot("66_safari_scope", 1);
-            Vector3 beast = _game.AutomationHead(0);
-            _game.AutomationLook(beast + new Vector3(7f, 0.6f, -5f), beast + new Vector3(0f, -0.6f, 0f), 40f);
-            yield return Shot("66b_safari_near", 1);
-            _game.AutomationSafari(2, true);
-            yield return Frames(60);
-            _game.AutomationZoom(3);
-            _game.AutomationAim(_game.AutomationHead(3), false);
-            yield return Frames(3);
-            yield return Shot("67_wolves_scope", 1);
-            _game.AutomationMenu("docks");
-            yield return Frames(6);
-
-            if (ShotDirector.Quick)
-            {
-                ShotDirector.Finished = true;
-                yield break;
-            }
+            yield return Modes();
 
             // The other two places: from above, from the street, from the rifle.
             _game.AutomationMenu("town");
@@ -222,6 +192,52 @@ namespace Sniper
             _game.AutomationLanguage("en");
 
             ShotDirector.Finished = true;
+        }
+
+        IEnumerator Modes()
+        {
+            // The range and the reserve.
+            _game.AutomationRange(6, false);
+            yield return Shot("60_range_briefing");
+            _game.AutomationRange(6, true);
+            yield return Frames(20);
+            yield return Shot("61_range_wide", 1);
+            _game.AutomationZoom(3);
+            _game.AutomationAim(_game.AutomationHead(0), false);
+            yield return Frames(3);
+            yield return Shot("62_range_scope", 1);
+            _game.AutomationAim(_game.AutomationHead(0), true);
+            yield return Frames(2);
+            _game.AutomationFire();
+            yield return Frames(20);
+            yield return Shot("63_range_hit", 1);
+            _game.AutomationLook(new Vector3(-14f, 2.2f, -70f), new Vector3(0f, 1.2f, -40f), 50f);
+            yield return Shot("63b_range_boards", 1);
+            _game.AutomationSafari(1, false);
+            yield return Shot("64_safari_briefing");
+            _game.AutomationSafari(1, true);
+            yield return Frames(30);
+            yield return Shot("65_safari_wide", 1);
+            _game.AutomationZoom(3);
+            _game.AutomationAim(_game.AutomationHead(0), false);
+            yield return Frames(3);
+            yield return Shot("66_safari_scope", 1);
+            Vector3 beast = _game.AutomationHead(0);
+            _game.AutomationLook(beast + new Vector3(7f, 0.6f, -5f), beast + new Vector3(0f, -0.6f, 0f), 40f);
+            yield return Shot("66b_safari_near", 1);
+            _game.AutomationLook(beast + new Vector3(0f, 0.2f, -6f), beast + new Vector3(0f, -0.6f, 0f), 40f);
+            yield return Shot("66c_safari_front", 1);
+            _game.AutomationSafari(2, true);
+            yield return Frames(40);
+            _game.AutomationZoom(3);
+            _game.AutomationAim(_game.AutomationHead(3), false);
+            yield return Frames(3);
+            yield return Shot("67_wolves_scope", 1);
+            Vector3 wolf = _game.AutomationHead(3);
+            _game.AutomationLook(wolf + new Vector3(4f, 0.8f, -3f), wolf + new Vector3(0f, -0.3f, 0f), 40f);
+            yield return Shot("67b_wolf_near", 1);
+            _game.AutomationMenu("docks");
+            yield return Frames(6);
         }
 
         IEnumerator Parade()

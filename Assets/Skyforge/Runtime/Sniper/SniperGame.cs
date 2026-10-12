@@ -486,7 +486,11 @@ namespace Sniper
                 if (def.Role == Role.Target)
                     _hud.Tag(used++, screen, aimed ? "<color=#ff5a40>" + Loc.T(def.NameKey).ToUpperInvariant() + "</color>" + (def.Bounty > 0 ? "\n<size=20>$" + def.Bounty + "</size>" : "") : "<color=#ff5a40><size=30>v</size></color>");
                 else if (aimed && scoped)
-                    _hud.Tag(used++, screen, def.Role == Role.Civilian ? "<color=#6fe08a>" + Loc.T("sn.tag.civilian") + "</color>" : def.Role == Role.Ally ? "<color=#60a0ff>" + Loc.T("sn.tag.ally") + "</color>" : "<color=#ffb040>" + Loc.T("sn.tag.guard") + "</color>");
+                {
+                    // A board or an animal is called what it is; "civilian" is for people.
+                    string spared = def.Kind == Kind.Man ? Loc.T("sn.tag.civilian") : Loc.T(def.NameKey).ToUpperInvariant();
+                    _hud.Tag(used++, screen, def.Role == Role.Civilian ? "<color=#6fe08a>" + spared + "</color>" : def.Role == Role.Ally ? "<color=#60a0ff>" + (def.Kind == Kind.Man ? Loc.T("sn.tag.ally") : spared) + "</color>" : "<color=#ffb040>" + Loc.T("sn.tag.guard") + "</color>");
+                }
             }
             _hud.EndTags(used);
             _hud.SetHint(Lesson());
