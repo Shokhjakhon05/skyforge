@@ -341,6 +341,12 @@ namespace Sniper
             a.Reacting = false;
             if (a.Mood != Mood.Calm) return;
             a.Mood = Mood.Alarmed;
+            // A bystander freezes for a moment before he runs.
+            if (Mission.Actors[index].Role == Role.Civilian && Mission.Actors[index].Kind == Kind.Man)
+            {
+                SetClip(ref a, "Terrified", true);
+                a.Stun = 0.9f;
+            }
             float distance = (Mission.Perch - a.Position).magnitude;
             a.Aim = 2.6f + distance / 110f + (float)_random.NextDouble();
             a.FireIn = 0.4f;

@@ -33,11 +33,14 @@ namespace Sniper
         public static readonly List<RifleDef> All = new List<RifleDef>
         {
             new RifleDef { Id = "m24", NameKey = "rifle.m24", Price = 0, Damage = 100f, Zoom = 8f, Stability = 0.15f, Magazine = 5, BoltSeconds = 1.25f },
+            new RifleDef { Id = "mosin", NameKey = "rifle.mosin", Price = 2200, MissionsRequired = 2, Damage = 125f, Zoom = 6f, Stability = 0.12f, Magazine = 5, BoltSeconds = 1.5f, MuzzleSpeed = 860f },
             new RifleDef { Id = "svd", NameKey = "rifle.svd", Price = 4500, MissionsRequired = 3, Damage = 110f, Zoom = 8f, Stability = 0.2f, Magazine = 10, BoltSeconds = 0.55f, MuzzleSpeed = 800f },
             new RifleDef { Id = "vss", NameKey = "rifle.vss", Price = 12000, MissionsRequired = 7, Damage = 105f, Zoom = 8f, Stability = 0.3f, Magazine = 10, BoltSeconds = 0.5f, MuzzleSpeed = 420f, Suppressed = true },
             new RifleDef { Id = "awm", NameKey = "rifle.awm", Price = 26000, MissionsRequired = 12, Damage = 180f, Zoom = 12f, Stability = 0.35f, Magazine = 5, BoltSeconds = 1.2f, MuzzleSpeed = 900f },
+            new RifleDef { Id = "dsr", NameKey = "rifle.dsr", Price = 38000, MissionsRequired = 15, Damage = 200f, Zoom = 14f, Stability = 0.48f, Magazine = 5, BoltSeconds = 1.0f, MuzzleSpeed = 920f },
             new RifleDef { Id = "m82", NameKey = "rifle.m82", Price = 55000, MissionsRequired = 18, Damage = 260f, Zoom = 14f, Stability = 0.3f, Magazine = 8, BoltSeconds = 0.8f, MuzzleSpeed = 850f, Piercing = true },
             new RifleDef { Id = "ghost", NameKey = "rifle.ghost", Price = 98000, MissionsRequired = 24, Damage = 240f, Zoom = 16f, Stability = 0.5f, Magazine = 7, BoltSeconds = 0.9f, MuzzleSpeed = 880f, Suppressed = true, Piercing = true },
+            new RifleDef { Id = "m200", NameKey = "rifle.m200", Price = 150000, MissionsRequired = 30, Damage = 320f, Zoom = 20f, Stability = 0.58f, Magazine = 7, BoltSeconds = 1.1f, MuzzleSpeed = 1000f, Piercing = true },
         };
 
         public static RifleDef Get(string id)

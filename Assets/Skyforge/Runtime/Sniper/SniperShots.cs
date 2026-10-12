@@ -81,6 +81,44 @@ namespace Sniper
             yield return Frames(200);
             yield return Shot("14_under_fire", 1);
 
+            // The range and the reserve.
+            _game.AutomationRange(6, false);
+            yield return Shot("60_range_briefing");
+            _game.AutomationRange(6, true);
+            yield return Frames(20);
+            yield return Shot("61_range_wide", 1);
+            _game.AutomationZoom(3);
+            _game.AutomationAim(_game.AutomationHead(0), false);
+            yield return Frames(3);
+            yield return Shot("62_range_scope", 1);
+            _game.AutomationAim(_game.AutomationHead(0), true);
+            yield return Frames(2);
+            _game.AutomationFire();
+            yield return Frames(20);
+            yield return Shot("63_range_hit", 1);
+            _game.AutomationLook(new Vector3(-14f, 2.2f, -70f), new Vector3(0f, 1.2f, -40f), 50f);
+            yield return Shot("63b_range_boards", 1);
+            _game.AutomationSafari(1, false);
+            yield return Shot("64_safari_briefing");
+            _game.AutomationSafari(1, true);
+            yield return Frames(30);
+            yield return Shot("65_safari_wide", 1);
+            _game.AutomationZoom(3);
+            _game.AutomationAim(_game.AutomationHead(0), false);
+            yield return Frames(3);
+            yield return Shot("66_safari_scope", 1);
+            Vector3 beast = _game.AutomationHead(0);
+            _game.AutomationLook(beast + new Vector3(7f, 0.6f, -5f), beast + new Vector3(0f, -0.6f, 0f), 40f);
+            yield return Shot("66b_safari_near", 1);
+            _game.AutomationSafari(2, true);
+            yield return Frames(60);
+            _game.AutomationZoom(3);
+            _game.AutomationAim(_game.AutomationHead(3), false);
+            yield return Frames(3);
+            yield return Shot("67_wolves_scope", 1);
+            _game.AutomationMenu("docks");
+            yield return Frames(6);
+
             if (ShotDirector.Quick)
             {
                 ShotDirector.Finished = true;

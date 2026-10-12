@@ -12,9 +12,15 @@ namespace Sniper
         public static List<LocationDef> Locations => _locations ?? (_locations = BuildLocations());
         public static List<MissionDef> Missions => _missions ?? (_missions = BuildMissions());
 
+        static List<LocationDef> _extra;
+        /// <summary>Places no contract is set in: the range and the reserve.</summary>
+        public static List<LocationDef> Extra => _extra ?? (_extra = BuildExtra());
+
         public static LocationDef Location(string id)
         {
             foreach (LocationDef location in Locations)
+                if (location.Id == id) return location;
+            foreach (LocationDef location in Extra)
                 if (location.Id == id) return location;
             return Locations[0];
         }
@@ -55,6 +61,67 @@ namespace Sniper
         static void Row(LocationDef l, string model, float x, float z, float stepX, float stepZ, int count, float yaw = 0f, float height = 0f, bool open = false, bool thin = false)
         {
             for (int i = 0; i < count; i++) Put(l, model, x + stepX * i, z + stepZ * i, yaw, height, open, thin);
+        }
+
+        static List<LocationDef> BuildExtra()
+        {
+            var list = new List<LocationDef>();
+
+            // The range: five lanes on grass between earth banks, a board every fifty metres saying how far.
+            var range = new LocationDef { Id = "range", NameKey = "loc.range", Ground = "grass", Light = "day", HalfSize = 260f, Ambience = "amb_wind", AmbienceVolume = 0.2f };
+            Slab(range, 0f, -122f, 56f, 0.12f, 9f, "9a9a94");
+            for (int lane = 0; lane <= 5; lane++) Slab(range, -25f + lane * 10f, 40f, 0.18f, 0.03f, 320f, "e8e8e0");
+            for (int mark = 1; mark <= 6; mark++)
+            {
+                float z = Range.Line.z + mark * 50f;
+                Slab(range, 0f, z, 50f, 0.03f, 0.25f, "e8e8e0");
+                Slab(range, -28.5f, z, 2.2f, 1.5f, 0.12f, mark % 2 == 0 ? "f2c230" : "e8e8e0", 0f, 0.9f);
+                Slab(range, -28.5f, z, 0.14f, 0.9f, 0.14f, "4a4a4a");
+                Slab(range, 28.5f, z, 2.2f, 1.5f, 0.12f, mark % 2 == 0 ? "f2c230" : "e8e8e0", 0f, 0.9f);
+                Slab(range, 28.5f, z, 0.14f, 0.9f, 0.14f, "4a4a4a");
+            }
+            // Banks: one behind the last board, one down each side. A round that misses stops in earth.
+            Slab(range, 0f, 205f, 96f, 9f, 10f, "6a5a3e", 0f, 0f, false);
+            Slab(range, -38f, 40f, 6f, 3.5f, 330f, "6a5a3e", 0f, 0f, false);
+            Slab(range, 38f, 40f, 6f, 3.5f, 330f, "6a5a3e", 0f, 0f, false);
+            Put(range, "shed", -22f, -140f, 0f, 6f, true);
+            Put(range, "lookout", 24f, -134f, 0f, 9f, true);
+            Put(range, "truck", 12f, -140f, 100f, 0f, true);
+            Put(range, "pickup", 4f, -142f, 80f, 0f, true);
+            Row(range, "crate", -8f, -118.5f, 1.3f, 0f, 3, 0f, 0.9f, true);
+            Row(range, "barrel", 8f, -118.5f, 1.1f, 0f, 2, 0f, 1.1f, true);
+            for (int i = 0; i < 46; i++)
+            {
+                float side = i % 2 == 0 ? -1f : 1f;
+                Put(range, "tree", side * (52f + (i * 37) % 60), -150f + i * 8.4f + (i * 13) % 7, i * 53f, 8f + (i * 7) % 6, true);
+            }
+            for (int i = 0; i < 14; i++) Put(range, "tree", -120f + i * 18f + (i * 11) % 9, 232f + (i * 17) % 30, i * 71f, 10f + (i * 5) % 7, true);
+            list.Add(range);
+
+            // The reserve: a meadow among trees, a stream of logs and a keeper's hut, seen from a high seat at the wood's edge.
+            var wild = new LocationDef { Id = "wild", NameKey = "loc.wild", Ground = "grass", Light = "dusk", HalfSize = 260f, Ambience = "amb_wind", AmbienceVolume = 0.25f };
+            Put(wild, "lookout", 0f, -131.5f, 0f, 9.6f, true);
+            Put(wild, "hut", 60f, -40f, 200f, 4.2f);
+            Put(wild, "cabin", -84f, 64f, 120f, 5.5f);
+            Put(wild, "well", 52f, -32f, 0f, 2.2f);
+            Row(wild, "fence_wood", 44f, -52f, 3f, 0f, 8, 0f, 1.3f, false, true);
+            for (int i = 0; i < 7; i++) Put(wild, "logs", -70f + i * 23f + (i * 13) % 11, -22f + (i * 29) % 110, i * 47f, 1.1f);
+            for (int i = 0; i < 9; i++)
+            {
+                float x = -66f + (i * 61) % 130, z = -10f + (i * 43) % 100;
+                Slab(wild, x, z, 2.2f + i % 3, 1f + (i % 2) * 0.6f, 1.8f + (i * 7) % 3, "77787a", i * 33f, 0f, false);
+            }
+            for (int i = 0; i < 120; i++)
+            {
+                // A ring of wood round the meadow, thinning inward; nothing where the animals graze.
+                float angle = i * 2.399963f, away = 78f + (i * 29) % 150;
+                float x = Mathf.Sin(angle) * away, z = 30f + Mathf.Cos(angle) * away * 0.95f;
+                if (z < -110f && Mathf.Abs(x) < 26f) continue;
+                Put(wild, "tree", x, z, i * 67f, 8f + (i * 11) % 8, true);
+            }
+            for (int i = 0; i < 10; i++) Put(wild, "tree", -60f + (i * 53) % 120, -20f + (i * 31) % 95, i * 41f, 6f + i % 4, true);
+            list.Add(wild);
+            return list;
         }
 
         static List<LocationDef> BuildLocations()

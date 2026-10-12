@@ -250,7 +250,12 @@ namespace Sniper
             for (int i = 0; i < sim.ActorCount; i++)
             {
                 ActorDef def = sim.Def(i);
-                GameObject prefab = Load("Chars", def.Model);
+                // The guards are not all one man, and a street is not all men: those who are not named in the orders vary.
+                string look = def.Model;
+                if (def.Kind == Kind.Man && def.Role == Role.Guard && i % 3 != 0) look = i % 3 == 1 ? "guard" : "security";
+                if (def.Kind == Kind.Man && def.Role == Role.Civilian && i % 3 == 0) look = i % 2 == 0 ? "woman" : "lady";
+                GameObject prefab = def.Kind == Kind.Board ? null : Load("Chars", look);
+                if (prefab == null && look != def.Model) prefab = Load("Chars", def.Model);
                 Actor actor = null;
                 HeldRifle rifle = null;
                 Transform root = new GameObject("Actor " + def.Id).transform;
@@ -260,10 +265,11 @@ namespace Sniper
                     GameObject made = Object.Instantiate(prefab, root);
                     actor = made.GetComponent<Actor>();
                     float height = actor != null ? actor.Height : 1.8f;
-                    made.transform.localScale = Vector3.one * (1.8f / Mathf.Max(0.01f, height));
+                    made.transform.localScale = Vector3.one * (def.Tall / Mathf.Max(0.01f, height));
                     if (actor != null && actor.RightHand != null && actor.LeftHand != null && def.Idle != null && def.Idle.StartsWith("Idle_Gun")) rifle = Arm(actor, root);
                 }
                 _rifles.Add(rifle);
+                _boards.Add(def.Kind == Kind.Board ? Board(root, def.Role != Role.Target) : null);
                 _actors.Add(actor);
                 _actorRoots.Add(root);
                 _shownClips.Add(null);
@@ -284,12 +290,22 @@ namespace Sniper
                 root.localPosition = state.Position;
                 Quaternion facing = Quaternion.Euler(0f, state.YawDeg, 0f);
                 root.localRotation = _shownClips[i] == null ? facing : Quaternion.RotateTowards(root.localRotation, facing, 420f * Time.deltaTime);
+                if (_boards[i] != null)
+                {
+                    // A board that has been hit goes over backwards on its hinge.
+                    root.localRotation = facing;
+                    Quaternion lie = Quaternion.Euler(state.Mood == Mood.Dead ? -86f : 0f, 0f, 0f);
+                    _boards[i].localRotation = Quaternion.RotateTowards(_boards[i].localRotation, lie, 520f * Time.deltaTime);
+                    continue;
+                }
                 Actor actor = _actors[i];
                 if (state.Mood == Mood.Dead && _rifles[i] != null && !_rifles[i].Dropped) _rifles[i].Drop(0.45f);
                 if (actor == null || _shownClips[i] == state.Clip) continue;
                 _shownClips[i] = state.Clip;
                 // A model without the clip asked for plays the nearest it has.
                 string clip = state.Clip ?? "Idle";
+                // People with nothing to do find something: a telephone, a cigarette.
+                if (clip == "Idle" && sim.Def(i).Kind == Kind.Man && sim.Def(i).Role == Role.Civilian && i % 3 != 2) clip = i % 3 == 0 ? "Phone" : "Smoke";
                 bool played = actor.Play(clip, state.Loop);
                 if (!played && clip.StartsWith("Death")) played = actor.Play("Death", false);
                 if (!played && clip.EndsWith("_Gun")) played = actor.Play(clip.Substring(0, clip.Length - 4), state.Loop);
@@ -300,6 +316,48 @@ namespace Sniper
         }
 
         readonly List<HeldRifle> _rifles = new List<HeldRifle>();
+        readonly List<Transform> _boards = new List<Transform>();
+        static Material _steel, _mark, _dark, _blue;
+
+        /// <summary>
+        /// A steel board cut to the shape the rounds are judged by: legs, chest, head. One to be hit is
+        /// white with an orange head and heart; one that must be left alone is blue.
+        /// </summary>
+        Transform Board(Transform root, bool friend)
+        {
+            if (_steel == null)
+            {
+                _steel = GameMaterials.Lit(new Color(0.9f, 0.9f, 0.86f), 0.25f);
+                _mark = GameMaterials.Lit(new Color(0.95f, 0.38f, 0.08f), 0.25f);
+                _dark = GameMaterials.Lit(new Color(0.16f, 0.16f, 0.17f), 0.3f);
+                _blue = GameMaterials.Lit(new Color(0.12f, 0.36f, 0.82f), 0.25f);
+            }
+            Transform hinge = new GameObject("Board").transform;
+            hinge.SetParent(root, false);
+            void Plate(Vector3 centre, Vector3 size, Material paint)
+            {
+                var builder = new MeshBuilder();
+                builder.Box(centre, size, Palette.White);
+                var plate = new GameObject("Plate");
+                plate.transform.SetParent(hinge, false);
+                plate.AddComponent<MeshFilter>().sharedMesh = builder.Build("Plate");
+                plate.AddComponent<MeshRenderer>().sharedMaterial = paint;
+            }
+            Material body = friend ? _blue : _steel;
+            Plate(new Vector3(0f, 0.44f, 0f), new Vector3(0.3f, 0.84f, 0.03f), _dark);
+            Plate(new Vector3(0f, 1.18f, 0f), new Vector3(0.46f, 0.66f, 0.03f), body);
+            Plate(new Vector3(0f, 1.63f, 0f), new Vector3(0.26f, 0.27f, 0.03f), friend ? _blue : _mark);
+            if (!friend) Plate(new Vector3(0f, 1.24f, 0.012f), new Vector3(0.17f, 0.17f, 0.03f), _mark);
+            else Plate(new Vector3(0f, 1.2f, 0.012f), new Vector3(0.3f, 0.07f, 0.03f), _steel);
+            // The foot it stands on stays where it is.
+            var foot = new MeshBuilder();
+            foot.Box(new Vector3(0f, 0.03f, -0.12f), new Vector3(0.5f, 0.06f, 0.4f), Palette.White);
+            var stand = new GameObject("Foot");
+            stand.transform.SetParent(root, false);
+            stand.AddComponent<MeshFilter>().sharedMesh = foot.Build("Foot");
+            stand.AddComponent<MeshRenderer>().sharedMaterial = _dark;
+            return hinge;
+        }
 
         /// <summary>A rifle for an armed man: it lies along the line from his right hand to his left, as he holds it.</summary>
         HeldRifle Arm(Actor actor, Transform root)
@@ -336,7 +394,7 @@ namespace Sniper
         static Material _riflePaint;
         static Material RiflePaint => _riflePaint != null ? _riflePaint : _riflePaint = GameMaterials.Lit(new Color(0.07f, 0.07f, 0.08f), 0.35f);
 
-        public Vector3 Head(SniperSim sim, int index) => sim.Actor(index).Position + new Vector3(0f, SniperSim.HeadHeight, 0f);
+        public Vector3 Head(SniperSim sim, int index) => sim.HeadPoint(index);
     }
 
     /// <summary>Keeps a rifle in a man's hands whatever his arms are doing, and lets it fall when he does.</summary>
