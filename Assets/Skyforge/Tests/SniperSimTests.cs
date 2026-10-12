@@ -248,6 +248,107 @@ namespace Skyforge.Tests
             foreach (Feat feat in Feats.All) Assert.IsTrue(ids.Add(feat.Id), feat.Id);
         }
 
+        /// <summary>A shooter who leads a moving mark and never misses a head, on any mission.</summary>
+        static SniperSim Marksman(MissionDef mission, string rifle = "m24")
+        {
+            var sim = new SniperSim(mission, Campaign.Location(mission.LocationId), Armory.Get(rifle));
+            var before = new Vector3[sim.ActorCount];
+            for (int i = 0; i < sim.ActorCount; i++) before[i] = sim.HeadPoint(i);
+            for (float t = 0f; t < 200f && sim.Outcome == Outcome.Running; t += 0.02f)
+            {
+                if (sim.CanFire && t > 0.1f)
+                {
+                    // The one nearest to doing harm first: among wolves, the one closest to the end of its path.
+                    int pick = -1;
+                    float least = float.MaxValue;
+                    for (int i = 0; i < sim.ActorCount; i++)
+                    {
+                        if (sim.Def(i).Role != Role.Target || sim.Actor(i).Mood == Mood.Dead || sim.Actor(i).Mood == Mood.Gone) continue;
+                        Vector3[] path = sim.Def(i).Path;
+                        float left = sim.Def(i).Assassin ? (path[path.Length - 1] - sim.Actor(i).Position).magnitude : i;
+                        if (left < least) { least = left; pick = i; }
+                    }
+                    if (pick >= 0)
+                    {
+                        Vector3 head = sim.HeadPoint(pick), velocity = (head - before[pick]) / 0.02f;
+                        float flight = (head - mission.Perch).magnitude / sim.Rifle.MuzzleSpeed;
+                        sim.Fire(mission.Perch, AimAt(sim, head + velocity * flight));
+                    }
+                }
+                for (int i = 0; i < sim.ActorCount; i++) before[i] = sim.HeadPoint(i);
+                sim.Step(0.02f);
+            }
+            return sim;
+        }
+
+        [Test]
+        public void EveryLevelOfTheRangeCanBeCleared()
+        {
+            for (int level = 1; level <= 16; level++)
+            {
+                MissionDef range = Range.Make(level, level * 3);
+                int boards = 0;
+                foreach (ActorDef actor in range.Actors)
+                {
+                    Assert.AreEqual(Kind.Board, actor.Kind);
+                    if (actor.Role == Role.Target) boards++;
+                    foreach (Vector3 point in actor.Path) Assert.Less(Mathf.Abs(point.x), 34f, "level " + level + " board outside the banks");
+                }
+                Assert.GreaterOrEqual(boards, 4);
+                Assert.Greater(range.Rounds, boards);
+                SniperSim sim = Marksman(range);
+                Assert.AreEqual(Outcome.Won, sim.Outcome, "range " + level + " lost: " + sim.Why + " after " + sim.Elapsed + " s, shots " + sim.Shots + ", kills " + sim.Kills);
+                Assert.IsFalse(sim.Alarm, "steel does not take fright");
+            }
+        }
+
+        [Test]
+        public void ABlueBoardEndsTheRun()
+        {
+            MissionDef range = Range.Make(7, 1);
+            ActorDef friend = range.Actors.Find(actor => actor.Role == Role.Civilian);
+            Assert.IsNotNull(friend);
+            var sim = new SniperSim(range, Campaign.Location(range.LocationId), Armory.Get("m24"));
+            sim.Fire(range.Perch, AimAt(sim, friend.Path[0] + new Vector3(0f, 1.2f, 0f)));
+            for (float t = 0f; t < 3f; t += 0.02f) sim.Step(0.02f);
+            Assert.AreEqual(Outcome.Lost, sim.Outcome);
+            Assert.AreEqual(LostWhy.Civilian, sim.Why);
+        }
+
+        [Test]
+        public void EveryHuntInTheReserveCanBeWon()
+        {
+            foreach (string rifle in new[] { "m24", "vss" })
+            for (int level = 1; level <= 14; level++)
+            {
+                MissionDef hunt = Safari.Make(level, level * 5);
+                foreach (ActorDef actor in hunt.Actors) Assert.AreEqual(Kind.Beast, actor.Kind);
+                SniperSim sim = Marksman(hunt, rifle);
+                Assert.AreEqual(Outcome.Won, sim.Outcome, rifle + " hunt " + level + " lost: " + sim.Why + " after " + sim.Elapsed + " s, shots " + sim.Shots + ", kills " + sim.Kills);
+            }
+        }
+
+        [Test]
+        public void AnAnimalIsHitWhereItStandsAndTheHerdRunsFromTheShot()
+        {
+            MissionDef hunt = Safari.Make(1, 2);
+            var sim = new SniperSim(hunt, Campaign.Location(hunt.LocationId), Armory.Get("m24"));
+            int stag = hunt.Actors.FindIndex(actor => actor.Role == Role.Target), hind = hunt.Actors.FindIndex(actor => actor.Role == Role.Civilian);
+            Vector3 start = sim.Actor(hind).Position;
+            // Over its back: a miss, and a loud one.
+            sim.Fire(hunt.Perch, AimAt(sim, sim.Actor(stag).Position + new Vector3(0f, 4f, 0f)));
+            for (float t = 0f; t < 4f; t += 0.02f) sim.Step(0.02f);
+            Assert.AreEqual(0, sim.Kills);
+            Assert.AreEqual(Mood.Alarmed, sim.Actor(hind).Mood);
+            Assert.Greater((sim.Actor(hind).Position - start).magnitude, 5f, "the hind bolts");
+            Assert.AreEqual("Gallop", sim.Actor(hind).Clip);
+            // A round through the middle of the body of one that has not moved yet.
+            var still = new SniperSim(Safari.Make(1, 2), Campaign.Location(hunt.LocationId), Armory.Get("m24"));
+            still.Fire(hunt.Perch, AimAt(still, still.Actor(stag).Position + new Vector3(0f, hunt.Actors[stag].Shoulder - hunt.Actors[stag].Girth, 0f)));
+            for (float t = 0f; t < 2f && still.Kills == 0; t += 0.02f) still.Step(0.02f);
+            Assert.AreEqual(1, still.Kills);
+        }
+
         /// <summary>
         /// Not a test of anything: when SNIPER_DUMP names a file, the places and contracts are written
         /// there as JSON, for the tool that draws them on the laptop without Unity.

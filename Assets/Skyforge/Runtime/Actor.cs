@@ -14,6 +14,10 @@ namespace Skyforge
         public AnimationClip[] Clips;
         /// <summary>Height of the model as imported, in its own units, so it can be scaled to a man.</summary>
         public float Height = 1.8f;
+        /// <summary>Bones of a motion-captured skeleton, where the model has one: the game hangs a rifle on the hands.</summary>
+        public Transform Hips, RightHand, LeftHand, HeadBone;
+        /// <summary>The clips were recorded on one body; a taller or shorter one carries its hips higher or lower by this much.</summary>
+        public float HipScale = 1f;
 
         PlayableGraph _graph;
         AnimationClipPlayable _playable;
@@ -54,7 +58,10 @@ namespace Skyforge
                 _legacy.playAutomatically = false;
                 if (_legacy.GetClip(clip.name) == null) _legacy.AddClip(clip, clip.name);
                 _legacy[clip.name].wrapMode = loop ? WrapMode.Loop : WrapMode.ClampForever;
-                _legacy.Play(clip.name);
+                _legacy[clip.name].time = from;
+                // One movement runs into the next rather than snapping to it.
+                if (_legacy.isPlaying && Hips != null) _legacy.CrossFade(clip.name, 0.22f);
+                else _legacy.Play(clip.name);
                 return true;
             }
             Animator animator = GetComponent<Animator>() ?? gameObject.AddComponent<Animator>();
@@ -87,6 +94,12 @@ namespace Skyforge
                 return;
             }
             Apply();
+        }
+
+        void LateUpdate()
+        {
+            if (Hips == null || _legacy == null || !_legacy.isPlaying || Mathf.Approximately(HipScale, 1f)) return;
+            Hips.localPosition *= HipScale;
         }
 
         void OnDestroy()

@@ -28,3 +28,6 @@
 /Assets/Plugins/
 /Assets/ExternalDependencyManager/
 /Assets/ExternalDependencyManager.meta
+# Fetched by the build from a private store; never committed here
+/Assets/Sniper/Mixamo/
+/Assets/Sniper/Mixamo.meta

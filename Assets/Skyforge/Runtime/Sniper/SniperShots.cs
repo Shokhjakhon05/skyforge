@@ -27,6 +27,21 @@ namespace Sniper
             yield return Frames(10);
             yield return Shot("01_menu");
 
+            // Everyone the game can put in a scene, side by side, each doing something different.
+            yield return Parade();
+            if (ShotDirector.Quick)
+            {
+                // A short run: the people, a guard with his rifle, the range, the reserve.
+                _game.AutomationPlay("docks3");
+                yield return Frames(30);
+                Vector3 sentry = _game.AutomationHead(1);
+                _game.AutomationLook(sentry + new Vector3(1.6f, -0.1f, -3.2f), sentry + new Vector3(0f, -0.45f, 0f), 40f);
+                yield return Shot("14b_guard_near", 1);
+                yield return Modes();
+                ShotDirector.Finished = true;
+                yield break;
+            }
+
             // The place itself, from where nobody plays: is it a quay or a heap of boxes?
             _game.AutomationLook(new Vector3(-60f, 40f, -120f), new Vector3(0f, 2f, 20f), 55f);
             yield return Shot("02_docks_high");
@@ -77,6 +92,14 @@ namespace Sniper
             yield return Shot("13_alarm_guard", 1);
             yield return Frames(200);
             yield return Shot("14_under_fire", 1);
+            // The same guard from across the yard: is the rifle in his hands, and the right way round?
+            Vector3 guard = _game.AutomationHead(1);
+            _game.AutomationLook(guard + new Vector3(1.6f, -0.1f, -3.2f), guard + new Vector3(0f, -0.45f, 0f), 40f);
+            yield return Shot("14b_guard_near", 1);
+            _game.AutomationLook(guard + new Vector3(-3f, 0.1f, 0.6f), guard + new Vector3(0f, -0.45f, 0f), 40f);
+            yield return Shot("14c_guard_side", 1);
+
+            yield return Modes();
 
             // The other two places: from above, from the street, from the rifle.
             _game.AutomationMenu("town");
@@ -169,6 +192,86 @@ namespace Sniper
             _game.AutomationLanguage("en");
 
             ShotDirector.Finished = true;
+        }
+
+        IEnumerator Modes()
+        {
+            // The range and the reserve.
+            _game.AutomationRange(6, false);
+            yield return Shot("60_range_briefing");
+            _game.AutomationRange(6, true);
+            yield return Frames(20);
+            yield return Shot("61_range_wide", 1);
+            _game.AutomationZoom(3);
+            _game.AutomationAim(_game.AutomationHead(0), false);
+            yield return Frames(3);
+            yield return Shot("62_range_scope", 1);
+            _game.AutomationAim(_game.AutomationHead(0), true);
+            yield return Frames(2);
+            _game.AutomationFire();
+            yield return Frames(20);
+            yield return Shot("63_range_hit", 1);
+            _game.AutomationLook(new Vector3(-14f, 2.2f, -70f), new Vector3(0f, 1.2f, -40f), 50f);
+            yield return Shot("63b_range_boards", 1);
+            _game.AutomationSafari(1, false);
+            yield return Shot("64_safari_briefing");
+            _game.AutomationSafari(1, true);
+            yield return Frames(30);
+            yield return Shot("65_safari_wide", 1);
+            _game.AutomationZoom(3);
+            _game.AutomationAim(_game.AutomationHead(0), false);
+            yield return Frames(3);
+            yield return Shot("66_safari_scope", 1);
+            Vector3 beast = _game.AutomationHead(0);
+            _game.AutomationLook(beast + new Vector3(7f, 0.6f, -5f), beast + new Vector3(0f, -0.6f, 0f), 40f);
+            yield return Shot("66b_safari_near", 1);
+            _game.AutomationLook(beast + new Vector3(0f, 0.2f, -6f), beast + new Vector3(0f, -0.6f, 0f), 40f);
+            yield return Shot("66c_safari_front", 1);
+            _game.AutomationSafari(2, true);
+            yield return Frames(40);
+            _game.AutomationZoom(3);
+            _game.AutomationAim(_game.AutomationHead(3), false);
+            yield return Frames(3);
+            yield return Shot("67_wolves_scope", 1);
+            Vector3 wolf = _game.AutomationHead(3);
+            _game.AutomationLook(wolf + new Vector3(4f, 0.8f, -3f), wolf + new Vector3(0f, -0.3f, 0f), 40f);
+            yield return Shot("67b_wolf_near", 1);
+            _game.AutomationMenu("docks");
+            yield return Frames(6);
+        }
+
+        IEnumerator Parade()
+        {
+            string[] people = { "swat", "guard", "security", "suit", "casual", "worker", "hoodie", "punk", "farmer", "adventurer", "woman", "lady" };
+            string[] doing = { "Idle_Gun", "Idle_Gun_Pointing", "Walk_Gun", "Idle", "Walk", "Interact", "Phone", "Run", "Smoke", "Terrified", "Wave", "Idle" };
+            string[] falling = { "Death", "Death_Head", "Death_Back", "Death_Knees", "HitReact", "Run_Gun", "Idle_Gun_Shoot", "Death", "Death_Head", "Death_Back", "Death_Knees", "Walk" };
+            var row = new GameObject("Parade").transform;
+            var actors = new Actor[people.Length];
+            for (int i = 0; i < people.Length; i++)
+            {
+                var prefab = Resources.Load<GameObject>("Chars/" + people[i]);
+                if (prefab == null) continue;
+                GameObject made = Instantiate(prefab, row);
+                actors[i] = made.GetComponent<Actor>();
+                float height = actors[i] != null ? actors[i].Height : 1.8f;
+                made.transform.localScale = Vector3.one * (1.8f / Mathf.Max(0.01f, height));
+                made.transform.position = new Vector3(-8.25f + (i % 6) * 1.5f - 30f, 0f, -60f + (i / 6) * 2.5f);
+                made.transform.rotation = Quaternion.Euler(0f, 180f, 0f);
+                if (actors[i] != null && !actors[i].Play(doing[i], true)) actors[i].Play("Idle", true);
+            }
+            yield return Frames(25);
+            _game.AutomationLook(new Vector3(-34.5f, 1.7f, -67.5f), new Vector3(-34.5f, 1.0f, -59f), 50f);
+            yield return Shot("01b_people", 2);
+            _game.AutomationLook(new Vector3(-36.5f, 1.5f, -63.2f), new Vector3(-36.3f, 1.25f, -60f), 40f);
+            yield return Shot("01c_people_near", 2);
+            for (int i = 0; i < actors.Length; i++)
+                if (actors[i] != null) actors[i].Play(falling[i], falling[i].StartsWith("Run") || falling[i].StartsWith("Walk") || falling[i].EndsWith("Shoot"));
+            yield return Frames(22);
+            _game.AutomationLook(new Vector3(-34.5f, 1.7f, -67.5f), new Vector3(-34.5f, 1.0f, -59f), 50f);
+            yield return Shot("01d_people_falling", 1);
+            yield return Frames(70);
+            yield return Shot("01e_people_down", 1);
+            Destroy(row.gameObject);
         }
 
         static IEnumerator Frames(int count)

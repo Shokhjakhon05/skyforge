@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
@@ -63,6 +64,7 @@ namespace Skyforge.EditorTools
             CreateRenderPipeline();
             CreateMaterials();
             PrepareCharacters();
+            PrepareMixamo();
             PrepareProps();
             PrepareAds();
             _scene = CreateBootScene();
@@ -119,6 +121,225 @@ namespace Skyforge.EditorTools
         }
 
         /// <summary>
+        /// Realistic people: skinned models and motion-captured clips fetched at build time (they are
+        /// not kept in the repository). Every model's skeleton is given the same bone names, so one
+        /// set of clips serves them all; each becomes a prefab that replaces the stylised one of the same name.
+        /// </summary>
+        static void PrepareMixamo()
+        {
+            const string chars = "Assets/Sniper/Mixamo/Chars", anims = "Assets/Sniper/Mixamo/Anims";
+            if (!Directory.Exists(chars) || !Directory.Exists(anims))
+            {
+                Debug.Log("[Skyforge] no realistic characters fetched: the stylised ones stay");
+                return;
+            }
+            string dir = GeneratedDir + "/Resources/Chars", clipDir = GeneratedDir + "/Anims";
+            Directory.CreateDirectory(dir);
+            Directory.CreateDirectory(clipDir);
+            var prefix = new System.Text.RegularExpressions.Regex(@"mixamorig\d*:");
+
+            var clips = new System.Collections.Generic.List<AnimationClip>();
+            foreach (string file in Directory.GetFiles(anims, "*.fbx"))
+            {
+                string path = file.Replace('\\', '/');
+                string name = Path.GetFileNameWithoutExtension(path);
+                var importer = AssetImporter.GetAtPath(path) as ModelImporter;
+                if (importer == null) { Debug.LogError("[Skyforge] CLIP NOT IMPORTED " + path); continue; }
+                importer.animationType = ModelImporterAnimationType.Legacy;
+                importer.importAnimation = true;
+                importer.materialImportMode = ModelImporterMaterialImportMode.None;
+                importer.animationCompression = ModelImporterAnimationCompression.KeyframeReduction;
+                importer.animationRotationError = 0.6f;
+                importer.animationPositionError = 0.6f;
+                importer.SaveAndReimport();
+                AnimationClip source = null;
+                foreach (UnityEngine.Object asset in AssetDatabase.LoadAllAssetsAtPath(path))
+                    if (asset is AnimationClip clip && !clip.name.StartsWith("__preview__")) source = clip;
+                if (source == null) { Debug.LogError("[Skyforge] NO CLIP IN " + path); continue; }
+                var copy = new AnimationClip { name = name, legacy = true, frameRate = source.frameRate };
+                int kept = 0, dropped = 0;
+                foreach (EditorCurveBinding binding in AnimationUtility.GetCurveBindings(source))
+                {
+                    string bone = prefix.Replace(binding.path, "mixamorig:");
+                    bool hips = bone.EndsWith("mixamorig:Hips");
+                    // Only the hips travel; every other bone keeps the length it has on the model wearing the clip.
+                    if (binding.propertyName.StartsWith("m_LocalScale") || (binding.propertyName.StartsWith("m_LocalPosition") && !hips)) { dropped++; continue; }
+                    EditorCurveBinding to = binding;
+                    to.path = bone;
+                    AnimationUtility.SetEditorCurve(copy, to, AnimationUtility.GetEditorCurve(source, binding));
+                    kept++;
+                }
+                copy.legacy = true;
+                AssetDatabase.CreateAsset(copy, clipDir + "/" + name + ".anim");
+                clips.Add(copy);
+                Debug.Log("[Skyforge] clip " + name + ": " + source.length.ToString("0.00") + "s, curves kept " + kept + ", dropped " + dropped + ", legacy " + source.legacy);
+            }
+            AssetDatabase.SaveAssets();
+
+            // First pass: import, pull the pictures out of the model files and shrink them.
+            var files = new System.Collections.Generic.List<string>();
+            foreach (string file in Directory.GetFiles(chars, "*.fbx")) files.Add(file.Replace('\\', '/'));
+            foreach (string path in files)
+            {
+                string name = Path.GetFileNameWithoutExtension(path);
+                var importer = AssetImporter.GetAtPath(path) as ModelImporter;
+                if (importer == null) { Debug.LogError("[Skyforge] CHARACTER NOT IMPORTED " + path); continue; }
+                importer.animationType = ModelImporterAnimationType.Legacy;
+                importer.importAnimation = false;
+                importer.importBlendShapes = false;
+                importer.importCameras = false;
+                importer.importLights = false;
+                importer.materialImportMode = ModelImporterMaterialImportMode.ImportStandard;
+                importer.meshCompression = ModelImporterMeshCompression.Medium;
+                // Fifty thousand triangles a head is for a close-up; far off, the importer's own lighter versions are drawn.
+                System.Reflection.PropertyInfo lods = typeof(ModelImporter).GetProperty("generateMeshLods");
+                if (lods != null && lods.CanWrite) lods.SetValue(importer, true);
+                else Debug.LogWarning("[Skyforge] this editor cannot make lighter versions of a mesh on import");
+                importer.SaveAndReimport();
+                string pictures = "Assets/Sniper/Mixamo/Tex/" + name;
+                Directory.CreateDirectory(pictures);
+                AssetDatabase.Refresh();
+                bool extracted = importer.ExtractTextures(pictures);
+                AssetDatabase.Refresh();
+                int count = 0;
+                Debug.Log("[Skyforge] realistic " + name + " pictures: " + string.Join(", ", Directory.GetFiles(pictures, "*.*").Where(f => !f.EndsWith(".meta")).Select(Path.GetFileName)));
+                foreach (string picture in Directory.GetFiles(pictures))
+                {
+                    if (picture.EndsWith(".meta")) continue;
+                    var texture = AssetImporter.GetAtPath(picture.Replace('\\', '/')) as TextureImporter;
+                    if (texture == null) continue;
+                    bool normal = picture.ToLowerInvariant().Contains("normal");
+                    texture.maxTextureSize = normal ? 512 : 1024;
+                    if (normal) texture.textureType = TextureImporterType.NormalMap;
+                    texture.mipmapEnabled = true;
+                    texture.SaveAndReimport();
+                    count++;
+                }
+                AssetDatabase.WriteImportSettingsIfDirty(path);
+                AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
+                Debug.Log("[Skyforge] realistic " + name + ": pictures extracted " + extracted + " (" + count + ")");
+            }
+
+            // Which picture each material wears, read out of the model files beforehand (tools: fbxmap.py).
+            var wears = new System.Collections.Generic.Dictionary<string, string[]>();
+            const string table = "Assets/Sniper/mixamo_materials.txt";
+            if (File.Exists(table))
+                foreach (string line in File.ReadAllLines(table))
+                {
+                    string[] cells = line.Split('|');
+                    if (cells.Length >= 5) wears[cells[0] + "|" + cells[1]] = cells;
+                }
+            var painted = new System.Collections.Generic.Dictionary<string, Material>();
+            string paintDir = GeneratedDir + "/Materials";
+            Directory.CreateDirectory(paintDir);
+
+            float sourceHips = 0f;
+            var suit = AssetDatabase.LoadAssetAtPath<GameObject>(chars + "/suit.fbx");
+            if (suit != null)
+                foreach (Transform bone in suit.GetComponentsInChildren<Transform>(true))
+                    if (prefix.Replace(bone.name, "mixamorig:") == "mixamorig:Hips") sourceHips = bone.localPosition.y;
+
+            foreach (string path in files)
+            {
+                string name = Path.GetFileNameWithoutExtension(path);
+                var model = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+                if (model == null) { Debug.LogError("[Skyforge] CHARACTER NOT LOADED " + path); continue; }
+                var instance = (GameObject)UnityEngine.Object.Instantiate(model);
+                instance.name = name;
+                Transform hips = null, right = null, left = null, head = null;
+                foreach (Transform bone in instance.GetComponentsInChildren<Transform>(true))
+                {
+                    bone.name = prefix.Replace(bone.name, "mixamorig:");
+                    if (bone.name == "mixamorig:Hips") hips = bone;
+                    else if (bone.name == "mixamorig:RightHand") right = bone;
+                    else if (bone.name == "mixamorig:LeftHand") left = bone;
+                    else if (bone.name == "mixamorig:Head") head = bone;
+                }
+                var bounds = new Bounds(instance.transform.position, Vector3.zero);
+                int triangles = 0;
+                foreach (SkinnedMeshRenderer skinned in instance.GetComponentsInChildren<SkinnedMeshRenderer>())
+                {
+                    bounds.Encapsulate(skinned.bounds);
+                    skinned.updateWhenOffscreen = true;
+                    if (skinned.sharedMesh != null) triangles += skinned.sharedMesh.triangles.Length / 3;
+                }
+                var report = new System.Text.StringBuilder();
+                foreach (Renderer renderer in instance.GetComponentsInChildren<Renderer>(true))
+                {
+                    Material[] materials = renderer.sharedMaterials;
+                    for (int i = 0; i < materials.Length; i++)
+                    {
+                        if (materials[i] == null) continue;
+                        string plain = materials[i].name.StartsWith(name + "-") ? materials[i].name.Substring(name.Length + 1) : materials[i].name;
+                        string key = name + "|" + plain;
+                        if (!painted.TryGetValue(key, out Material lit))
+                        {
+                            lit = new Material(FindShader("Universal Render Pipeline/Lit"));
+                            lit.SetColor("_BaseColor", Color.white);
+                            lit.SetFloat("_Smoothness", 0.18f);
+                            lit.SetFloat("_Metallic", 0f);
+                            Texture2D Picture(string file)
+                            {
+                                if (string.IsNullOrEmpty(file)) return null;
+                                string wanted = Path.GetFileNameWithoutExtension(file);
+                                foreach (string found in Directory.GetFiles("Assets/Sniper/Mixamo/Tex/" + name))
+                                    if (!found.EndsWith(".meta") && Path.GetFileNameWithoutExtension(found) == wanted) return AssetDatabase.LoadAssetAtPath<Texture2D>(found.Replace('\\', '/'));
+                                return null;
+                            }
+                            if (wears.TryGetValue(key, out string[] cells))
+                            {
+                                Texture2D colour = Picture(cells[2]), relief = Picture(cells[3]);
+                                if (colour != null) lit.SetTexture("_BaseMap", colour);
+                                if (relief != null)
+                                {
+                                    lit.SetTexture("_BumpMap", relief);
+                                    lit.EnableKeyword("_NORMALMAP");
+                                }
+                                if (cells[4] == "1" && colour != null)
+                                {
+                                    // Hair and lashes are drawn on cards: where the picture is clear, nothing is drawn.
+                                    lit.SetFloat("_AlphaClip", 1f);
+                                    lit.SetFloat("_Cutoff", 0.35f);
+                                    lit.EnableKeyword("_ALPHATEST_ON");
+                                    lit.SetFloat("_Cull", 0f);
+                                    lit.renderQueue = 2450;
+                                }
+                                report.Append(" " + plain + (colour != null ? "=" + colour.name + " " + colour.width : "=NO PICTURE " + cells[2]));
+                            }
+                            else report.Append(" " + plain + "=NOT IN TABLE");
+                            AssetDatabase.CreateAsset(lit, paintDir + "/Real_" + System.Text.RegularExpressions.Regex.Replace(key, "[^A-Za-z0-9_]", "_") + ".mat");
+                            painted[key] = lit;
+                        }
+                        materials[i] = lit;
+                    }
+                    renderer.sharedMaterials = materials;
+                }
+                foreach (SkinnedMeshRenderer skinned in instance.GetComponentsInChildren<SkinnedMeshRenderer>())
+                {
+                    System.Reflection.PropertyInfo levels = skinned.sharedMesh != null ? typeof(Mesh).GetProperty("lodCount") : null;
+                    if (levels != null) report.Append(" lods:" + levels.GetValue(skinned.sharedMesh));
+                }
+                Animation player = instance.GetComponent<Animation>();
+                if (player == null) player = instance.AddComponent<Animation>();
+                player.playAutomatically = false;
+                player.cullingType = AnimationCullingType.AlwaysAnimate;
+                var actor = instance.AddComponent<Skyforge.Actor>();
+                actor.Clips = clips.ToArray();
+                actor.Height = Mathf.Max(0.01f, bounds.size.y);
+                actor.Hips = hips;
+                actor.RightHand = right;
+                actor.LeftHand = left;
+                actor.HeadBone = head;
+                actor.HipScale = hips != null && sourceHips > 0.01f ? hips.localPosition.y / sourceHips : 1f;
+                Debug.Log("[Skyforge] realistic " + name + ": size " + bounds.size + ", triangles " + triangles + ", hips " + (hips != null ? hips.localPosition.y.ToString("0.000") : "none") +
+                    " x" + actor.HipScale.ToString("0.00") + ", hands " + (right != null) + "/" + (left != null) + "," + report);
+                PrefabUtility.SaveAsPrefabAsset(instance, dir + "/" + name + ".prefab");
+                UnityEngine.Object.DestroyImmediate(instance);
+            }
+            AssetDatabase.SaveAssets();
+        }
+
+        /// <summary>
         /// Scenery comes as glTF files of every size and with the origin anywhere. Each becomes a
         /// prefab that stands on its own base at its own centre and knows how large it is.
         /// </summary>
@@ -162,6 +383,21 @@ namespace Skyforge.EditorTools
                         colour.a = 1f;
                         lit.SetColor("_BaseColor", colour);
                         if (picture != null) lit.SetTexture("_BaseMap", picture);
+                        if (source.HasProperty("_BumpMap") && source.GetTexture("_BumpMap") != null)
+                        {
+                            lit.SetTexture("_BumpMap", source.GetTexture("_BumpMap"));
+                            lit.EnableKeyword("_NORMALMAP");
+                        }
+                        // Hair and lashes are drawn on cards: where the picture is clear, nothing is drawn.
+                        bool clear = (source.HasProperty("_Surface") && source.GetFloat("_Surface") > 0.5f) || (source.HasProperty("_Mode") && source.GetFloat("_Mode") > 0.5f);
+                        if (clear && picture != null)
+                        {
+                            lit.SetFloat("_AlphaClip", 1f);
+                            lit.SetFloat("_Cutoff", 0.4f);
+                            lit.EnableKeyword("_ALPHATEST_ON");
+                            lit.SetFloat("_Cull", 0f);
+                            lit.renderQueue = 2450;
+                        }
                         lit.SetFloat("_Smoothness", Mathf.Clamp(1f - rough, 0.05f, 0.45f));
                         lit.SetFloat("_Metallic", Mathf.Clamp(metal, 0f, 0.6f));
                         string safe = System.Text.RegularExpressions.Regex.Replace(model + "_" + source.name, "[^A-Za-z0-9_]", "_");
@@ -697,7 +933,7 @@ namespace Skyforge.EditorTools
             ConfigureAudio();
 
             // The ground of each kind of place: a photographed surface with its relief.
-            foreach (string ground in new[] { "asphalt", "concrete", "sand", "snow" })
+            foreach (string ground in new[] { "asphalt", "concrete", "sand", "snow", "grass" })
             {
                 var colour = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Skyforge/Resources/Textures/ground_" + ground + ".jpg");
                 var relief = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Skyforge/Resources/Textures/ground_" + ground + "_n.jpg");

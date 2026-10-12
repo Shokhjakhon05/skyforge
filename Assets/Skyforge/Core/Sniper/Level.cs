@@ -78,10 +78,20 @@ namespace Sniper
         public Vector3 MenuEye = new Vector3(30f, 8f, -34f), MenuLook = new Vector3(0f, 2f, 8f);
     }
 
+    /// <summary>What stands there: a person, a board on a range, or a four-legged animal.</summary>
+    public enum Kind { Man, Board, Beast }
+
     public sealed class ActorDef
     {
         public string Id, Model, NameKey;
         public Role Role;
+        public Kind Kind;
+        /// <summary>How tall the model is drawn, in metres.</summary>
+        public float Tall = 1.8f;
+        /// <summary>For an animal: height of its back, length of its body, half its thickness, and how high it carries its head.</summary>
+        public float Shoulder = 1f, Length = 1.3f, Girth = 0.26f, HeadAt = 1.3f;
+        /// <summary>Metres per second when calm and when running; zero for a man's own pace.</summary>
+        public float Pace, Flight;
         /// <summary>Where he walks, in order; one point for a man who stands.</summary>
         public Vector3[] Path;
         /// <summary>Seconds spent at each point of the path before moving on.</summary>
