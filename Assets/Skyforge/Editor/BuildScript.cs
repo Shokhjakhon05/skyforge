@@ -796,7 +796,7 @@ namespace Skyforge.EditorTools
             ConfigureAudio();
 
             // The ground of each kind of place: a photographed surface with its relief.
-            foreach (string ground in new[] { "asphalt", "concrete", "sand", "snow" })
+            foreach (string ground in new[] { "asphalt", "concrete", "sand", "snow", "grass" })
             {
                 var colour = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Skyforge/Resources/Textures/ground_" + ground + ".jpg");
                 var relief = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Skyforge/Resources/Textures/ground_" + ground + "_n.jpg");

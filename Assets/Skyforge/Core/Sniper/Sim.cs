@@ -169,7 +169,7 @@ namespace Sniper
         {
             for (int i = 0; i < _actors.Length; i++)
             {
-                if (_actors[i].Mood != Mood.Calm || _actors[i].Reacting) continue;
+                if (_actors[i].Mood != Mood.Calm || _actors[i].Reacting || Mission.Actors[i].Kind == Kind.Board) continue;
                 if (Flat(_actors[i].Position, at) > radius) continue;
                 _actors[i].Reacting = true;
                 _actors[i].React = delay + (float)_random.NextDouble() * 0.7f;
@@ -203,6 +203,20 @@ namespace Sniper
         // ---------------------------------------------------------------- people
 
         static bool Armed(ActorDef def) => def.Idle != null && def.Idle.StartsWith("Idle_Gun");
+        static string WalkClip(ActorDef def) => def.Kind == Kind.Beast ? "Walk" : Armed(def) ? "Walk_Gun" : "Walk";
+        static string RunClip(ActorDef def) => def.Kind == Kind.Beast ? "Gallop" : Armed(def) ? "Run_Gun" : "Run";
+        static float WalkPace(ActorDef def) => def.Pace > 0f ? def.Pace : WalkSpeed;
+        static float RunPace(ActorDef def) => def.Flight > 0f ? def.Flight : RunSpeed;
+
+        /// <summary>The middle of his head, or of an animal's: where a clean shot goes.</summary>
+        public Vector3 HeadPoint(int index)
+        {
+            ActorDef def = Mission.Actors[index];
+            Vector3 p = _actors[index].Position;
+            if (def.Kind != Kind.Beast) return p + new Vector3(0f, HeadHeight, 0f);
+            float yaw = _actors[index].YawDeg * Mathf.Deg2Rad;
+            return p + new Vector3(Mathf.Sin(yaw), 0f, Mathf.Cos(yaw)) * (def.Length * 0.5f + 0.12f) + new Vector3(0f, def.HeadAt, 0f);
+        }
 
         void SetClip(ref ActorState a, string clip, bool loop)
         {
@@ -218,6 +232,17 @@ namespace Sniper
             ActorDef def = Mission.Actors[index];
             a.ClipTime += dt;
             if (a.Mood == Mood.Dead || a.Mood == Mood.Gone) return;
+
+            if (def.Kind == Kind.Board)
+            {
+                // A board on a rail runs from one end to the other and back, always facing the firing line.
+                if (def.Path == null || def.Path.Length < 2) return;
+                int end = (a.Leg + 1) % def.Path.Length;
+                float yaw = a.YawDeg;
+                if (Walk(ref a, def.Path[end], WalkPace(def), dt)) a.Leg = end;
+                a.YawDeg = yaw;
+                return;
+            }
 
             if (a.Reacting)
             {
@@ -244,8 +269,8 @@ namespace Sniper
                 if (!a.Leaving && def.LeavesAt > 0f && Elapsed >= def.LeavesAt && def.Escape.HasValue) a.Leaving = true;
                 if (a.Leaving)
                 {
-                    if (Walk(ref a, def.Escape.Value, WalkSpeed, dt)) Leave(index);
-                    else SetClip(ref a, Armed(def) ? "Walk_Gun" : "Walk", true);
+                    if (Walk(ref a, def.Escape.Value, WalkPace(def), dt)) Leave(index);
+                    else SetClip(ref a, WalkClip(def), true);
                     return;
                 }
                 if (def.Path == null || def.Path.Length < 2)
@@ -260,8 +285,8 @@ namespace Sniper
                     return;
                 }
                 int next = (a.Leg + 1) % def.Path.Length;
-                SetClip(ref a, Armed(def) ? "Walk_Gun" : "Walk", true);
-                if (!Walk(ref a, def.Path[next], WalkSpeed, dt)) return;
+                SetClip(ref a, WalkClip(def), true);
+                if (!Walk(ref a, def.Path[next], WalkPace(def), dt)) return;
                 a.Leg = next;
                 a.Wait = def.Wait;
                 // A man sent to kill does it where his path ends.
@@ -270,22 +295,22 @@ namespace Sniper
             }
 
             // Alarmed.
-            if (def.Role == Role.Civilian || (def.Escape.HasValue && def.Role != Role.Guard))
+            if (def.Role == Role.Civilian || (def.Escape.HasValue && def.Role != Role.Guard) || (def.Kind == Kind.Beast && !def.Assassin && def.Role != Role.Ally))
             {
                 Vector3 to = def.Escape ?? Away(a.Position);
-                SetClip(ref a, Armed(def) ? "Run_Gun" : "Run", true);
-                if (Walk(ref a, to, RunSpeed, dt)) Leave(index);
+                SetClip(ref a, RunClip(def), true);
+                if (Walk(ref a, to, RunPace(def), dt)) Leave(index);
                 return;
             }
             if (def.Assassin)
             {
-                SetClip(ref a, Armed(def) ? "Run_Gun" : "Run", true);
-                if (Walk(ref a, def.Path[def.Path.Length - 1], RunSpeed, dt)) Strike(index);
+                SetClip(ref a, RunClip(def), true);
+                if (Walk(ref a, def.Path[def.Path.Length - 1], RunPace(def), dt)) Strike(index);
                 return;
             }
             if (def.Role == Role.Ally)
             {
-                SetClip(ref a, "Idle", true);
+                SetClip(ref a, def.Kind == Kind.Beast ? def.Idle : "Idle", true);
                 return;
             }
 
@@ -402,6 +427,21 @@ namespace Sniper
                     if (_actors[i].Mood == Mood.Dead || _actors[i].Mood == Mood.Gone) continue;
                     Vector3 p = _actors[i].Position;
                     if (Flat(p, from) > 4f + (to - from).magnitude) continue;
+                    ActorDef shape = Mission.Actors[i];
+                    if (shape.Kind == Kind.Beast)
+                    {
+                        // An animal lies along the way it faces: a barrel of a body on four legs, the head out in front.
+                        float turn = _actors[i].YawDeg * Mathf.Deg2Rad;
+                        Vector3 along = new Vector3(Mathf.Sin(turn), 0f, Mathf.Cos(turn)) * (shape.Length * 0.5f - shape.Girth);
+                        Vector3 back = p + new Vector3(0f, shape.Shoulder - shape.Girth, 0f);
+                        float h = SegmentSphere(from, to, HeadPoint(i), shape.Girth * 0.62f);
+                        if (h < best) { best = h; hitActor = i; hitCover = -1; zone = Zone.Head; }
+                        h = SegmentCapsule(from, to, back - along, back + along, shape.Girth);
+                        if (h < best) { best = h; hitActor = i; hitCover = -1; zone = Zone.Body; }
+                        h = SegmentCapsule(from, to, p + new Vector3(0f, 0.08f, 0f), p + new Vector3(0f, Mathf.Max(0.1f, shape.Shoulder - shape.Girth * 2f), 0f), shape.Girth * 0.8f);
+                        if (h < best) { best = h; hitActor = i; hitCover = -1; zone = Zone.Legs; }
+                        continue;
+                    }
                     float t = SegmentSphere(from, to, p + new Vector3(0f, HeadHeight, 0f), HeadRadius);
                     if (t < best) { best = t; hitActor = i; hitCover = -1; zone = Zone.Head; }
                     t = SegmentCapsule(from, to, p + new Vector3(0f, 1.0f, 0f), p + new Vector3(0f, 1.42f, 0f), BodyRadius);
@@ -508,8 +548,8 @@ namespace Sniper
             a.Headshot = zone == Zone.Head;
             a.Reacting = false;
             // He goes down the way he was hit: dropped by the head, folded by the legs, thrown back or forward by the chest.
-            SetClip(ref a, zone == Zone.Head ? "Death_Head" : zone == Zone.Legs ? "Death_Knees" : (index + Kills) % 2 == 0 ? "Death_Back" : "Death", false);
             ActorDef def = Mission.Actors[index];
+            SetClip(ref a, def.Kind != Kind.Man ? "Death" : zone == Zone.Head ? "Death_Head" : zone == Zone.Legs ? "Death_Knees" : (index + Kills) % 2 == 0 ? "Death_Back" : "Death", false);
             Events.Add(new SimEvent { Type = def.Role == Role.Ally ? SimEventType.AllyDown : SimEventType.Kill, Actor = index, Zone = zone, Position = at });
             if (def.Role == Role.Civilian) Lose(LostWhy.Civilian);
             else if (def.Role == Role.Ally) Lose(LostWhy.AllyDown);
